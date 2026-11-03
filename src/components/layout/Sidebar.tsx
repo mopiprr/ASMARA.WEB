@@ -110,33 +110,39 @@ function Sidebar({
         }`}
       >
         {/* Logo */}
-        <div className="flex h-20 items-center justify-between border-b border-slate-800 px-5">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-lg font-bold">
-              A
+        <div className="flex min-h-[155px] shrink-0 flex-col items-center justify-center gap-2 border-b border-slate-800 px-3 py-5">
+        <img
+            src="/images/asmara-logo.png"
+            alt="ASMARA Logo"
+            className={`shrink-0 object-contain ${
+                collapsed ? 'h-12 w-12' : 'h-[120px] w-[120px]'
+            }`}
+        />
+
+        {!collapsed && (
+            <div className="text-center">
+            <p className="text-xl font-bold tracking-wide">
+                ASMARA
+            </p>
+
+            <p className="text-[11px] tracking-[0.2em] text-slate-300">
+                ASSET MANAGEMENT
+            </p>
+
+            <p className="text-[11px] tracking-[0.2em] text-slate-300">
+                SARANA
+            </p>
             </div>
+        )}
 
-            {!collapsed && (
-              <div className="min-w-0">
-                <p className="text-lg font-bold tracking-wide">
-                  ASMARA
-                </p>
-                <p className="text-[10px] tracking-[0.18em] text-slate-400">
-                  ASSET MANAGEMENT
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Close Mobile */}
-          <button
+        <button
             type="button"
             onClick={onCloseMobile}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 lg:hidden"
+            className="absolute right-3 top-3 rounded-lg p-1 text-slate-400 hover:bg-slate-800 lg:hidden"
             aria-label="Tutup sidebar"
-          >
+        >
             <X size={20} />
-          </button>
+        </button>
         </div>
 
         {/* Navigation */}
