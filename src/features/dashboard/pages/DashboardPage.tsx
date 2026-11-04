@@ -1,15 +1,18 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Boxes,
-  Wrench,
-  Package,
+  Ticket,
+  Clock,
   CheckCircle2,
-  AlertCircle,
+  XCircle,
   CalendarDays,
-  MoreHorizontal,
-  ArrowUpRight,
+  AlertCircle,
   UserRound,
+  MoreHorizontal,
+  Activity,
+  Hourglass,
+  CheckCheck,
+  Package,
 } from 'lucide-react';
 
 interface DashboardResponse {
@@ -35,43 +38,17 @@ interface DashboardResponse {
     employeeName: string | null;
     status: string;
   }[];
+  recentTickets: {
+    id: string;
+    ticketNumber: string;
+    subject: string;
+    ticketType: string;
+    createdAt: string;
+  }[];
 }
 
 const API_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:5243';
-
-const assetStatus = [
-  {
-    name: 'Available',
-    key: 'available' as const,
-    color: 'bg-blue-600',
-    hex: '#2563eb',
-  },
-  {
-    name: 'In Use',
-    key: 'inUse' as const,
-    color: 'bg-violet-500',
-    hex: '#8b5cf6',
-  },
-  {
-    name: 'Under Maintenance',
-    key: 'underMaintenance' as const,
-    color: 'bg-amber-500',
-    hex: '#f59e0b',
-  },
-  {
-    name: 'Disposed',
-    key: 'disposed' as const,
-    color: 'bg-red-500',
-    hex: '#ef4444',
-  },
-  {
-    name: 'Archived',
-    key: 'archived' as const,
-    color: 'bg-emerald-500',
-    hex: '#10b981',
-  },
-];
 
 function getAccessToken() {
   return (
@@ -80,8 +57,70 @@ function getAccessToken() {
   );
 }
 
+// Role priority: semakin tinggi nilainya, semakin tinggi prioritasnya.
+const rolePriority: Record<string, number> = {
+  'ROL-03': 3, // Division Manager
+  'ROL-02': 2, // Department Manager
+  'ROL-01': 1, // Employee
+};
+
+// Mapping kode role ke nama role.
+const roleNames: Record<string, string> = {
+  'ROL-01': 'Employee',
+  'ROL-02': 'Department Manager',
+  'ROL-03': 'Division Manager',
+  'ROL-04': 'Finance',
+  'ROL-05': 'Purchasing',
+  'ROL-06': 'Inventory',
+  'ROL-07': 'Department IT Support',
+  'ROL-08': 'Maintenance Handler',
+};
+
+// Mengambil role dengan prioritas tertinggi.
+function getPrimaryRole(roles: string[]) {
+  if (!roles || roles.length === 0) {
+    return 'Employee';
+  }
+
+  const sortedRoles = [...roles].sort((a, b) => {
+    const priorityA = rolePriority[a.toUpperCase()] ?? 0;
+    const priorityB = rolePriority[b.toUpperCase()] ?? 0;
+
+    return priorityB - priorityA;
+  });
+
+  const primaryRole = sortedRoles[0].toUpperCase();
+
+  return roleNames[primaryRole] || sortedRoles[0];
+}
+
+// Menentukan warna badge berdasarkan status asset.
+function getAssetStatusStyle(status: string) {
+  switch (status.toLowerCase()) {
+    case 'available':
+      return 'bg-emerald-100 text-emerald-700';
+
+    case 'in use':
+      return 'bg-blue-100 text-blue-700';
+
+    case 'under maintenance':
+      return 'bg-amber-100 text-amber-700';
+
+    case 'disposed':
+      return 'bg-red-100 text-red-700';
+
+    case 'archived':
+      return 'bg-slate-200 text-slate-700';
+
+    default:
+      return 'bg-slate-100 text-slate-600';
+  }
+}
+
 function DashboardPage() {
-  const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
+  const [dashboard, setDashboard] =
+    useState<DashboardResponse | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -96,24 +135,33 @@ function DashboardPage() {
         const token = getAccessToken();
 
         if (!token) {
-          throw new Error('Session login tidak ditemukan. Silakan login kembali.');
+          throw new Error(
+            'Session login tidak ditemukan. Silakan login kembali.',
+          );
         }
 
-        const response = await fetch(`${API_URL}/api/dashboard/summary`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
+        const response = await fetch(
+          `${API_URL}/api/dashboard/summary`,
+          {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            signal: controller.signal,
           },
-          signal: controller.signal,
-        });
+        );
 
         if (response.status === 401) {
-          throw new Error('Sesi login telah berakhir. Silakan login kembali.');
+          throw new Error(
+            'Sesi login telah berakhir. Silakan login kembali.',
+          );
         }
 
         if (!response.ok) {
-          throw new Error('Gagal mengambil data dashboard dari server.');
+          throw new Error(
+            'Gagal mengambil data dashboard dari server.',
+          );
         }
 
         const result: DashboardResponse = await response.json();
@@ -140,71 +188,78 @@ function DashboardPage() {
     return () => controller.abort();
   }, []);
 
-  const statistics = useMemo(() => {
-    if (!dashboard) return [];
-
+  // Ticket Statistics
+  // Nilai sementara sampai statistik ticket tersedia dari backend.
+  const ticketStatistics = useMemo(() => {
     return [
       {
-        title: 'Total Assets',
-        value: dashboard.statistics.totalAssets,
-        description: 'Total registered assets',
-        icon: Boxes,
-        iconStyle: 'bg-blue-100 text-blue-600',
+        title: 'Total Tickets',
+        value: 0,
+        description: 'All tickets submitted',
+        icon: Ticket,
+        style: 'bg-blue-100 text-blue-600',
       },
       {
-        title: 'Available Assets',
-        value: dashboard.statistics.available,
-        description: 'Ready to be assigned',
-        icon: Package,
-        iconStyle: 'bg-green-100 text-green-600',
+        title: 'Pending Approval',
+        value: 0,
+        description: 'Waiting for manager approval',
+        icon: Clock,
+        style: 'bg-amber-100 text-amber-600',
       },
       {
-        title: 'Assets In Use',
-        value: dashboard.statistics.inUse,
-        description: 'Currently assigned',
-        icon: UserRound,
-        iconStyle: 'bg-purple-100 text-purple-600',
+        title: 'In Progress',
+        value: 0,
+        description: 'Tickets being handled',
+        icon: Activity,
+        style: 'bg-violet-100 text-violet-600',
       },
       {
-        title: 'Under Maintenance',
-        value: dashboard.statistics.underMaintenance,
-        description: 'Currently being repaired',
-        icon: Wrench,
-        iconStyle: 'bg-orange-100 text-orange-600',
+        title: 'Completed',
+        value: 0,
+        description: 'Resolved and closed tickets',
+        icon: CheckCircle2,
+        style: 'bg-emerald-100 text-emerald-600',
       },
     ];
-  }, [dashboard]);
+  }, []);
 
-  const chartData = useMemo(() => {
-    if (!dashboard) return [];
-
-    const total = dashboard.statistics.totalAssets;
-
-    return assetStatus.map((status) => {
-      const count = dashboard.statistics[status.key];
-
-      return {
-        ...status,
-        count,
-        percent: total > 0 ? (count / total) * 100 : 0,
-      };
-    });
-  }, [dashboard]);
-
-  const chartGradient = useMemo(() => {
-    if (!chartData.length) return 'conic-gradient(#e2e8f0 0% 100%)';
-
-    let currentPercent = 0;
-
-    const segments = chartData.map((item) => {
-      const start = currentPercent;
-      currentPercent += item.percent;
-
-      return `${item.hex} ${start}% ${currentPercent}%`;
-    });
-
-    return `conic-gradient(${segments.join(', ')})`;
-  }, [chartData]);
+  const ticketStatus = [
+    {
+      label: 'Pending Approval',
+      value: 0,
+      color: 'bg-amber-500',
+      textColor: 'text-amber-600',
+      icon: Clock,
+    },
+    {
+      label: 'Approved',
+      value: 0,
+      color: 'bg-blue-500',
+      textColor: 'text-blue-600',
+      icon: CheckCircle2,
+    },
+    {
+      label: 'In Progress',
+      value: 0,
+      color: 'bg-violet-500',
+      textColor: 'text-violet-600',
+      icon: Activity,
+    },
+    {
+      label: 'Resolved',
+      value: 0,
+      color: 'bg-emerald-500',
+      textColor: 'text-emerald-600',
+      icon: CheckCheck,
+    },
+    {
+      label: 'Rejected',
+      value: 0,
+      color: 'bg-red-500',
+      textColor: 'text-red-600',
+      icon: XCircle,
+    },
+  ];
 
   const currentDate = new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
@@ -253,6 +308,7 @@ function DashboardPage() {
 
   return (
     <div className="space-y-8">
+
       {/* Page Heading */}
       <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
@@ -261,12 +317,12 @@ function DashboardPage() {
           </p>
 
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-800 sm:text-3xl">
-            Dashboard
+            Ticket Dashboard
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            Welcome back, {dashboard.profile.fullName}! Here's your
-            organization's asset overview.
+            Welcome back, {dashboard.profile.fullName}!
+            Here's your ticket activity overview.
           </p>
         </div>
 
@@ -277,207 +333,259 @@ function DashboardPage() {
       </section>
 
       {/* User Profile */}
-      <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
-            <UserRound size={28} />
+      <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
+          <UserRound size={28} />
+        </div>
+
+        <div className="flex-1">
+          <h2 className="font-bold text-slate-800">
+            {dashboard.profile.fullName}
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            {dashboard.profile.employeeNumber} · {dashboard.profile.email}
+          </p>
+
+          <div className="mt-2 flex flex-wrap gap-2">
+            {dashboard.profile.roles.map((role) => (
+              <span
+                key={role}
+                className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700"
+              >
+                {role}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-blue-50 px-4 py-3">
+          <p className="text-xs font-medium text-blue-600">
+            Your Role
+          </p>
+          <p className="mt-1 text-sm font-bold text-blue-800">
+            {getPrimaryRole(dashboard.profile.roles)}
+          </p>
+        </div>
+      </section>
+
+      {/* Ticket Statistics */}
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">
+              Ticket Statistics
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Overview of your submitted tickets
+            </p>
           </div>
 
-          <div>
-            <h2 className="font-bold text-slate-800">
-              {dashboard.profile.fullName}
-            </h2>
+          <Ticket size={22} className="text-blue-600" />
+        </div>
 
-            <p className="mt-1 text-sm text-slate-500">
-              {dashboard.profile.employeeNumber} · {dashboard.profile.email}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          {ticketStatistics.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+              >
+                <div className="flex items-start justify-between">
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl ${item.style}`}
+                  >
+                    <Icon size={23} />
+                  </div>
+
+                  <MoreHorizontal size={20} className="text-slate-400" />
+                </div>
+
+                <p className="mt-5 text-sm font-medium text-slate-500">
+                  {item.title}
+                </p>
+
+                <h3 className="mt-2 text-3xl font-bold text-slate-800">
+                  {item.value.toLocaleString('en-US')}
+                </h3>
+
+                <p className="mt-2 text-xs text-slate-400">
+                  {item.description}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Ticket Status Overview */}
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
+          <h2 className="text-lg font-bold text-slate-800">
+            Ticket Status Overview
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Distribution of tickets by current status
+          </p>
+
+          <div className="mt-8 flex flex-col items-center gap-8 sm:flex-row">
+            <div className="relative flex h-48 w-48 shrink-0 items-center justify-center rounded-full bg-slate-100">
+              <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full bg-white">
+                <span className="text-3xl font-bold text-slate-800">
+                  0
+                </span>
+                <span className="text-xs text-slate-400">
+                  Total Tickets
+                </span>
+              </div>
+            </div>
+
+            <div className="w-full space-y-5">
+              {ticketStatus.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <div key={item.label}>
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icon size={16} className={item.textColor} />
+                        <span className="text-sm text-slate-600">
+                          {item.label}
+                        </span>
+                      </div>
+
+                      <span className="text-sm font-semibold text-slate-800">
+                        {item.value}
+                      </span>
+                    </div>
+
+                    <div className="h-2 rounded-full bg-slate-100">
+                      <div
+                        className={`h-full w-0 rounded-full ${item.color}`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Approval Summary */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+              <Hourglass size={22} />
+            </div>
+
+            <div>
+              <h2 className="font-bold text-slate-800">
+                Approval Summary
+              </h2>
+              <p className="text-xs text-slate-500">
+                Ticket approval status
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-7 rounded-xl bg-amber-50 p-5">
+            <p className="text-sm font-medium text-amber-700">
+              Waiting for Approval
             </p>
 
-            <div className="mt-2 flex flex-wrap gap-2">
-              {dashboard.profile.roles.map((role) => (
-                <span
-                  key={role}
-                  className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700"
-                >
-                  {role}
-                </span>
-              ))}
-            </div>
+            <p className="mt-2 text-3xl font-bold text-amber-800">
+              0
+            </p>
+
+            <p className="mt-2 text-xs leading-relaxed text-amber-700">
+              Tickets waiting for your manager's approval will appear here.
+            </p>
+          </div>
+
+          <div className="mt-4 rounded-xl bg-emerald-50 p-5">
+            <p className="text-sm font-medium text-emerald-700">
+              Approved Tickets
+            </p>
+
+            <p className="mt-2 text-3xl font-bold text-emerald-800">
+              0
+            </p>
+
+            <p className="mt-2 text-xs text-emerald-700">
+              Tickets that have passed approval.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Statistics */}
-      <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {statistics.map((item) => {
-          const Icon = item.icon;
+      {/* Assets Statistics */}
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">
+              Assets Statistics
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Overview of company assets
+            </p>
+          </div>
 
-          return (
-            <div
-              key={item.title}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-            >
-              <div className="flex items-start justify-between">
+          <Package size={22} className="text-blue-600" />
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            {
+              title: 'Total Assets',
+              value: dashboard.statistics.totalAssets,
+              icon: Package,
+              style: 'bg-blue-100 text-blue-600',
+            },
+            {
+              title: 'Available Assets',
+              value: dashboard.statistics.available,
+              icon: CheckCircle2,
+              style: 'bg-emerald-100 text-emerald-600',
+            },
+            {
+              title: 'Assets In Use',
+              value: dashboard.statistics.inUse,
+              icon: UserRound,
+              style: 'bg-violet-100 text-violet-600',
+            },
+            {
+              title: 'Under Maintenance',
+              value: dashboard.statistics.underMaintenance,
+              icon: AlertCircle,
+              style: 'bg-amber-100 text-amber-600',
+            },
+          ].map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+              >
                 <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-xl ${item.iconStyle}`}
+                  className={`flex h-12 w-12 items-center justify-center rounded-xl ${item.style}`}
                 >
                   <Icon size={23} />
                 </div>
 
-                <MoreHorizontal size={20} className="text-slate-400" />
+                <p className="mt-5 text-sm font-medium text-slate-500">
+                  {item.title}
+                </p>
+
+                <h3 className="mt-2 text-3xl font-bold text-slate-800">
+                  {item.value.toLocaleString('en-US')}
+                </h3>
               </div>
-
-              <p className="mt-5 text-sm font-medium text-slate-500">
-                {item.title}
-              </p>
-
-              <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-800">
-                {item.value.toLocaleString('en-US')}
-              </h2>
-
-              <p className="mt-2 text-xs text-slate-400">
-                {item.description}
-              </p>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* Asset Overview */}
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">
-              Asset Overview
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Asset distribution by status
-            </p>
-          </div>
-
-          <div className="mt-8 flex flex-col items-center gap-8 sm:flex-row">
-            {/* Donut Chart */}
-            <div
-              className="relative flex h-48 w-48 shrink-0 items-center justify-center rounded-full"
-              style={{ background: chartGradient }}
-            >
-              <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full bg-white">
-                <span className="text-3xl font-bold text-slate-800">
-                  {dashboard.statistics.totalAssets.toLocaleString('en-US')}
-                </span>
-
-                <span className="text-xs text-slate-400">
-                  Total Assets
-                </span>
-              </div>
-            </div>
-
-            {/* Chart Legend */}
-            <div className="w-full space-y-5">
-              {chartData.map((item) => (
-                <div key={item.name}>
-                  <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${item.color}`} />
-                      <span className="text-slate-600">
-                        {item.name}
-                      </span>
-                    </div>
-
-                    <span className="font-semibold text-slate-800">
-                      {item.count.toLocaleString('en-US')} (
-                      {item.percent.toFixed(1)}%)
-                    </span>
-                  </div>
-
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className={`h-full rounded-full ${item.color}`}
-                      style={{ width: `${item.percent}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Asset Status Summary */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-800">
-            Asset Status
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Current asset condition
-          </p>
-
-          <div className="mt-7 space-y-6">
-            {[
-              {
-                label: 'Available',
-                value: dashboard.statistics.available,
-                color: 'bg-blue-500',
-              },
-              {
-                label: 'In Use',
-                value: dashboard.statistics.inUse,
-                color: 'bg-violet-500',
-              },
-              {
-                label: 'Under Maintenance',
-                value: dashboard.statistics.underMaintenance,
-                color: 'bg-amber-500',
-              },
-              {
-                label: 'Disposed',
-                value: dashboard.statistics.disposed,
-                color: 'bg-red-500',
-              },
-              {
-                label: 'Archived',
-                value: dashboard.statistics.archived,
-                color: 'bg-emerald-500',
-              },
-            ].map((item) => {
-              const percentage =
-                dashboard.statistics.totalAssets > 0
-                  ? (item.value / dashboard.statistics.totalAssets) * 100
-                  : 0;
-
-              return (
-                <div key={item.label}>
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm text-slate-600">
-                      {item.label}
-                    </span>
-
-                    <span className="text-sm font-bold text-slate-800">
-                      {item.value}
-                    </span>
-                  </div>
-
-                  <div className="h-2 rounded-full bg-slate-100">
-                    <div
-                      className={`h-full rounded-full ${item.color}`}
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-8 rounded-xl bg-blue-50 p-4">
-            <p className="text-sm font-semibold text-blue-800">
-              Asset Overview
-            </p>
-
-            <p className="mt-1 text-xs leading-relaxed text-blue-600">
-              There are {dashboard.statistics.totalAssets} registered
-              assets in the system.
-            </p>
-          </div>
+            );
+          })}
         </div>
       </section>
 
@@ -490,77 +598,77 @@ function DashboardPage() {
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Latest registered assets
+              Latest registered company assets
             </p>
           </div>
 
-          <button
-            type="button"
-            className="text-sm font-semibold text-blue-600 hover:text-blue-700"
-          >
-            View All
-          </button>
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+            <Package size={22} />
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[650px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
               <tr>
-                <th className="px-6 py-4 font-semibold">Asset Tag</th>
-                <th className="px-6 py-4 font-semibold">Asset Name</th>
-                <th className="px-6 py-4 font-semibold">Assigned To</th>
-                <th className="px-6 py-4 font-semibold">Status</th>
+                <th className="px-6 py-4 font-semibold">
+                  Asset Tag
+                </th>
+                <th className="px-6 py-4 font-semibold">
+                  Asset Name
+                </th>
+                <th className="px-6 py-4 font-semibold">
+                  Assigned To
+                </th>
+                <th className="px-6 py-4 font-semibold">
+                  Status
+                </th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-100">
-              {dashboard.recentAssets.length > 0 ? (
-                dashboard.recentAssets.map((asset) => {
-                  const statusStyle: Record<string, string> = {
-                    Available: 'bg-blue-100 text-blue-700',
-                    'In Use': 'bg-green-100 text-green-700',
-                    'Under Maintenance': 'bg-amber-100 text-amber-700',
-                    Disposed: 'bg-red-100 text-red-700',
-                    Archived: 'bg-slate-100 text-slate-700',
-                  };
+              {dashboard.recentAssets?.length > 0 ? (
+                dashboard.recentAssets.map((asset) => (
+                  <tr
+                    key={asset.id}
+                    className="transition hover:bg-slate-50"
+                  >
+                    <td className="px-6 py-4 font-semibold text-blue-600">
+                      {asset.assetTag}
+                    </td>
 
-                  return (
-                    <tr
-                      key={asset.id}
-                      className="transition hover:bg-slate-50"
-                    >
-                      <td className="px-6 py-4 font-semibold text-slate-800">
-                        {asset.assetTag}
-                      </td>
+                    <td className="px-6 py-4 font-medium text-slate-700">
+                      {asset.itemName}
+                    </td>
 
-                      <td className="px-6 py-4 text-slate-600">
-                        {asset.itemName}
-                      </td>
+                    <td className="px-6 py-4 text-slate-500">
+                      {asset.employeeName || 'Unassigned'}
+                    </td>
 
-                      <td className="px-6 py-4 text-slate-600">
-                        {asset.employeeName || '-'}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <span
-                          className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                            statusStyle[asset.status] ||
-                            'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          {asset.status}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${getAssetStatusStyle(asset.status)}`}
+                      >
+                        {asset.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
               ) : (
                 <tr>
-                  <td
-                    colSpan={4}
-                    className="px-6 py-10 text-center text-slate-400"
-                  >
-                    No assets found.
+                  <td colSpan={4} className="px-6 py-12 text-center">
+                    <Package
+                      size={36}
+                      className="mx-auto mb-3 text-slate-300"
+                    />
+
+                    <p className="font-semibold text-slate-600">
+                      No assets available
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-400">
+                      Registered assets will appear here.
+                    </p>
                   </td>
                 </tr>
               )}
@@ -568,6 +676,7 @@ function DashboardPage() {
           </table>
         </div>
       </section>
+
     </div>
   );
 }
