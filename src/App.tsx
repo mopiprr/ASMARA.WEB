@@ -8,6 +8,8 @@ import {
 import LoginPage from './features/auth/pages/LoginPage';
 import MainLayout from './components/layout/MainLayout';
 import DashboardPage from './features/dashboard/pages/DashboardPage';
+import MyProfilePage from './features/profile/pages/MyProfilePage';
+import SettingsPage from './features/settings/pages/SettingsPage';
 
 function App() {
   return (
@@ -18,10 +20,9 @@ function App() {
 
         {/* Main Application */}
         <Route element={<MainLayout />}>
-          <Route
-            path="/dashboard"
-            element={<DashboardPage />}
-          />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/profile" element={<MyProfilePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Route>
 
         {/* Redirect unknown routes */}

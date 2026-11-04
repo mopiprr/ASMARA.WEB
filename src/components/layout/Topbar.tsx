@@ -208,7 +208,10 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
 
                 <button
                   type="button"
-                  onClick={() => setProfileOpen(false)}
+                  onClick={() => {
+                    setProfileOpen(false);
+                    navigate('/profile');
+                  }}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-600 transition hover:bg-slate-50"
                 >
                   <User size={17} />
@@ -217,7 +220,10 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
 
                 <button
                   type="button"
-                  onClick={() => setProfileOpen(false)}
+                  onClick={() => {
+                    setProfileOpen(false);
+                    navigate('/settings');
+                  }}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-600 transition hover:bg-slate-50"
                 >
                   <Settings size={17} />
