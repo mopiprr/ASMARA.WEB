@@ -10,6 +10,7 @@ import MainLayout from './components/layout/MainLayout';
 import DashboardPage from './features/dashboard/pages/DashboardPage';
 import MyProfilePage from './features/profile/pages/MyProfilePage';
 import SettingsPage from './features/settings/pages/SettingsPage';
+import ProcurementPage from './features/procurement/pages/ProcurementPage';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/profile" element={<MyProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/procurement" element={<ProcurementPage />} />
         </Route>
 
         {/* Redirect unknown routes */}
