@@ -1,23 +1,104 @@
 
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, LockKeyhole, UserRound } from 'lucide-react';
 
+interface LoginResponse {
+  accessToken: string;
+  expiresAt: string;
+  user: {
+    accountId: string;
+    employeeId: string;
+    employeeNumber: string;
+    fullName: string;
+    email: string;
+    roles: {
+      id: number;
+      roleCode: string;
+      roleName: string;
+    }[];
+  };
+}
+
 function LoginForm() {
+  const navigate = useNavigate();
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const API_URL =
+    import.meta.env.VITE_API_BASE_URL || 'http://localhost:5243';
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    console.log({
-      username,
-      password,
-      rememberMe,
-    });
+    setErrorMessage('');
+    setIsLoading(true);
 
-    alert('Tampilan login siap. Integrasi autentikasi API akan dibuat berikutnya.');
+    try {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: username.trim(),
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+          data.title ||
+          'Email atau password tidak valid.'
+        );
+      }
+
+      const result: LoginResponse = data;
+
+      // Bersihkan sesi sebelumnya
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('user');
+
+      sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('user');
+
+      // Simpan sesi berdasarkan Remember Me
+      const storage = rememberMe ? localStorage : sessionStorage;
+
+      storage.setItem('accessToken', result.accessToken);
+      storage.setItem('user', JSON.stringify(result.user));
+
+      // Beri tahu aplikasi bahwa login berhasil
+      window.dispatchEvent(new Event('auth-changed'));
+
+      console.log('Login berhasil:', result.user);
+
+      // Redirect ke Dashboard
+      navigate('/dashboard', { replace: true });
+
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setErrorMessage(
+          'Tidak dapat terhubung ke server. Pastikan backend ASMARA sedang berjalan.'
+        );
+      } else {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : 'Terjadi kesalahan saat login.'
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -64,8 +145,12 @@ function LoginForm() {
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
-            aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-            >
+            aria-label={
+              showPassword
+                ? 'Sembunyikan password'
+                : 'Tampilkan password'
+            }
+          >
             {showPassword ? (
               <EyeOff className="h-5 w-5" />
             ) : (
@@ -74,6 +159,12 @@ function LoginForm() {
           </button>
         </div>
       </div>
+
+      {errorMessage && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {errorMessage}
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
@@ -89,9 +180,10 @@ function LoginForm() {
 
       <button
         type="submit"
-        className="w-full rounded-xl bg-blue-700 py-3.5 font-semibold text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-800 active:scale-[0.99]"
+        disabled={isLoading}
+        className="w-full rounded-xl bg-blue-700 py-3.5 font-semibold text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
       >
-        Login
+        {isLoading ? 'Signing in...' : 'Login'}
       </button>
     </form>
   );
