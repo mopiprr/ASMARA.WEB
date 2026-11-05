@@ -1,14 +1,17 @@
+
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, ClipboardList, Clock } from 'lucide-react';
 
 import ProcurementHeader from '../components/ProcurementHeader';
 import ProcurementStatistics from '../components/ProcurementStatistics';
 import ProcurementTable from '../components/ProcurementTable';
+import PendingProcurementTable from '../components/PendingProcurementTable';
 import ProcurementModal from '../components/ProcurementModal';
 import ProcurementDetailModal from '../components/ProcurementDetailModal';
 
 import { useProcurementTickets } from '../hooks/useProcurementTickets';
+import { usePendingProcurementTickets } from '../hooks/usePendingProcurementTickets';
 import { useProcurementForm } from '../hooks/useProcurementForm';
 import { useProcurementActions } from '../hooks/useProcurementActions';
 import { useInventoryOptions } from '../hooks/useInventoryOptions';
@@ -16,7 +19,11 @@ import { useInventoryOptions } from '../hooks/useInventoryOptions';
 import type {
   ProcurementLocationState,
   ProcurementTicket,
+  PendingProcurementTicket,
+  ResubmitProcurementPayload,
 } from '../types/procurement.types';
+
+type ProcurementTab = 'requests' | 'pending';
 
 function ProcurementPage() {
   const location = useLocation();
@@ -27,10 +34,17 @@ function ProcurementPage() {
   const parentTicketId = locationState?.parentTicketId ?? null;
 
   // PAGE STATE
+  const [activeTab, setActiveTab] =
+    useState<ProcurementTab>('requests');
+
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [selectedTicket, setSelectedTicket] =
     useState<ProcurementTicket | null>(null);
+
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+
+  const [pendingDetailError, setPendingDetailError] = useState('');
 
   // PROCUREMENT TICKETS
   const {
@@ -40,6 +54,32 @@ function ProcurementPage() {
     fetchTickets,
   } = useProcurementTickets();
 
+  // PENDING PROCUREMENT TICKETS
+  const {
+    tickets: pendingTickets,
+    isLoading: isLoadingPending,
+    error: pendingError,
+
+    search: pendingSearch,
+    setSearch: setPendingSearch,
+
+    page: pendingPage,
+    totalCount: pendingTotalCount,
+    totalPages: pendingTotalPages,
+
+    fetchPendingTickets,
+    fetchPendingTicketById,
+    goToPage: goToPendingPage,
+  } = usePendingProcurementTickets();
+
+  // REFRESH BOTH TABLES
+  const handleRefreshAll = async () => {
+    await Promise.all([
+      fetchTickets(),
+      fetchPendingTickets(),
+    ]);
+  };
+
   // PROCUREMENT ACTIONS
   const {
     isProcessing,
@@ -47,8 +87,9 @@ function ProcurementPage() {
     setActionError,
     executeAction,
     receiveGoods,
+    resubmitProcurement,
   } = useProcurementActions({
-    onSuccess: fetchTickets,
+    onSuccess: handleRefreshAll,
   });
 
   // INVENTORY OPTIONS
@@ -64,7 +105,12 @@ function ProcurementPage() {
   // PROCUREMENT FORM
   const form = useProcurementForm({
     parentTicketId,
-    onSuccess: fetchTickets,
+
+    // CLOSE MODAL AFTER SUCCESSFUL SUBMISSION
+    onSuccess: async () => {
+      await handleRefreshAll();
+      setIsModalOpen(false);
+    },
   });
 
   // CREATE MODAL HANDLERS
@@ -89,7 +135,33 @@ function ProcurementPage() {
   // DETAIL MODAL HANDLERS
   const handleViewTicket = (ticket: ProcurementTicket) => {
     setActionError('');
+    setPendingDetailError('');
     setSelectedTicket(ticket);
+  };
+
+  // PENDING DETAIL HANDLER
+  const handleViewPendingTicket = async (
+    ticket: PendingProcurementTicket
+  ) => {
+    try {
+      setIsLoadingDetail(true);
+      setPendingDetailError('');
+      setActionError('');
+
+      const detail = await fetchPendingTicketById(ticket.id);
+
+      setSelectedTicket(detail);
+    } catch (error: unknown) {
+      console.error('Failed to open pending ticket:', error);
+
+      setPendingDetailError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load procurement ticket detail.'
+      );
+    } finally {
+      setIsLoadingDetail(false);
+    }
   };
 
   const handleCloseDetail = () => {
@@ -97,6 +169,7 @@ function ProcurementPage() {
 
     setSelectedTicket(null);
     setActionError('');
+    setPendingDetailError('');
   };
 
   // APPROVAL ACTION
@@ -122,6 +195,18 @@ function ProcurementPage() {
     return receiveGoods(
       selectedTicket.id,
       note
+    );
+  };
+
+  // RESUBMIT PROCUREMENT
+  const handleResubmit = async (
+    payload: ResubmitProcurementPayload
+  ): Promise<boolean> => {
+    if (!selectedTicket) return false;
+
+    return resubmitProcurement(
+      selectedTicket.id,
+      payload
     );
   };
 
@@ -172,19 +257,120 @@ function ProcurementPage() {
         </div>
       )}
 
+      {/* PENDING DETAIL ERROR */}
+      {pendingDetailError && (
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+          <AlertCircle
+            size={20}
+            className="mt-0.5 shrink-0 text-red-500"
+          />
+
+          <div>
+            <p className="text-sm font-semibold text-red-700">
+              Failed to open pending ticket
+            </p>
+
+            <p className="mt-1 text-xs text-red-600">
+              {pendingDetailError}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* STATISTICS */}
       <ProcurementStatistics
         tickets={tickets}
       />
 
-      {/* PROCUREMENT TABLE */}
-      <ProcurementTable
-        tickets={tickets}
-        isLoading={isLoadingTickets}
-        error={ticketError}
-        onRefresh={fetchTickets}
-        onView={handleViewTicket}
-      />
+      {/* PROCUREMENT TABS */}
+      <div className="space-y-5">
+
+        <div className="flex flex-wrap items-center gap-2 border-b border-gray-200">
+
+          {/* MY REQUESTS TAB */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('requests')}
+            className={`inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition ${
+              activeTab === 'requests'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            <ClipboardList size={17} />
+
+            My Requests
+
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs ${
+                activeTab === 'requests'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {tickets.length}
+            </span>
+          </button>
+
+          {/* PENDING APPROVAL TAB */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('pending')}
+            className={`inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition ${
+              activeTab === 'pending'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            <Clock size={17} />
+
+            Pending Approval
+
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs ${
+                activeTab === 'pending'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {pendingTotalCount}
+            </span>
+          </button>
+        </div>
+
+        {/* MY REQUESTS CONTENT */}
+        {activeTab === 'requests' && (
+          <ProcurementTable
+            tickets={tickets}
+            isLoading={isLoadingTickets}
+            error={ticketError}
+            onRefresh={fetchTickets}
+            onView={handleViewTicket}
+          />
+        )}
+
+        {/* PENDING APPROVAL CONTENT */}
+        {activeTab === 'pending' && (
+          <PendingProcurementTable
+            tickets={pendingTickets}
+            isLoading={isLoadingPending}
+            error={pendingError}
+
+            search={pendingSearch}
+            onSearchChange={setPendingSearch}
+
+            page={pendingPage}
+            totalPages={pendingTotalPages}
+            totalCount={pendingTotalCount}
+
+            onPageChange={goToPendingPage}
+            onRefresh={fetchPendingTickets}
+            onView={handleViewPendingTicket}
+
+            isLoadingDetail={isLoadingDetail}
+          />
+        )}
+      </div>
 
       {/* CREATE PROCUREMENT MODAL */}
       <ProcurementModal
@@ -222,10 +408,12 @@ function ProcurementPage() {
         canRevise={selectedTicket?.canRevise ?? false}
         canReject={selectedTicket?.canReject ?? false}
         canReceiveGoods={selectedTicket?.canReceiveGoods ?? false}
+        canResubmit={selectedTicket?.canResubmit ?? false}
 
         onClose={handleCloseDetail}
         onAction={handleProcurementAction}
         onReceiveGoods={handleReceiveGoods}
+        onResubmit={handleResubmit}
       />
 
     </div>

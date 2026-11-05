@@ -19,9 +19,7 @@ export interface ProcurementItem {
 }
 
 export type CategoryItemsState = Record<string, ItemOption[]>;
-
 export type LoadingState = Record<string, boolean>;
-
 export type ErrorState = Record<string, string>;
 
 export interface ProcurementLocationState {
@@ -32,6 +30,20 @@ export interface ProcurementPayload {
   subject: string;
   description: string;
   parentTicketId: string | null;
+  items: {
+    itemCategoryId: number;
+    itemName: string;
+    quantity: number;
+    price: number;
+    itemId: number | null;
+  }[];
+}
+
+// Payload untuk PUT /api/procurements/{id}/resubmit
+export interface ResubmitProcurementPayload {
+  subject: string;
+  description: string;
+  note: string;
   items: {
     itemCategoryId: number;
     itemName: string;
@@ -78,4 +90,28 @@ export interface ProcurementTicket {
   canRevise: boolean;
   canReject: boolean;
   canReceiveGoods: boolean;
+  canResubmit?: boolean;
+}
+
+export interface PendingProcurementTicket {
+  id: string;
+  ticketNumber: string;
+  ticketType: number;
+  ticketTypeName: string;
+  subject: string;
+  requesterId: string;
+  requesterName: string;
+  createdAt: string;
+  currentStep: string;
+  currentStepName: string;
+}
+
+export interface PagedResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPrevious: boolean;
+  hasNext: boolean;
 }

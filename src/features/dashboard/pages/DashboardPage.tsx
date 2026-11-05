@@ -8,6 +8,8 @@ import {
   CalendarDays,
   AlertCircle,
   UserRound,
+  Building2,
+  ShieldCheck,
   MoreHorizontal,
   Activity,
   Hourglass,
@@ -21,6 +23,7 @@ interface DashboardResponse {
     employeeNumber: string;
     fullName: string;
     email: string;
+    departmentName: string | null;
     roles: string[];
   };
   statistics: {
@@ -59,9 +62,9 @@ function getAccessToken() {
 
 // Role priority: semakin tinggi nilainya, semakin tinggi prioritasnya.
 const rolePriority: Record<string, number> = {
-  'ROL-03': 3, // Division Manager
-  'ROL-02': 2, // Department Manager
-  'ROL-01': 1, // Employee
+  'ROL-03': 3,
+  'ROL-02': 2,
+  'ROL-01': 1,
 };
 
 // Mapping kode role ke nama role.
@@ -165,6 +168,7 @@ function DashboardPage() {
         }
 
         const result: DashboardResponse = await response.json();
+
         setDashboard(result);
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
@@ -272,6 +276,7 @@ function DashboardPage() {
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-center">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
+
           <p className="mt-4 text-sm text-slate-500">
             Loading dashboard...
           </p>
@@ -333,12 +338,14 @@ function DashboardPage() {
       </section>
 
       {/* User Profile */}
-      <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
+      <section className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center">
+
+        {/* Employee Information */}
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
           <UserRound size={28} />
         </div>
 
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h2 className="font-bold text-slate-800">
             {dashboard.profile.fullName}
           </h2>
@@ -347,7 +354,8 @@ function DashboardPage() {
             {dashboard.profile.employeeNumber} · {dashboard.profile.email}
           </p>
 
-          <div className="mt-2 flex flex-wrap gap-2">
+          {/* User Roles */}
+          <div className="mt-3 flex flex-wrap gap-2">
             {dashboard.profile.roles.map((role) => (
               <span
                 key={role}
@@ -359,13 +367,39 @@ function DashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-blue-50 px-4 py-3">
-          <p className="text-xs font-medium text-blue-600">
-            Your Role
-          </p>
-          <p className="mt-1 text-sm font-bold text-blue-800">
-            {getPrimaryRole(dashboard.profile.roles)}
-          </p>
+        {/* Department and Primary Role */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:w-[420px] lg:shrink-0">
+
+          {/* Department */}
+          <div className="rounded-xl bg-blue-50 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Building2 size={17} className="text-blue-600" />
+
+              <p className="text-xs font-medium text-blue-600">
+                Department
+              </p>
+            </div>
+
+            <p className="mt-2 text-sm font-bold text-blue-800">
+              {dashboard.profile.departmentName || 'Department not assigned'}
+            </p>
+          </div>
+
+          {/* Primary Role */}
+          <div className="rounded-xl bg-blue-50 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck size={17} className="text-blue-600" />
+
+              <p className="text-xs font-medium text-blue-600">
+                Primary Role
+              </p>
+            </div>
+
+            <p className="mt-2 text-sm font-bold text-blue-800">
+              {getPrimaryRole(dashboard.profile.roles)}
+            </p>
+          </div>
+
         </div>
       </section>
 
@@ -376,6 +410,7 @@ function DashboardPage() {
             <h2 className="text-lg font-bold text-slate-800">
               Ticket Statistics
             </h2>
+
             <p className="mt-1 text-sm text-slate-500">
               Overview of your submitted tickets
             </p>
@@ -400,7 +435,10 @@ function DashboardPage() {
                     <Icon size={23} />
                   </div>
 
-                  <MoreHorizontal size={20} className="text-slate-400" />
+                  <MoreHorizontal
+                    size={20}
+                    className="text-slate-400"
+                  />
                 </div>
 
                 <p className="mt-5 text-sm font-medium text-slate-500">
@@ -437,6 +475,7 @@ function DashboardPage() {
                 <span className="text-3xl font-bold text-slate-800">
                   0
                 </span>
+
                 <span className="text-xs text-slate-400">
                   Total Tickets
                 </span>
@@ -451,7 +490,11 @@ function DashboardPage() {
                   <div key={item.label}>
                     <div className="mb-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Icon size={16} className={item.textColor} />
+                        <Icon
+                          size={16}
+                          className={item.textColor}
+                        />
+
                         <span className="text-sm text-slate-600">
                           {item.label}
                         </span>
@@ -485,6 +528,7 @@ function DashboardPage() {
               <h2 className="font-bold text-slate-800">
                 Approval Summary
               </h2>
+
               <p className="text-xs text-slate-500">
                 Ticket approval status
               </p>
@@ -528,6 +572,7 @@ function DashboardPage() {
             <h2 className="text-lg font-bold text-slate-800">
               Assets Statistics
             </h2>
+
             <p className="mt-1 text-sm text-slate-500">
               Overview of company assets
             </p>
@@ -614,12 +659,15 @@ function DashboardPage() {
                 <th className="px-6 py-4 font-semibold">
                   Asset Tag
                 </th>
+
                 <th className="px-6 py-4 font-semibold">
                   Asset Name
                 </th>
+
                 <th className="px-6 py-4 font-semibold">
                   Assigned To
                 </th>
+
                 <th className="px-6 py-4 font-semibold">
                   Status
                 </th>
@@ -656,7 +704,10 @@ function DashboardPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center">
+                  <td
+                    colSpan={4}
+                    className="px-6 py-12 text-center"
+                  >
                     <Package
                       size={36}
                       className="mx-auto mb-3 text-slate-300"
