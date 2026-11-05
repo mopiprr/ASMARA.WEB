@@ -1,4 +1,3 @@
-
 export interface CategoryOption {
   id: number;
   categoryName: string;
@@ -73,4 +72,10 @@ export interface ProcurementTicket {
   currentStep: string;
   maintenanceDetail: unknown | null;
   procurementDetails: ProcurementDetail[] | null;
+
+  // Permission dari backend
+  canApprove: boolean;
+  canRevise: boolean;
+  canReject: boolean;
+  canReceiveGoods: boolean;
 }

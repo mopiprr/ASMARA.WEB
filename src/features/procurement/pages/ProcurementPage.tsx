@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
@@ -7,18 +6,17 @@ import ProcurementHeader from '../components/ProcurementHeader';
 import ProcurementStatistics from '../components/ProcurementStatistics';
 import ProcurementTable from '../components/ProcurementTable';
 import ProcurementModal from '../components/ProcurementModal';
+import ProcurementDetailModal from '../components/ProcurementDetailModal';
 
 import { useProcurementTickets } from '../hooks/useProcurementTickets';
 import { useProcurementForm } from '../hooks/useProcurementForm';
+import { useProcurementActions } from '../hooks/useProcurementActions';
 import { useInventoryOptions } from '../hooks/useInventoryOptions';
 
 import type {
   ProcurementLocationState,
+  ProcurementTicket,
 } from '../types/procurement.types';
-
-// ==========================================
-// COMPONENT
-// ==========================================
 
 function ProcurementPage() {
   const location = useLocation();
@@ -26,19 +24,15 @@ function ProcurementPage() {
   const locationState =
     location.state as ProcurementLocationState | null;
 
-  const parentTicketId =
-    locationState?.parentTicketId ?? null;
+  const parentTicketId = locationState?.parentTicketId ?? null;
 
-  // ==========================================
   // PAGE STATE
-  // ==========================================
-
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // ==========================================
-  // PROCUREMENT TICKETS
-  // ==========================================
+  const [selectedTicket, setSelectedTicket] =
+    useState<ProcurementTicket | null>(null);
 
+  // PROCUREMENT TICKETS
   const {
     tickets,
     isLoadingTickets,
@@ -46,32 +40,34 @@ function ProcurementPage() {
     fetchTickets,
   } = useProcurementTickets();
 
-  // ==========================================
+  // PROCUREMENT ACTIONS
+  const {
+    isProcessing,
+    actionError,
+    setActionError,
+    executeAction,
+    receiveGoods,
+  } = useProcurementActions({
+    onSuccess: fetchTickets,
+  });
+
   // INVENTORY OPTIONS
-  // ==========================================
+  const {
+    categories,
+    categoryError,
+    inventoryItemsByCategory,
+    loadingItems,
+    itemErrors,
+    fetchInventoryItems,
+  } = useInventoryOptions();
 
-const {
-  categories,
-  categoryError,
-  inventoryItemsByCategory,
-  loadingItems,
-  itemErrors,
-  fetchInventoryItems,
-} = useInventoryOptions();
-
-  // ==========================================
   // PROCUREMENT FORM
-  // ==========================================
-
   const form = useProcurementForm({
     parentTicketId,
     onSuccess: fetchTickets,
   });
 
-  // ==========================================
-  // MODAL HANDLERS
-  // ==========================================
-
+  // CREATE MODAL HANDLERS
   const handleOpenModal = () => {
     form.resetForm();
     form.setSubmitError('');
@@ -90,10 +86,46 @@ const {
     form.setSubmitSuccess('');
   };
 
-  // ==========================================
-  // ITEM HANDLERS
-  // ==========================================
+  // DETAIL MODAL HANDLERS
+  const handleViewTicket = (ticket: ProcurementTicket) => {
+    setActionError('');
+    setSelectedTicket(ticket);
+  };
 
+  const handleCloseDetail = () => {
+    if (isProcessing) return;
+
+    setSelectedTicket(null);
+    setActionError('');
+  };
+
+  // APPROVAL ACTION
+  const handleProcurementAction = async (
+    action: 'approve' | 'revise' | 'reject',
+    note: string
+  ): Promise<boolean> => {
+    if (!selectedTicket) return false;
+
+    return executeAction(
+      selectedTicket.id,
+      action,
+      note
+    );
+  };
+
+  // PURCHASING ACTION
+  const handleReceiveGoods = async (
+    note: string
+  ): Promise<boolean> => {
+    if (!selectedTicket) return false;
+
+    return receiveGoods(
+      selectedTicket.id,
+      note
+    );
+  };
+
+  // ITEM HANDLERS
   const handleCategoryChange = (
     index: number,
     categoryId: string
@@ -105,19 +137,12 @@ const {
     }
   };
 
-  // ==========================================
   // SUBMIT HANDLER
-  // ==========================================
-
   const handleSubmit = async (
     event: React.FormEvent<HTMLFormElement>
   ) => {
     await form.handleSubmit(event);
   };
-
-  // ==========================================
-  // RENDER
-  // ==========================================
 
   return (
     <div className="space-y-8">
@@ -158,43 +183,49 @@ const {
         isLoading={isLoadingTickets}
         error={ticketError}
         onRefresh={fetchTickets}
-        onView={(ticket) => {
-          console.log('Selected procurement ticket:', ticket);
-        }}
+        onView={handleViewTicket}
       />
 
-      {/* PROCUREMENT MODAL */}
+      {/* CREATE PROCUREMENT MODAL */}
       <ProcurementModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-
         parentTicketId={parentTicketId}
-
         subject={form.subject}
         description={form.description}
         items={form.items}
-
         categories={categories}
         categoryItems={inventoryItemsByCategory}
         isLoadingItems={loadingItems}
         itemErrors={itemErrors}
-
         isSubmitting={form.isSubmitting}
         submitError={form.submitError}
         submitSuccess={form.submitSuccess}
-
         onSubjectChange={form.setSubject}
         onDescriptionChange={form.setDescription}
-
         onCategoryChange={handleCategoryChange}
         onItemChange={form.handleItemChange}
         onToggleManualItem={form.toggleManualItem}
         onFieldChange={form.updateItem}
-
         onAddItem={form.addItem}
         onRemoveItem={form.removeItem}
-
         onSubmit={handleSubmit}
+      />
+
+      {/* PROCUREMENT DETAIL MODAL */}
+      <ProcurementDetailModal
+        ticket={selectedTicket}
+        isProcessing={isProcessing}
+        actionError={actionError}
+
+        canApprove={selectedTicket?.canApprove ?? false}
+        canRevise={selectedTicket?.canRevise ?? false}
+        canReject={selectedTicket?.canReject ?? false}
+        canReceiveGoods={selectedTicket?.canReceiveGoods ?? false}
+
+        onClose={handleCloseDetail}
+        onAction={handleProcurementAction}
+        onReceiveGoods={handleReceiveGoods}
       />
 
     </div>

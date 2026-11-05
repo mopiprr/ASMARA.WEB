@@ -1,7 +1,12 @@
 
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, LockKeyhole, UserRound } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  LockKeyhole,
+  UserRound,
+} from 'lucide-react';
 
 interface LoginResponse {
   accessToken: string;
@@ -46,7 +51,7 @@ function LoginForm() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: username.trim(),
+          username: username.trim(),
           password,
         }),
       });
@@ -57,7 +62,8 @@ function LoginForm() {
         throw new Error(
           data.detail ||
           data.title ||
-          'Email atau password tidak valid.'
+          data.message ||
+          'Username atau password tidak valid.'
         );
       }
 
@@ -103,9 +109,11 @@ function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+
+      {/* USERNAME */}
       <div>
         <label className="mb-2 block text-sm font-semibold text-gray-700">
-          Username / Email
+          Username
         </label>
 
         <div className="relative">
@@ -115,7 +123,7 @@ function LoginForm() {
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Masukkan username atau email"
+            placeholder="Masukkan username"
             required
             autoComplete="username"
             className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3.5 pl-12 pr-4 text-sm outline-none transition focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100"
@@ -123,6 +131,7 @@ function LoginForm() {
         </div>
       </div>
 
+      {/* PASSWORD */}
       <div>
         <label className="mb-2 block text-sm font-semibold text-gray-700">
           Password
@@ -160,12 +169,14 @@ function LoginForm() {
         </div>
       </div>
 
+      {/* ERROR MESSAGE */}
       {errorMessage && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {errorMessage}
         </div>
       )}
 
+      {/* REMEMBER ME */}
       <div className="flex items-center justify-between">
         <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
           <input
@@ -178,6 +189,7 @@ function LoginForm() {
         </label>
       </div>
 
+      {/* LOGIN BUTTON */}
       <button
         type="submit"
         disabled={isLoading}
@@ -185,6 +197,7 @@ function LoginForm() {
       >
         {isLoading ? 'Signing in...' : 'Login'}
       </button>
+
     </form>
   );
 }
