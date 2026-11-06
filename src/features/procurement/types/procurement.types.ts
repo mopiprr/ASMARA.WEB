@@ -81,6 +81,18 @@ export interface ProcurementDetail {
   createdAt: string;
 }
 
+// Data detail history Procurement.
+export interface TicketHistoryItem {
+  action: string | null;  
+  actionLabel: string;    
+  fromStep: string;
+  toStep: string;
+  employeeId: string;
+  employeeName: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
 // Data Procurement untuk halaman detail.
 export interface ProcurementTicket {
   id: string;
@@ -100,6 +112,7 @@ export interface ProcurementTicket {
   currentStep: string;
   maintenanceDetail: unknown | null;
   procurementDetails: ProcurementDetail[] | null;
+  history?: TicketHistoryItem[] | null;
 
   // Permission dari backend.
   canApprove: boolean;

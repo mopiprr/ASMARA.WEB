@@ -22,6 +22,8 @@ import type {
 
 import type { ProcurementAction } from '../hooks/useProcurementActions';
 
+import TicketHistorySection from '../../../components/common/TicketHistorySection';
+
 import { formatIDR } from '../utils/procurement.utils';
 
 interface ProcurementDetailModalProps {
@@ -782,6 +784,8 @@ function ProcurementDetailModal({
               </p>
             </section>
           )}
+
+          <TicketHistorySection history={ticket.history} />
 
           {/* ERROR */}
           {actionError && (
