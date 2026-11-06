@@ -4,7 +4,6 @@ import {
   Ticket,
   Clock,
   CheckCircle2,
-  XCircle,
   CalendarDays,
   AlertCircle,
   UserRound,
@@ -13,42 +12,12 @@ import {
   MoreHorizontal,
   Activity,
   Hourglass,
-  CheckCheck,
   Package,
+  RefreshCw,
+  Filter,
 } from 'lucide-react';
-
-interface DashboardResponse {
-  profile: {
-    employeeId: string;
-    employeeNumber: string;
-    fullName: string;
-    email: string;
-    departmentName: string | null;
-    roles: string[];
-  };
-  statistics: {
-    totalAssets: number;
-    available: number;
-    inUse: number;
-    underMaintenance: number;
-    disposed: number;
-    archived: number;
-  };
-  recentAssets: {
-    id: number;
-    assetTag: string;
-    itemName: string;
-    employeeName: string | null;
-    status: string;
-  }[];
-  recentTickets: {
-    id: string;
-    ticketNumber: string;
-    subject: string;
-    ticketType: string;
-    createdAt: string;
-  }[];
-}
+import { useTicketStatistics } from '../hooks/useTicketStatistics';
+import type { DashboardResponse } from '../types/dashboard.types';
 
 const API_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:5243';
@@ -192,76 +161,95 @@ function DashboardPage() {
     return () => controller.abort();
   }, []);
 
+  // Ticket Statistics Hook
+  const {
+    stats: ticketStats,
+    ticketFilter,
+    setTicketFilter,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    isLoading: isLoadingStats,
+    error: statsError,
+    refetch: refetchStats,
+  } = useTicketStatistics();
+
+  const [showDateFilter, setShowDateFilter] = useState(false);
+
   // Ticket Statistics
-  // Nilai sementara sampai statistik ticket tersedia dari backend.
   const ticketStatistics = useMemo(() => {
+    const filterLabel =
+      ticketFilter === 'maintenance'
+        ? 'Maintenance'
+        : ticketFilter === 'procurement'
+        ? 'Procurement'
+        : 'All';
+
     return [
       {
         title: 'Total Tickets',
-        value: 0,
-        description: 'All tickets submitted',
+        value: ticketStats.totalTickets,
+        description: `Total ${filterLabel.toLowerCase()} tickets in your scope`,
         icon: Ticket,
         style: 'bg-blue-100 text-blue-600',
       },
       {
-        title: 'Pending Approval',
-        value: 0,
-        description: 'Waiting for manager approval',
+        title: 'Pending Action',
+        value: ticketStats.pendingTickets,
+        description: 'Waiting for your action / approval',
         icon: Clock,
         style: 'bg-amber-100 text-amber-600',
       },
       {
         title: 'In Progress',
-        value: 0,
-        description: 'Tickets being handled',
+        value: ticketStats.inProgressTickets,
+        description: 'Tickets currently being processed',
         icon: Activity,
         style: 'bg-violet-100 text-violet-600',
       },
       {
         title: 'Completed',
-        value: 0,
-        description: 'Resolved and closed tickets',
+        value: ticketStats.completedTickets,
+        description: 'Resolved and completed tickets',
         icon: CheckCircle2,
         style: 'bg-emerald-100 text-emerald-600',
       },
     ];
-  }, []);
+  }, [ticketStats, ticketFilter]);
+
+  const totalTickets = ticketStats.totalTickets;
+  const pendingPct =
+    totalTickets > 0 ? Math.round((ticketStats.pendingTickets / totalTickets) * 100) : 0;
+  const inProgressPct =
+    totalTickets > 0 ? Math.round((ticketStats.inProgressTickets / totalTickets) * 100) : 0;
+  const completedPct =
+    totalTickets > 0 ? Math.round((ticketStats.completedTickets / totalTickets) * 100) : 0;
 
   const ticketStatus = [
     {
-      label: 'Pending Approval',
-      value: 0,
+      label: 'Pending Action',
+      value: ticketStats.pendingTickets,
+      percentage: pendingPct,
       color: 'bg-amber-500',
       textColor: 'text-amber-600',
       icon: Clock,
     },
     {
-      label: 'Approved',
-      value: 0,
-      color: 'bg-blue-500',
-      textColor: 'text-blue-600',
-      icon: CheckCircle2,
-    },
-    {
       label: 'In Progress',
-      value: 0,
+      value: ticketStats.inProgressTickets,
+      percentage: inProgressPct,
       color: 'bg-violet-500',
       textColor: 'text-violet-600',
       icon: Activity,
     },
     {
-      label: 'Resolved',
-      value: 0,
+      label: 'Completed',
+      value: ticketStats.completedTickets,
+      percentage: completedPct,
       color: 'bg-emerald-500',
       textColor: 'text-emerald-600',
-      icon: CheckCheck,
-    },
-    {
-      label: 'Rejected',
-      value: 0,
-      color: 'bg-red-500',
-      textColor: 'text-red-600',
-      icon: XCircle,
+      icon: CheckCircle2,
     },
   ];
 
@@ -405,19 +393,144 @@ function DashboardPage() {
 
       {/* Ticket Statistics */}
       <section>
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-800">
               Ticket Statistics
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Overview of your submitted tickets
+              Overview of tickets in your scope
             </p>
           </div>
 
-          <Ticket size={22} className="text-blue-600" />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Type Filter Buttons */}
+            <div className="flex items-center rounded-xl bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => setTicketFilter('all')}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  ticketFilter === 'all'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setTicketFilter('maintenance')}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  ticketFilter === 'maintenance'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Maintenance
+              </button>
+              <button
+                type="button"
+                onClick={() => setTicketFilter('procurement')}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  ticketFilter === 'procurement'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Procurement
+              </button>
+            </div>
+
+            {/* Date filter toggle */}
+            <button
+              type="button"
+              onClick={() => setShowDateFilter(!showDateFilter)}
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
+                showDateFilter || startDate || endDate
+                  ? 'border-blue-200 bg-blue-50 text-blue-600'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+              title="Filter by date"
+            >
+              <Filter size={14} />
+              <span>Date Filter</span>
+              {(startDate || endDate) && (
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
+              )}
+            </button>
+
+            {/* Refetch button */}
+            <button
+              type="button"
+              onClick={() => void refetchStats()}
+              disabled={isLoadingStats}
+              aria-label="Refresh ticket statistics"
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+              title="Refresh statistics"
+            >
+              <RefreshCw
+                size={14}
+                className={isLoadingStats ? 'animate-spin text-blue-600' : ''}
+              />
+            </button>
+          </div>
         </div>
+
+        {/* Collapsible Date Filter Inputs */}
+        {showDateFilter && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2">
+              <label htmlFor="startDate" className="text-xs font-medium text-slate-500">
+                Start:
+              </label>
+              <input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="endDate" className="text-xs font-medium text-slate-500">
+                End:
+              </label>
+              <input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+            {(startDate || endDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                className="text-xs font-medium text-red-500 hover:text-red-700"
+              >
+                Clear Dates
+              </button>
+            )}
+          </div>
+        )}
+
+        {statsError && (
+          <div className="mb-4 flex items-center justify-between rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+            <span>{statsError}</span>
+            <button
+              type="button"
+              onClick={() => void refetchStats()}
+              className="font-semibold underline hover:text-amber-900"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
           {ticketStatistics.map((item) => {
@@ -426,7 +539,9 @@ function DashboardPage() {
             return (
               <div
                 key={item.title}
-                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md ${
+                  isLoadingStats ? 'opacity-70' : ''
+                }`}
               >
                 <div className="flex items-start justify-between">
                   <div
@@ -470,10 +585,18 @@ function DashboardPage() {
           </p>
 
           <div className="mt-8 flex flex-col items-center gap-8 sm:flex-row">
-            <div className="relative flex h-48 w-48 shrink-0 items-center justify-center rounded-full bg-slate-100">
-              <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full bg-white">
+            <div
+              className="relative flex h-48 w-48 shrink-0 items-center justify-center rounded-full transition-all duration-500"
+              style={{
+                background:
+                  totalTickets > 0
+                    ? `conic-gradient(#f59e0b 0% ${pendingPct}%, #8b5cf6 ${pendingPct}% ${pendingPct + inProgressPct}%, #10b981 ${pendingPct + inProgressPct}% 100%)`
+                    : '#f1f5f9',
+              }}
+            >
+              <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full bg-white shadow-inner">
                 <span className="text-3xl font-bold text-slate-800">
-                  0
+                  {totalTickets.toLocaleString('en-US')}
                 </span>
 
                 <span className="text-xs text-slate-400">
@@ -500,14 +623,20 @@ function DashboardPage() {
                         </span>
                       </div>
 
-                      <span className="text-sm font-semibold text-slate-800">
-                        {item.value}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">
+                          ({item.percentage}%)
+                        </span>
+                        <span className="text-sm font-semibold text-slate-800">
+                          {item.value}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="h-2 rounded-full bg-slate-100">
+                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                       <div
-                        className={`h-full w-0 rounded-full ${item.color}`}
+                        className={`h-full rounded-full transition-all duration-500 ${item.color}`}
+                        style={{ width: `${item.percentage}%` }}
                       />
                     </div>
                   </div>
@@ -526,40 +655,40 @@ function DashboardPage() {
 
             <div>
               <h2 className="font-bold text-slate-800">
-                Approval Summary
+                Action & Approval Summary
               </h2>
 
               <p className="text-xs text-slate-500">
-                Ticket approval status
+                Ticket workflow progress
               </p>
             </div>
           </div>
 
           <div className="mt-7 rounded-xl bg-amber-50 p-5">
             <p className="text-sm font-medium text-amber-700">
-              Waiting for Approval
+              Pending Action / Approval
             </p>
 
             <p className="mt-2 text-3xl font-bold text-amber-800">
-              0
+              {ticketStats.pendingTickets.toLocaleString('en-US')}
             </p>
 
             <p className="mt-2 text-xs leading-relaxed text-amber-700">
-              Tickets waiting for your manager's approval will appear here.
+              Tickets awaiting review, approval, or task action.
             </p>
           </div>
 
           <div className="mt-4 rounded-xl bg-emerald-50 p-5">
             <p className="text-sm font-medium text-emerald-700">
-              Approved Tickets
+              Completed Tickets
             </p>
 
             <p className="mt-2 text-3xl font-bold text-emerald-800">
-              0
+              {ticketStats.completedTickets.toLocaleString('en-US')}
             </p>
 
             <p className="mt-2 text-xs text-emerald-700">
-              Tickets that have passed approval.
+              Tickets that have been resolved and closed.
             </p>
           </div>
         </div>
@@ -719,6 +848,88 @@ function DashboardPage() {
 
                     <p className="mt-1 text-sm text-slate-400">
                       Registered assets will appear here.
+                    </p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Recent Tickets */}
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 p-6">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">
+              Recent Tickets
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Latest submitted tickets in the system
+            </p>
+          </div>
+
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+            <Ticket size={22} />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[650px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
+              <tr>
+                <th className="px-6 py-4 font-semibold">Ticket #</th>
+                <th className="px-6 py-4 font-semibold">Subject</th>
+                <th className="px-6 py-4 font-semibold">Type</th>
+                <th className="px-6 py-4 font-semibold">Created At</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-slate-100">
+              {dashboard.recentTickets?.length > 0 ? (
+                dashboard.recentTickets.map((ticket) => (
+                  <tr key={ticket.id} className="transition hover:bg-slate-50">
+                    <td className="px-6 py-4 font-semibold text-blue-600 font-mono text-xs">
+                      {ticket.ticketNumber}
+                    </td>
+
+                    <td className="px-6 py-4 font-medium text-slate-700">
+                      {ticket.subject}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          ticket.ticketType?.toLowerCase().includes('procurement')
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'bg-blue-100 text-blue-700'
+                        }`}
+                      >
+                        {ticket.ticketType}
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4 text-slate-500 text-xs">
+                      {new Intl.DateTimeFormat('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      }).format(new Date(ticket.createdAt))}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center">
+                    <Ticket size={36} className="mx-auto mb-3 text-slate-300" />
+                    <p className="font-semibold text-slate-600">
+                      No recent tickets
+                    </p>
+                    <p className="mt-1 text-sm text-slate-400">
+                      Tickets submitted will appear here.
                     </p>
                   </td>
                 </tr>
