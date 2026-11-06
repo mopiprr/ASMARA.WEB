@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+
 import api from '../../../services/api';
 
 import type {
   ResubmitProcurementPayload,
 } from '../types/procurement.types';
 
-export type ProcurementAction = 'approve' | 'revise' | 'reject';
-
-interface UseProcurementActionsOptions {
-  onSuccess: () => Promise<void> | void;
+interface UseProcurementActionsProps {
+  onSuccess?: () => void | Promise<void>;
 }
+
+// Export agar dapat digunakan oleh ProcurementDetailModal.
+export type ProcurementAction = 'approve' | 'revise' | 'reject';
 
 interface ApiErrorResponse {
   response?: {
@@ -24,14 +26,12 @@ interface ApiErrorResponse {
 
 export function useProcurementActions({
   onSuccess,
-}: UseProcurementActionsOptions) {
+}: UseProcurementActionsProps = {}) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionError, setActionError] = useState('');
 
-  const getErrorMessage = (
-    error: unknown,
-    fallback: string
-  ): string => {
+  // Mengambil pesan error dari API.
+  const getErrorMessage = (error: unknown): string => {
     const apiError = error as ApiErrorResponse;
 
     return (
@@ -39,98 +39,118 @@ export function useProcurementActions({
       apiError.response?.data?.message ||
       apiError.response?.data?.title ||
       apiError.message ||
-      fallback
+      'An error occurred while processing the procurement request.'
     );
   };
 
-  const executeAction = async (
-    ticketId: string,
-    action: ProcurementAction,
-    note: string
-  ): Promise<boolean> => {
-    try {
-      setIsProcessing(true);
-      setActionError('');
+  // Menjalankan aksi approval Procurement.
+  const executeAction = useCallback(
+    async (
+      ticketId: string,
+      action: ProcurementAction,
+      note: string
+    ): Promise<boolean> => {
+      try {
+        setIsProcessing(true);
+        setActionError('');
 
-      await api.post(`/procurements/${ticketId}/${action}`, {
-        note: note.trim() || null,
-      });
+        await api.post(
+          `/procurements/${ticketId}/${action}`,
+          { note }
+        );
 
-      await onSuccess();
-      return true;
-    } catch (error: unknown) {
-      console.error('Failed to execute procurement action:', error);
-      setActionError(
-        getErrorMessage(
-          error,
-          'Failed to process procurement action.'
-        )
-      );
-      return false;
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const receiveGoods = async (
-    ticketId: string,
-    note: string
-  ): Promise<boolean> => {
-    try {
-      setIsProcessing(true);
-      setActionError('');
-
-      await api.post(
-        `/procurements/${ticketId}/receive-goods`,
-        {
-          note: note.trim() || null,
+        if (onSuccess) {
+          await onSuccess();
         }
-      );
 
-      await onSuccess();
-      return true;
-    } catch (error: unknown) {
-      console.error('Failed to receive procurement goods:', error);
-      setActionError(
-        getErrorMessage(
-          error,
-          'Failed to mark procurement as purchased.'
-        )
-      );
-      return false;
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+        return true;
+      } catch (error: unknown) {
+        console.error(
+          `Failed to execute procurement action (${action}):`,
+          error
+        );
 
-  const resubmitProcurement = async (
-    ticketId: string,
-    payload: ResubmitProcurementPayload
-  ): Promise<boolean> => {
-    try {
-      setIsProcessing(true);
-      setActionError('');
+        setActionError(getErrorMessage(error));
 
-      await api.put(
-        `/procurements/${ticketId}/resubmit`,
-        payload
-      );
+        return false;
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [onSuccess]
+  );
 
-      await onSuccess();
-      return true;
-    } catch (error: unknown) {
-      console.error('Failed to resubmit procurement:', error);
-      setActionError(
-        getErrorMessage(
-          error,
-          'Failed to resubmit procurement request.'
-        )
-      );
-      return false;
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  // Menerima barang Procurement.
+  const receiveGoods = useCallback(
+    async (
+      ticketId: string,
+      note: string
+    ): Promise<boolean> => {
+      try {
+        setIsProcessing(true);
+        setActionError('');
+
+        await api.post(
+          `/procurements/${ticketId}/receive-goods`,
+          { note }
+        );
+
+        if (onSuccess) {
+          await onSuccess();
+        }
+
+        return true;
+      } catch (error: unknown) {
+        console.error(
+          'Failed to receive procurement goods:',
+          error
+        );
+
+        setActionError(getErrorMessage(error));
+
+        return false;
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [onSuccess]
+  );
+
+  // Mengirim ulang Procurement setelah revisi.
+  const resubmitProcurement = useCallback(
+    async (
+      ticketId: string,
+      payload: ResubmitProcurementPayload
+    ): Promise<boolean> => {
+      try {
+        setIsProcessing(true);
+        setActionError('');
+
+        await api.post(
+          `/procurements/${ticketId}/resubmit`,
+          payload
+        );
+
+        if (onSuccess) {
+          await onSuccess();
+        }
+
+        return true;
+      } catch (error: unknown) {
+        console.error(
+          'Failed to resubmit procurement:',
+          error
+        );
+
+        setActionError(getErrorMessage(error));
+
+        return false;
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [onSuccess]
+  );
 
   return {
     isProcessing,

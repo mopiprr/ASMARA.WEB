@@ -8,12 +8,12 @@ import {
   Eye,
 } from 'lucide-react';
 
-import type { ProcurementTicket } from '../types/procurement.types';
+import type {
+  ProcurementTicketListItem,
+} from '../types/procurement.types';
 
 import {
   formatDate,
-  formatIDR,
-  getTicketTotal,
 } from '../utils/procurement.utils';
 
 import ProcurementStatusBadge from './ProcurementStatusBadge';
@@ -23,11 +23,11 @@ import ProcurementStatusBadge from './ProcurementStatusBadge';
 // ==========================================
 
 interface ProcurementTableProps {
-  tickets: ProcurementTicket[];
+  tickets: ProcurementTicketListItem[];
   isLoading: boolean;
   error: string;
   onRefresh: () => void;
-  onView: (ticket: ProcurementTicket) => void;
+  onView: (ticket: ProcurementTicketListItem) => void;
 }
 
 // ==========================================
@@ -55,8 +55,9 @@ function ProcurementTable({
     return (
       ticket.ticketNumber.toLowerCase().includes(keyword) ||
       ticket.subject.toLowerCase().includes(keyword) ||
-      (ticket.employeeName ?? '').toLowerCase().includes(keyword) ||
-      ticket.currentStep.toLowerCase().includes(keyword)
+      (ticket.requesterName ?? '').toLowerCase().includes(keyword) ||
+      ticket.currentStep.toLowerCase().includes(keyword) ||
+      ticket.currentStepName.toLowerCase().includes(keyword)
     );
   });
 
@@ -242,6 +243,7 @@ function ProcurementTable({
                   key={ticket.id}
                   className="transition hover:bg-slate-50/70"
                 >
+
                   {/* TICKET NUMBER */}
                   <td className="px-6 py-4">
                     <span className="font-semibold text-blue-600">
@@ -256,17 +258,14 @@ function ProcurementTable({
                     </p>
 
                     <p className="mt-1 max-w-xs truncate text-xs text-slate-400">
-                      {ticket.procurementDetails?.length ?? 0} item(s)
-                      {ticket.parentTicketId
-                        ? ' · From Maintenance'
-                        : ' · Standalone'}
+                      Procurement Request
                     </p>
                   </td>
 
                   {/* REQUESTER */}
                   <td className="px-6 py-4">
                     <span className="text-slate-700">
-                      {ticket.employeeName || '-'}
+                      {ticket.requesterName || '-'}
                     </span>
                   </td>
 
@@ -276,8 +275,8 @@ function ProcurementTable({
                   </td>
 
                   {/* ESTIMATED VALUE */}
-                  <td className="whitespace-nowrap px-6 py-4 font-medium text-slate-700">
-                    {formatIDR(getTicketTotal(ticket))}
+                  <td className="whitespace-nowrap px-6 py-4 font-medium text-slate-500">
+                    -
                   </td>
 
                   {/* STATUS */}
@@ -299,6 +298,7 @@ function ProcurementTable({
                       View
                     </button>
                   </td>
+
                 </tr>
               ))
             )}

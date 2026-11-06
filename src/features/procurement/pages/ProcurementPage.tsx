@@ -1,7 +1,13 @@
 
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { AlertCircle, ClipboardList, Clock } from 'lucide-react';
+import {
+  AlertCircle,
+  ClipboardList,
+  Clock,
+} from 'lucide-react';
+
+import api from '../../../services/api';
 
 import ProcurementHeader from '../components/ProcurementHeader';
 import ProcurementStatistics from '../components/ProcurementStatistics';
@@ -19,6 +25,7 @@ import { useInventoryOptions } from '../hooks/useInventoryOptions';
 import type {
   ProcurementLocationState,
   ProcurementTicket,
+  ProcurementTicketListItem,
   PendingProcurementTicket,
   ResubmitProcurementPayload,
 } from '../types/procurement.types';
@@ -33,7 +40,10 @@ function ProcurementPage() {
 
   const parentTicketId = locationState?.parentTicketId ?? null;
 
+  // ==========================================
   // PAGE STATE
+  // ==========================================
+
   const [activeTab, setActiveTab] =
     useState<ProcurementTab>('requests');
 
@@ -46,7 +56,10 @@ function ProcurementPage() {
 
   const [pendingDetailError, setPendingDetailError] = useState('');
 
+  // ==========================================
   // PROCUREMENT TICKETS
+  // ==========================================
+
   const {
     tickets,
     isLoadingTickets,
@@ -54,7 +67,10 @@ function ProcurementPage() {
     fetchTickets,
   } = useProcurementTickets();
 
+  // ==========================================
   // PENDING PROCUREMENT TICKETS
+  // ==========================================
+
   const {
     tickets: pendingTickets,
     isLoading: isLoadingPending,
@@ -72,7 +88,10 @@ function ProcurementPage() {
     goToPage: goToPendingPage,
   } = usePendingProcurementTickets();
 
+  // ==========================================
   // REFRESH BOTH TABLES
+  // ==========================================
+
   const handleRefreshAll = async () => {
     await Promise.all([
       fetchTickets(),
@@ -80,7 +99,10 @@ function ProcurementPage() {
     ]);
   };
 
+  // ==========================================
   // PROCUREMENT ACTIONS
+  // ==========================================
+
   const {
     isProcessing,
     actionError,
@@ -92,7 +114,10 @@ function ProcurementPage() {
     onSuccess: handleRefreshAll,
   });
 
+  // ==========================================
   // INVENTORY OPTIONS
+  // ==========================================
+
   const {
     categories,
     categoryError,
@@ -102,18 +127,23 @@ function ProcurementPage() {
     fetchInventoryItems,
   } = useInventoryOptions();
 
+  // ==========================================
   // PROCUREMENT FORM
+  // ==========================================
+
   const form = useProcurementForm({
     parentTicketId,
 
-    // CLOSE MODAL AFTER SUCCESSFUL SUBMISSION
     onSuccess: async () => {
       await handleRefreshAll();
       setIsModalOpen(false);
     },
   });
 
+  // ==========================================
   // CREATE MODAL HANDLERS
+  // ==========================================
+
   const handleOpenModal = () => {
     form.resetForm();
     form.setSubmitError('');
@@ -132,14 +162,55 @@ function ProcurementPage() {
     form.setSubmitSuccess('');
   };
 
-  // DETAIL MODAL HANDLERS
-  const handleViewTicket = (ticket: ProcurementTicket) => {
-    setActionError('');
-    setPendingDetailError('');
-    setSelectedTicket(ticket);
+  // ==========================================
+  // MY REQUESTS DETAIL HANDLER
+  // ==========================================
+
+  const handleViewTicket = async (
+    ticket: ProcurementTicketListItem
+  ) => {
+    try {
+      setIsLoadingDetail(true);
+      setPendingDetailError('');
+      setActionError('');
+      setSelectedTicket(null);
+
+      // Ambil detail lengkap berdasarkan ID tiket.
+      const response = await api.get<ProcurementTicket>(
+        `/tickets/${ticket.id}`
+      );
+
+      setSelectedTicket(response.data);
+    } catch (error: unknown) {
+      console.error('Failed to open procurement ticket:', error);
+
+      const apiError = error as {
+        response?: {
+          data?: {
+            message?: string;
+            detail?: string;
+            title?: string;
+          };
+        };
+        message?: string;
+      };
+
+      setPendingDetailError(
+        apiError.response?.data?.detail ||
+          apiError.response?.data?.message ||
+          apiError.response?.data?.title ||
+          apiError.message ||
+          'Failed to load procurement ticket detail.'
+      );
+    } finally {
+      setIsLoadingDetail(false);
+    }
   };
 
+  // ==========================================
   // PENDING DETAIL HANDLER
+  // ==========================================
+
   const handleViewPendingTicket = async (
     ticket: PendingProcurementTicket
   ) => {
@@ -147,6 +218,7 @@ function ProcurementPage() {
       setIsLoadingDetail(true);
       setPendingDetailError('');
       setActionError('');
+      setSelectedTicket(null);
 
       const detail = await fetchPendingTicketById(ticket.id);
 
@@ -164,15 +236,22 @@ function ProcurementPage() {
     }
   };
 
+  // ==========================================
+  // CLOSE DETAIL MODAL
+  // ==========================================
+
   const handleCloseDetail = () => {
-    if (isProcessing) return;
+    if (isProcessing || isLoadingDetail) return;
 
     setSelectedTicket(null);
     setActionError('');
     setPendingDetailError('');
   };
 
+  // ==========================================
   // APPROVAL ACTION
+  // ==========================================
+
   const handleProcurementAction = async (
     action: 'approve' | 'revise' | 'reject',
     note: string
@@ -186,7 +265,10 @@ function ProcurementPage() {
     );
   };
 
+  // ==========================================
   // PURCHASING ACTION
+  // ==========================================
+
   const handleReceiveGoods = async (
     note: string
   ): Promise<boolean> => {
@@ -198,7 +280,10 @@ function ProcurementPage() {
     );
   };
 
+  // ==========================================
   // RESUBMIT PROCUREMENT
+  // ==========================================
+
   const handleResubmit = async (
     payload: ResubmitProcurementPayload
   ): Promise<boolean> => {
@@ -210,7 +295,10 @@ function ProcurementPage() {
     );
   };
 
+  // ==========================================
   // ITEM HANDLERS
+  // ==========================================
+
   const handleCategoryChange = (
     index: number,
     categoryId: string
@@ -222,12 +310,19 @@ function ProcurementPage() {
     }
   };
 
+  // ==========================================
   // SUBMIT HANDLER
+  // ==========================================
+
   const handleSubmit = async (
     event: React.FormEvent<HTMLFormElement>
   ) => {
     await form.handleSubmit(event);
   };
+
+  // ==========================================
+  // RENDER
+  // ==========================================
 
   return (
     <div className="space-y-8">
@@ -257,7 +352,7 @@ function ProcurementPage() {
         </div>
       )}
 
-      {/* PENDING DETAIL ERROR */}
+      {/* DETAIL ERROR */}
       {pendingDetailError && (
         <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
           <AlertCircle
@@ -267,7 +362,7 @@ function ProcurementPage() {
 
           <div>
             <p className="text-sm font-semibold text-red-700">
-              Failed to open pending ticket
+              Failed to open procurement ticket
             </p>
 
             <p className="mt-1 text-xs text-red-600">
@@ -285,6 +380,7 @@ function ProcurementPage() {
       {/* PROCUREMENT TABS */}
       <div className="space-y-5">
 
+        {/* TAB NAVIGATION */}
         <div className="flex flex-wrap items-center gap-2 border-b border-gray-200">
 
           {/* MY REQUESTS TAB */}

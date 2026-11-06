@@ -53,6 +53,21 @@ export interface ResubmitProcurementPayload {
   }[];
 }
 
+// Data Procurement untuk halaman daftar tiket.
+export interface ProcurementTicketListItem {
+  id: string;
+  ticketNumber: string;
+  ticketType: number;
+  subject: string;
+  requesterId: string;
+  requesterName: string;
+  createdAt: string;
+  closedAt: string | null;
+  currentStep: string;
+  currentStepName: string;
+}
+
+// Data detail Procurement.
 export interface ProcurementDetail {
   ticketId: string;
   itemId: number | null;
@@ -66,6 +81,7 @@ export interface ProcurementDetail {
   createdAt: string;
 }
 
+// Data Procurement untuk halaman detail.
 export interface ProcurementTicket {
   id: string;
   parentTicketId: string | null;
@@ -85,7 +101,7 @@ export interface ProcurementTicket {
   maintenanceDetail: unknown | null;
   procurementDetails: ProcurementDetail[] | null;
 
-  // Permission dari backend
+  // Permission dari backend.
   canApprove: boolean;
   canRevise: boolean;
   canReject: boolean;
@@ -93,6 +109,7 @@ export interface ProcurementTicket {
   canResubmit?: boolean;
 }
 
+// Data Procurement untuk antrean approval.
 export interface PendingProcurementTicket {
   id: string;
   ticketNumber: string;
@@ -106,6 +123,7 @@ export interface PendingProcurementTicket {
   currentStepName: string;
 }
 
+// Generic pagination response dari backend.
 export interface PagedResult<T> {
   items: T[];
   page: number;

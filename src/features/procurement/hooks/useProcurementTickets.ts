@@ -1,11 +1,14 @@
-
 import { useCallback, useEffect, useState } from 'react';
 
 import api from '../../../services/api';
-import type { ProcurementTicket } from '../types/procurement.types';
+
+import type {
+  ProcurementTicketListItem,
+  PagedResult,
+} from '../types/procurement.types';
 
 export function useProcurementTickets() {
-  const [tickets, setTickets] = useState<ProcurementTicket[]>([]);
+  const [tickets, setTickets] = useState<ProcurementTicketListItem[]>([]);
   const [isLoadingTickets, setIsLoadingTickets] = useState(false);
   const [ticketError, setTicketError] = useState('');
 
@@ -14,11 +17,18 @@ export function useProcurementTickets() {
       setIsLoadingTickets(true);
       setTicketError('');
 
-      const response = await api.get<ProcurementTicket[]>('/procurements');
+      const response = await api.get<
+        PagedResult<ProcurementTicketListItem>
+      >('/tickets', {
+        params: {
+          type: 2,
+          page: 1,
+          pageSize: 10,
+          desc: true,
+        },
+      });
 
-      setTickets(
-        Array.isArray(response.data) ? response.data : []
-      );
+      setTickets(response.data.items ?? []);
     } catch (error: unknown) {
       console.error('Failed to fetch procurement tickets:', error);
 
@@ -35,10 +45,10 @@ export function useProcurementTickets() {
 
       setTicketError(
         apiError.response?.data?.detail ||
-        apiError.response?.data?.message ||
-        apiError.response?.data?.title ||
-        apiError.message ||
-        'Failed to load procurement requests.'
+          apiError.response?.data?.message ||
+          apiError.response?.data?.title ||
+          apiError.message ||
+          'Failed to load procurement requests.'
       );
     } finally {
       setIsLoadingTickets(false);
