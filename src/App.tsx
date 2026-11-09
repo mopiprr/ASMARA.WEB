@@ -11,6 +11,7 @@ import DashboardPage from './features/dashboard/pages/DashboardPage';
 import MyProfilePage from './features/profile/pages/MyProfilePage';
 import SettingsPage from './features/settings/pages/SettingsPage';
 import ProcurementPage from './features/procurement/pages/ProcurementPage';
+import AssetManagementPage from './features/assets/pages/AssetManagementPage';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="/profile" element={<MyProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/procurement" element={<ProcurementPage />} />
+          <Route path="/assets" element={<AssetManagementPage />} />
         </Route>
 
         {/* Redirect unknown routes */}
