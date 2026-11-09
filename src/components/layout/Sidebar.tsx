@@ -146,7 +146,7 @@ function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-7 overflow-y-auto px-3 py-7">
+        <nav className="sidebar-scroll flex-1 space-y-7 overflow-y-auto px-3 py-7">
           <div>
             {!collapsed && (
               <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
