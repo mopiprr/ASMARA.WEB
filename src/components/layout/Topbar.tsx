@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import {
   Bell,
@@ -10,6 +9,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 
 type TopbarProps = {
   onOpenSidebar: () => void;
@@ -20,17 +20,44 @@ interface UserProfile {
   employeeNumber: string;
   fullName: string;
   email: string;
+  department?: string;
+  departmentName?: string;
+  manager?: string | null;
+  hireDate?: string;
+  userName?: string;
+  isActive?: boolean;
   roles: string[];
 }
-
-const API_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5243';
 
 function getAccessToken() {
   return (
     localStorage.getItem('accessToken') ||
     sessionStorage.getItem('accessToken')
   );
+}
+
+function getUserSubtitle(profile: UserProfile | null): string {
+  if (!profile) return 'User';
+
+  const roles = profile.roles || [];
+  const department = (profile.department || profile.departmentName || '').trim();
+
+  // Check if user has manager role (ROL-02, ROL-03, or contains 'Manager')
+  const isManager = roles.some((role) => {
+    const r = role.toUpperCase();
+    return r === 'ROL-02' || r === 'ROL-03' || r.includes('MANAGER');
+  });
+
+  if (isManager) {
+    return department ? `Manager - ${department}` : 'Manager';
+  }
+
+  // Ordinary employee or non-manager: show department
+  if (department) {
+    return department;
+  }
+
+  return 'Employee';
 }
 
 function Topbar({ onOpenSidebar }: TopbarProps) {
@@ -49,27 +76,14 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
       }
 
       try {
-        const response = await fetch(`${API_URL}/api/dashboard/summary`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          setProfile(null);
-          return;
-        }
-
-        const result = await response.json();
-        setProfile(result.profile);
+        const response = await api.get<UserProfile>('/profile/me');
+        setProfile(response.data);
       } catch (error) {
         console.error('Failed to load user profile:', error);
       }
     }
 
-    loadProfile();
+    void loadProfile();
 
     // Refresh profile when authentication changes.
     window.addEventListener('auth-changed', loadProfile);
@@ -89,7 +103,7 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
     : 'U';
 
   const displayName = profile?.fullName || 'Loading...';
-  const displayRole = profile?.roles?.join(' · ') || 'User';
+  const displaySubtitle = getUserSubtitle(profile);
 
   function handleSignOut() {
     // Remove authentication data.
@@ -128,12 +142,8 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
           <input
             type="text"
             placeholder="Search anything..."
-            className="w-40 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 md:w-64"
+            className="w-48 bg-transparent text-sm outline-none placeholder:text-slate-400 md:w-64"
           />
-
-          <span className="hidden rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-400 md:inline">
-            Ctrl K
-          </span>
         </div>
       </div>
 
@@ -163,13 +173,13 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
               {initials}
             </div>
 
-            <div className="hidden max-w-40 text-left sm:block">
+            <div className="hidden max-w-56 text-left sm:block">
               <p className="truncate text-sm font-semibold text-slate-800">
                 {displayName}
               </p>
 
-              <p className="truncate text-xs text-slate-500">
-                {displayRole}
+              <p className="truncate text-xs text-slate-500" title={displaySubtitle}>
+                {displaySubtitle}
               </p>
             </div>
 
@@ -201,8 +211,8 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
                     {profile?.email || '-'}
                   </p>
 
-                  <p className="mt-2 text-xs font-medium text-blue-600">
-                    {displayRole}
+                  <p className="mt-2 text-xs font-semibold text-blue-600">
+                    {displaySubtitle}
                   </p>
                 </div>
 

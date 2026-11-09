@@ -8,8 +8,6 @@ import {
   CalendarDays,
   AlertCircle,
   UserRound,
-  Building2,
-  ShieldCheck,
   Activity,
   Hourglass,
   Package,
@@ -35,43 +33,6 @@ function getAccessToken() {
     localStorage.getItem('accessToken') ||
     sessionStorage.getItem('accessToken')
   );
-}
-
-// Role priority: semakin tinggi nilainya, semakin tinggi prioritasnya.
-const rolePriority: Record<string, number> = {
-  'ROL-03': 3,
-  'ROL-02': 2,
-  'ROL-01': 1,
-};
-
-// Mapping kode role ke nama role.
-const roleNames: Record<string, string> = {
-  'ROL-01': 'Employee',
-  'ROL-02': 'Department Manager',
-  'ROL-03': 'Division Manager',
-  'ROL-04': 'Finance',
-  'ROL-05': 'Purchasing',
-  'ROL-06': 'Inventory',
-  'ROL-07': 'Department IT Support',
-  'ROL-08': 'Maintenance Handler',
-};
-
-// Mengambil role dengan prioritas tertinggi.
-function getPrimaryRole(roles: string[]) {
-  if (!roles || roles.length === 0) {
-    return 'Employee';
-  }
-
-  const sortedRoles = [...roles].sort((a, b) => {
-    const priorityA = rolePriority[a.toUpperCase()] ?? 0;
-    const priorityB = rolePriority[b.toUpperCase()] ?? 0;
-
-    return priorityB - priorityA;
-  });
-
-  const primaryRole = sortedRoles[0].toUpperCase();
-
-  return roleNames[primaryRole] || sortedRoles[0];
 }
 
 // Menentukan warna badge berdasarkan status asset.
@@ -625,72 +586,6 @@ function DashboardPage() {
             </div>
           </div>
         )}
-      </section>
-
-      {/* User Profile */}
-      <section className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center">
-
-        {/* Employee Information */}
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
-          <UserRound size={28} />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <h2 className="font-bold text-slate-800">
-            {dashboard.profile.fullName}
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            {dashboard.profile.employeeNumber} · {dashboard.profile.email}
-          </p>
-
-          {/* User Roles */}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {dashboard.profile.roles.map((role) => (
-              <span
-                key={role}
-                className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700"
-              >
-                {role}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Department and Primary Role */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:w-[420px] lg:shrink-0">
-
-          {/* Department */}
-          <div className="rounded-xl bg-blue-50 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Building2 size={17} className="text-blue-600" />
-
-              <p className="text-xs font-medium text-blue-600">
-                Department
-              </p>
-            </div>
-
-            <p className="mt-2 text-sm font-bold text-blue-800">
-              {dashboard.profile.departmentName || 'Department not assigned'}
-            </p>
-          </div>
-
-          {/* Primary Role */}
-          <div className="rounded-xl bg-blue-50 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={17} className="text-blue-600" />
-
-              <p className="text-xs font-medium text-blue-600">
-                Primary Role
-              </p>
-            </div>
-
-            <p className="mt-2 text-sm font-bold text-blue-800">
-              {getPrimaryRole(dashboard.profile.roles)}
-            </p>
-          </div>
-
-        </div>
       </section>
 
       {/* Ticket Statistics */}
@@ -1257,88 +1152,6 @@ function DashboardPage() {
 
                     <p className="mt-1 text-sm text-slate-400">
                       Registered assets will appear here.
-                    </p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* Recent Tickets */}
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 p-6">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">
-              Recent Tickets
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Latest submitted tickets in the system
-            </p>
-          </div>
-
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-            <Ticket size={22} />
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[650px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
-              <tr>
-                <th className="px-6 py-4 font-semibold">Ticket #</th>
-                <th className="px-6 py-4 font-semibold">Subject</th>
-                <th className="px-6 py-4 font-semibold">Type</th>
-                <th className="px-6 py-4 font-semibold">Created At</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-100">
-              {dashboard.recentTickets?.length > 0 ? (
-                dashboard.recentTickets.map((ticket) => (
-                  <tr key={ticket.id} className="transition hover:bg-slate-50">
-                    <td className="px-6 py-4 font-semibold text-blue-600 font-mono text-xs">
-                      {ticket.ticketNumber}
-                    </td>
-
-                    <td className="px-6 py-4 font-medium text-slate-700">
-                      {ticket.subject}
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          ticket.ticketType?.toLowerCase().includes('procurement')
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-blue-100 text-blue-700'
-                        }`}
-                      >
-                        {ticket.ticketType}
-                      </span>
-                    </td>
-
-                    <td className="px-6 py-4 text-slate-500 text-xs">
-                      {new Intl.DateTimeFormat('en-GB', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      }).format(new Date(ticket.createdAt))}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center">
-                    <Ticket size={36} className="mx-auto mb-3 text-slate-300" />
-                    <p className="font-semibold text-slate-600">
-                      No recent tickets
-                    </p>
-                    <p className="mt-1 text-sm text-slate-400">
-                      Tickets submitted will appear here.
                     </p>
                   </td>
                 </tr>
