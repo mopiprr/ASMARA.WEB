@@ -1,6 +1,8 @@
 import AssetTable from '../components/AssetTable';
+import AssetStatisticsCards from '../components/AssetStatisticsCards';
 
 import { useAssets } from '../hooks/useAssets';
+import { useAssetStatistics } from '../hooks/useAssetStatistics';
 
 function AssetManagementPage() {
   const {
@@ -26,6 +28,18 @@ function AssetManagementPage() {
     goToPage,
   } = useAssets();
 
+  const {
+    statistics,
+    isLoading: isLoadingStatistics,
+    fetchStatistics,
+  } = useAssetStatistics();
+
+  // Refresh tabel sekaligus angka di card.
+  const handleRefresh = () => {
+    void fetchAssets();
+    void fetchStatistics();
+  };
+
   return (
     <div className="space-y-8">
 
@@ -44,12 +58,18 @@ function AssetManagementPage() {
         </p>
       </section>
 
+      {/* STATISTICS */}
+      <AssetStatisticsCards
+        statistics={statistics}
+        isLoading={isLoadingStatistics}
+      />
+
       {/* ASSET LIST */}
       <AssetTable
         assets={assets}
         isLoading={isLoading}
         error={error}
-        onRefresh={fetchAssets}
+        onRefresh={handleRefresh}
 
         searchInput={searchInput}
         onSearchChange={setSearchInput}

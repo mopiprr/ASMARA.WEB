@@ -11,10 +11,16 @@ export interface AssetListItem {
   isPublic: boolean;
 }
 
-// Field sorting yang didukung backend (GET /api/assets -> sortBy).
 export type AssetSortField =
   | 'assetTag'
   | 'itemName'
   | 'category'
   | 'holder'
   | 'status';
+
+export interface AssetStatistics {
+  totalAssets: number;
+  available: number;
+  inUse: number;
+  underMaintenance: number;
+}

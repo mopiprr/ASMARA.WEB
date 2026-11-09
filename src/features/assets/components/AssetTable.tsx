@@ -184,7 +184,7 @@ function AssetTable({
           <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
             <tr>
               <SortableHeader label="Asset Tag" field="assetTag" {...sortProps} />
-              <SortableHeader label="Item" field="itemName" {...sortProps} />
+              <SortableHeader label="Item Name" field="itemName" {...sortProps} />
               <SortableHeader label="Category" field="category" {...sortProps} />
               <SortableHeader label="Holder" field="holder" {...sortProps} />
               <SortableHeader label="Status" field="status" {...sortProps} />
