@@ -1,5 +1,6 @@
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Ticket,
   Clock,
@@ -9,13 +10,19 @@ import {
   UserRound,
   Building2,
   ShieldCheck,
-  MoreHorizontal,
   Activity,
   Hourglass,
   Package,
   RefreshCw,
   Filter,
+  ChevronDown,
+  ChevronUp,
+  X,
+  ArrowRight,
+  RotateCcw,
+  Wrench,
 } from 'lucide-react';
+import api from '../../../services/api';
 import { useTicketStatistics } from '../hooks/useTicketStatistics';
 import type { DashboardResponse } from '../types/dashboard.types';
 import MyActivityTable from '../components/MyActivityTable';
@@ -90,7 +97,20 @@ function getAssetStatusStyle(status: string) {
   }
 }
 
+type StatCategory = 'total' | 'pending' | 'in_progress' | 'completed';
+
+interface TopTicketItem {
+  id: string;
+  ticketNumber: string;
+  subject: string;
+  ticketType: number; // 1 = Maintenance, 2 = Procurement
+  ticketTypeName?: string;
+  currentStep?: string;
+  currentStepName?: string;
+}
+
 function DashboardPage() {
+  const navigate = useNavigate();
   const [dashboard, setDashboard] =
     useState<DashboardResponse | null>(null);
 
@@ -162,6 +182,137 @@ function DashboardPage() {
     return () => controller.abort();
   }, []);
 
+  // Evaluasi apakah user memiliki wewenang approval (Manager, Finance, Purchasing, Inventory, IT Support, dll)
+  const userRoles = useMemo(() => dashboard?.profile?.roles ?? [], [dashboard?.profile?.roles]);
+  const isApprover = useMemo(() => {
+    return userRoles.some((r) => {
+      const role = r.toUpperCase();
+      return (
+        role !== 'ROL-01' &&
+        role !== 'EMPLOYEE' &&
+        (role.startsWith('ROL-') ||
+          role.includes('MANAGER') ||
+          role.includes('FINANCE') ||
+          role.includes('PURCHASING') ||
+          role.includes('INVENTORY') ||
+          role.includes('SUPPORT') ||
+          role.includes('HANDLER'))
+      );
+    });
+  }, [userRoles]);
+
+  // Drawer / Accordion State Top 5 Tickets
+  const [activeCategory, setActiveCategory] = useState<StatCategory | null>(null);
+  const [topTickets, setTopTickets] = useState<TopTicketItem[]>([]);
+  const [loadingTopTickets, setLoadingTopTickets] = useState(false);
+  const [topTicketsError, setTopTicketsError] = useState('');
+
+  // Fetch Top 5 Tickets
+  const fetchTopTickets = useCallback(async (category: StatCategory) => {
+    try {
+      setLoadingTopTickets(true);
+      setTopTicketsError('');
+
+      let items: TopTicketItem[] = [];
+
+      if (category === 'pending') {
+        const res = await api.get('/tickets/pending', {
+          params: { page: 1, pageSize: 5, desc: true },
+        });
+        const list = (res.data as { items?: any[] })?.items ?? [];
+        items = list.map((t: any) => ({
+          id: String(t.id),
+          ticketNumber: String(t.ticketNumber),
+          subject: String(t.subject),
+          ticketType: Number(t.ticketType),
+          ticketTypeName: t.ticketTypeName || (Number(t.ticketType) === 1 ? 'Maintenance' : 'Procurement'),
+          currentStep: t.currentStep,
+          currentStepName: t.currentStepName,
+        }));
+      } else if (category === 'total') {
+        const res = await api.get('/tickets', {
+          params: { page: 1, pageSize: 5, desc: true },
+        });
+        const list = (res.data as { items?: any[] })?.items ?? [];
+        items = list.map((t: any) => ({
+          id: String(t.id),
+          ticketNumber: String(t.ticketNumber),
+          subject: String(t.subject),
+          ticketType: Number(t.ticketType),
+          ticketTypeName: Number(t.ticketType) === 1 ? 'Maintenance' : 'Procurement',
+          currentStep: t.currentStep,
+          currentStepName: t.currentStepName,
+        }));
+      } else if (category === 'in_progress') {
+        const res = await api.get('/tickets', {
+          params: { isClosed: false, page: 1, pageSize: 5, desc: true },
+        });
+        const list = (res.data as { items?: any[] })?.items ?? [];
+        items = list.map((t: any) => ({
+          id: String(t.id),
+          ticketNumber: String(t.ticketNumber),
+          subject: String(t.subject),
+          ticketType: Number(t.ticketType),
+          ticketTypeName: Number(t.ticketType) === 1 ? 'Maintenance' : 'Procurement',
+          currentStep: t.currentStep,
+          currentStepName: t.currentStepName,
+        }));
+      } else if (category === 'completed') {
+        const res = await api.get('/tickets/completed/my', {
+          params: { page: 1, pageSize: 5, desc: true },
+        });
+        const list = (res.data as { items?: any[] })?.items ?? [];
+        items = list.map((t: any) => ({
+          id: String(t.id),
+          ticketNumber: String(t.ticketNumber),
+          subject: String(t.subject),
+          ticketType: Number(t.ticketType),
+          ticketTypeName: t.ticketTypeName || (Number(t.ticketType) === 1 ? 'Maintenance' : 'Procurement'),
+          currentStep: t.currentStep,
+          currentStepName: t.currentStepName,
+        }));
+      }
+
+      setTopTickets(items);
+    } catch (err: unknown) {
+      console.error('Failed to load top tickets:', err);
+      setTopTicketsError('Gagal memuat daftar tiket top 5.');
+    } finally {
+      setLoadingTopTickets(false);
+    }
+  }, []);
+
+  const handleToggleCard = (catId: StatCategory) => {
+    if (activeCategory === catId) {
+      setActiveCategory(null);
+      return;
+    }
+    setActiveCategory(catId);
+    void fetchTopTickets(catId);
+  };
+
+  const handleNavigateToTicket = (ticket: TopTicketItem) => {
+    const isProc = ticket.ticketType === 2;
+    const isPending = activeCategory === 'pending';
+    const tabParam = isPending ? 'pending' : 'requests';
+
+    if (isProc) {
+      navigate(`/procurement?tab=${tabParam}&ticketId=${ticket.id}`);
+    } else {
+      navigate(`/maintenance?tab=${tabParam}&ticketId=${ticket.id}`);
+    }
+  };
+
+  const procurementList = useMemo(
+    () => topTickets.filter((t) => t.ticketType === 2),
+    [topTickets]
+  );
+
+  const maintenanceList = useMemo(
+    () => topTickets.filter((t) => t.ticketType === 1),
+    [topTickets]
+  );
+
   // Ticket Statistics Hook
   const {
     stats: ticketStats,
@@ -178,31 +329,36 @@ function DashboardPage() {
 
   const [showDateFilter, setShowDateFilter] = useState(false);
 
+  const activityTypeParam =
+    ticketFilter === 'maintenance'
+      ? '1'
+      : ticketFilter === 'procurement'
+      ? '2'
+      : '';
+
   // Ticket Statistics
   const ticketStatistics = useMemo(() => {
-    const filterLabel =
-      ticketFilter === 'maintenance'
-        ? 'Maintenance'
-        : ticketFilter === 'procurement'
-        ? 'Procurement'
-        : 'All';
-
     return [
       {
+        id: 'total' as StatCategory,
         title: 'Total Tickets',
         value: ticketStats.totalTickets,
-        description: `Total ${filterLabel.toLowerCase()} tickets in your scope`,
+        description: 'All tickets submitted by you',
         icon: Ticket,
         style: 'bg-blue-100 text-blue-600',
       },
       {
-        title: 'Pending Action',
+        id: 'pending' as StatCategory,
+        title: isApprover ? 'Pending Approval' : 'Need Revision',
         value: ticketStats.pendingTickets,
-        description: 'Waiting for your action / approval',
-        icon: Clock,
+        description: isApprover
+          ? 'Waiting for your approval'
+          : 'Tickets returned for your revision',
+        icon: isApprover ? Clock : RotateCcw,
         style: 'bg-amber-100 text-amber-600',
       },
       {
+        id: 'in_progress' as StatCategory,
         title: 'In Progress',
         value: ticketStats.inProgressTickets,
         description: 'Tickets currently being processed',
@@ -210,6 +366,7 @@ function DashboardPage() {
         style: 'bg-violet-100 text-violet-600',
       },
       {
+        id: 'completed' as StatCategory,
         title: 'Completed',
         value: ticketStats.completedTickets,
         description: 'Resolved and completed tickets',
@@ -217,7 +374,7 @@ function DashboardPage() {
         style: 'bg-emerald-100 text-emerald-600',
       },
     ];
-  }, [ticketStats, ticketFilter]);
+  }, [ticketStats, isApprover]);
 
   const totalTickets = ticketStats.totalTickets;
   const pendingPct =
@@ -303,27 +460,171 @@ function DashboardPage() {
   return (
     <div className="space-y-8">
 
-      {/* Page Heading */}
-      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <p className="text-sm font-medium text-blue-600">
-            Overview
-          </p>
+      {/* Page Heading & Global Dashboard Filter */}
+      <section className="space-y-4">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-sm font-medium text-blue-600">
+              Overview
+            </p>
 
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-800 sm:text-3xl">
-            Ticket Dashboard
-          </h1>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-800 sm:text-3xl">
+              Ticket Dashboard
+            </h1>
 
-          <p className="mt-2 text-sm text-slate-500">
-            Welcome back, {dashboard.profile.fullName}!
-            Here's your ticket activity overview.
-          </p>
+            <p className="mt-2 text-sm text-slate-500">
+              Welcome back, {dashboard.profile.fullName}!
+              Here's your ticket activity overview.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600 shadow-sm">
+            <CalendarDays size={17} className="text-slate-400" />
+            {currentDate}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600 shadow-sm">
-          <CalendarDays size={17} className="text-slate-400" />
-          {currentDate}
+        {/* Global Dashboard Filter Bar: Underline Tabs (Left) & Controls (Right) */}
+        <div className="flex flex-col gap-3 border-b border-slate-200 sm:flex-row sm:items-center sm:justify-between">
+          {/* Underline Tabs */}
+          <nav className="-mb-px flex items-center gap-6">
+            <button
+              type="button"
+              onClick={() => setTicketFilter('all')}
+              className={`relative pb-3 text-sm font-semibold transition-colors ${
+                ticketFilter === 'all'
+                  ? 'text-blue-600'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              All Tickets
+              {ticketFilter === 'all' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-blue-600" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTicketFilter('maintenance')}
+              className={`relative pb-3 text-sm font-semibold transition-colors ${
+                ticketFilter === 'maintenance'
+                  ? 'text-blue-600'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Maintenance
+              {ticketFilter === 'maintenance' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-blue-600" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTicketFilter('procurement')}
+              className={`relative pb-3 text-sm font-semibold transition-colors ${
+                ticketFilter === 'procurement'
+                  ? 'text-blue-600'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Procurement
+              {ticketFilter === 'procurement' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-blue-600" />
+              )}
+            </button>
+          </nav>
+
+          {/* Right Controls: Date Filter & Refresh */}
+          <div className="flex items-center gap-2 pb-2 sm:ml-auto">
+            {/* Date filter button */}
+            <button
+              type="button"
+              onClick={() => setShowDateFilter(!showDateFilter)}
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
+                showDateFilter || startDate || endDate
+                  ? 'border-blue-200 bg-blue-50 text-blue-600'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+              title="Filter by date"
+            >
+              <Filter size={14} />
+              <span>
+                {startDate || endDate
+                  ? `${startDate || '...'} s/d ${endDate || '...'}`
+                  : 'Date Filter'}
+              </span>
+              {(startDate || endDate) && (
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
+              )}
+            </button>
+
+            {(startDate || endDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                className="rounded-lg px-2.5 py-1 text-xs font-medium text-red-500 transition hover:bg-red-50"
+              >
+                Clear
+              </button>
+            )}
+
+            {/* Refresh button */}
+            <button
+              type="button"
+              onClick={() => {
+                void refetchStats();
+                window.dispatchEvent(
+                  new CustomEvent('refresh-dashboard-activity')
+                );
+              }}
+              disabled={isLoadingStats}
+              aria-label="Refresh dashboard data"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+              title="Refresh all dashboard data"
+            >
+              <RefreshCw
+                size={14}
+                className={isLoadingStats ? 'animate-spin text-blue-600' : ''}
+              />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          </div>
         </div>
+
+        {/* Collapsible Date Filter Inputs */}
+        {showDateFilter && (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm animate-in fade-in duration-150">
+            <div className="flex items-center gap-2">
+              <label htmlFor="startDate" className="text-xs font-medium text-slate-500">
+                Start:
+              </label>
+              <input
+                id="startDate"
+                type="date"
+                value={startDate}
+                max={endDate || undefined}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="endDate" className="text-xs font-medium text-slate-500">
+                End:
+              </label>
+              <input
+                id="endDate"
+                type="date"
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+          </div>
+        )}
       </section>
 
       {/* User Profile */}
@@ -394,7 +695,7 @@ function DashboardPage() {
 
       {/* Ticket Statistics */}
       <section>
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-800">
               Ticket Statistics
@@ -405,120 +706,8 @@ function DashboardPage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Type Filter Buttons */}
-            <div className="flex items-center rounded-xl bg-slate-100 p-1">
-              <button
-                type="button"
-                onClick={() => setTicketFilter('all')}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  ticketFilter === 'all'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                onClick={() => setTicketFilter('maintenance')}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  ticketFilter === 'maintenance'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Maintenance
-              </button>
-              <button
-                type="button"
-                onClick={() => setTicketFilter('procurement')}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  ticketFilter === 'procurement'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Procurement
-              </button>
-            </div>
-
-            {/* Date filter toggle */}
-            <button
-              type="button"
-              onClick={() => setShowDateFilter(!showDateFilter)}
-              className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
-                showDateFilter || startDate || endDate
-                  ? 'border-blue-200 bg-blue-50 text-blue-600'
-                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-              }`}
-              title="Filter by date"
-            >
-              <Filter size={14} />
-              <span>Date Filter</span>
-              {(startDate || endDate) && (
-                <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
-              )}
-            </button>
-
-            {/* Refetch button */}
-            <button
-              type="button"
-              onClick={() => void refetchStats()}
-              disabled={isLoadingStats}
-              aria-label="Refresh ticket statistics"
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-              title="Refresh statistics"
-            >
-              <RefreshCw
-                size={14}
-                className={isLoadingStats ? 'animate-spin text-blue-600' : ''}
-              />
-            </button>
-          </div>
+          <Ticket size={22} className="text-blue-600" />
         </div>
-
-        {/* Collapsible Date Filter Inputs */}
-        {showDateFilter && (
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-2">
-              <label htmlFor="startDate" className="text-xs font-medium text-slate-500">
-                Start:
-              </label>
-              <input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <label htmlFor="endDate" className="text-xs font-medium text-slate-500">
-                End:
-              </label>
-              <input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-            {(startDate || endDate) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setStartDate('');
-                  setEndDate('');
-                }}
-                className="text-xs font-medium text-red-500 hover:text-red-700"
-              >
-                Clear Dates
-              </button>
-            )}
-          </div>
-        )}
 
         {statsError && (
           <div className="mb-4 flex items-center justify-between rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
@@ -536,28 +725,48 @@ function DashboardPage() {
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
           {ticketStatistics.map((item) => {
             const Icon = item.icon;
+            const isSelected = activeCategory === item.id;
 
             return (
               <div
-                key={item.title}
-                className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md ${
-                  isLoadingStats ? 'opacity-70' : ''
-                }`}
+                key={item.id}
+                onClick={() => handleToggleCard(item.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    handleToggleCard(item.id);
+                  }
+                }}
+                className={`group cursor-pointer rounded-2xl border bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${
+                  isSelected
+                    ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/10'
+                    : 'border-slate-200 hover:border-slate-300'
+                } ${isLoadingStats ? 'opacity-70' : ''}`}
               >
                 <div className="flex items-start justify-between">
                   <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-xl ${item.style}`}
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl transition ${
+                      isSelected ? 'scale-105' : ''
+                    } ${item.style}`}
                   >
                     <Icon size={23} />
                   </div>
 
-                  <MoreHorizontal
-                    size={20}
-                    className="text-slate-400"
-                  />
+                  <div className="flex items-center gap-1">
+                    {isSelected ? (
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                        <ChevronUp size={16} />
+                      </span>
+                    ) : (
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-600 transition">
+                        <ChevronDown size={16} />
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <p className="mt-5 text-sm font-medium text-slate-500">
+                <p className="mt-5 text-sm font-medium text-slate-500 group-hover:text-slate-700 transition">
                   {item.title}
                 </p>
 
@@ -565,13 +774,203 @@ function DashboardPage() {
                   {item.value.toLocaleString('en-US')}
                 </h3>
 
-                <p className="mt-2 text-xs text-slate-400">
-                  {item.description}
-                </p>
+                <div className="mt-2 flex items-center justify-between">
+                  <p className="text-xs text-slate-400">
+                    {item.description}
+                  </p>
+                  <span
+                    className={`text-[11px] font-semibold transition ${
+                      isSelected
+                        ? 'text-blue-600'
+                        : 'text-slate-400 group-hover:text-blue-600'
+                    }`}
+                  >
+                    {isSelected ? 'Tutup ▲' : 'Top 5 ▼'}
+                  </span>
+                </div>
               </div>
             );
           })}
         </div>
+
+        {/* TOP 5 ACCORDION DRAWER */}
+        {activeCategory && (
+          <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all animate-in fade-in slide-in-from-top-2 duration-200">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-xs font-bold text-blue-700">
+                  TOP 5
+                </span>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">
+                    {activeCategory === 'pending'
+                      ? isApprover
+                        ? 'Top 5 Tiket — Menunggu Approval Anda'
+                        : 'Top 5 Tiket — Perlu Revisi / Resubmit'
+                      : activeCategory === 'in_progress'
+                      ? 'Top 5 Tiket — Sedang Diproses (In Progress)'
+                      : activeCategory === 'completed'
+                      ? 'Top 5 Tiket — Telah Selesai (Completed)'
+                      : 'Top 5 Tiket — Seluruh Tiket Diajukan'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Dikelompokkan berdasarkan tipe tiket. Klik Detail untuk membuka tiket di halaman terkait.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveCategory(null)}
+                aria-label="Tutup daftar tiket"
+                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Drawer Body */}
+            <div className="p-6">
+              {loadingTopTickets ? (
+                <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-500">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                  Memuat daftar tiket top 5...
+                </div>
+              ) : topTicketsError ? (
+                <div className="py-6 text-center text-sm text-red-500">
+                  {topTicketsError}
+                </div>
+              ) : topTickets.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Ticket size={32} className="mx-auto mb-2 text-slate-300" />
+                  <p className="text-sm font-medium text-slate-600">
+                    Tidak ada tiket pada kategori ini
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Saat ini belum ada tiket dalam antrean ini.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  {/* Procurement Group */}
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                          <Package size={15} />
+                        </div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                          Procurement ({procurementList.length})
+                        </h4>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 space-y-2.5">
+                      {procurementList.length > 0 ? (
+                        procurementList.map((ticket) => (
+                          <div
+                            key={ticket.id}
+                            className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-xs transition hover:border-blue-300"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-bold text-blue-600">
+                                  {ticket.ticketNumber}
+                                </span>
+                                {ticket.currentStepName && (
+                                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                                    {ticket.currentStepName}
+                                  </span>
+                                )}
+                              </div>
+                              <p
+                                className="mt-1 truncate text-xs font-medium text-slate-700"
+                                title={ticket.subject}
+                              >
+                                {ticket.subject}
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleNavigateToTicket(ticket)}
+                              className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-600 transition hover:bg-blue-600 hover:text-white"
+                            >
+                              <span>Detail</span>
+                              <ArrowRight size={13} />
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="py-4 text-center text-xs text-slate-400">
+                          Tidak ada tiket procurement pada kategori ini.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Maintenance Group */}
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                          <Wrench size={15} />
+                        </div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                          Maintenance ({maintenanceList.length})
+                        </h4>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 space-y-2.5">
+                      {maintenanceList.length > 0 ? (
+                        maintenanceList.map((ticket) => (
+                          <div
+                            key={ticket.id}
+                            className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-xs transition hover:border-amber-300"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-bold text-amber-600">
+                                  {ticket.ticketNumber}
+                                </span>
+                                {ticket.currentStepName && (
+                                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                                    {ticket.currentStepName}
+                                  </span>
+                                )}
+                              </div>
+                              <p
+                                className="mt-1 truncate text-xs font-medium text-slate-700"
+                                title={ticket.subject}
+                              >
+                                {ticket.subject}
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleNavigateToTicket(ticket)}
+                              className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-600 hover:text-white"
+                            >
+                              <span>Detail</span>
+                              <ArrowRight size={13} />
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="py-4 text-center text-xs text-slate-400">
+                          Tidak ada tiket maintenance pada kategori ini.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Ticket Status Overview */}
@@ -667,7 +1066,7 @@ function DashboardPage() {
 
           <div className="mt-7 rounded-xl bg-amber-50 p-5">
             <p className="text-sm font-medium text-amber-700">
-              Pending Action / Approval
+              {isApprover ? 'Waiting for Your Approval' : 'Tickets Needing Revision'}
             </p>
 
             <p className="mt-2 text-3xl font-bold text-amber-800">
@@ -675,7 +1074,9 @@ function DashboardPage() {
             </p>
 
             <p className="mt-2 text-xs leading-relaxed text-amber-700">
-              Tickets awaiting review, approval, or task action.
+              {isApprover
+                ? 'Tickets waiting for your review and approval will appear here.'
+                : 'Tickets returned by manager that need your revision will appear here.'}
             </p>
           </div>
 
@@ -696,7 +1097,11 @@ function DashboardPage() {
       </section>
 
       {/* My Activity */}
-      <MyActivityTable />
+      <MyActivityTable
+        type={activityTypeParam}
+        fromDate={startDate}
+        toDate={endDate}
+      />
 
       {/* Assets Statistics */}
       <section>

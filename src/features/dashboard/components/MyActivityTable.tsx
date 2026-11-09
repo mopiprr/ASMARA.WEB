@@ -57,23 +57,35 @@ function getTypeBadge(type: number) {
 // COMPONENT
 // ==========================================
 
-function MyActivityTable() {
+interface MyActivityTableProps {
+  type?: string;      // '' | '1' | '2'
+  fromDate?: string;  // yyyy-MM-dd
+  toDate?: string;    // yyyy-MM-dd
+}
+
+function MyActivityTable({
+  type = '',
+  fromDate = '',
+  toDate = '',
+}: MyActivityTableProps) {
   const [tickets, setTickets] = useState<ActivityTicket[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Filter
+  // Filter Search
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [type, setType] = useState('');          // '' | '1' | '2'
-  const [fromDate, setFromDate] = useState('');  // yyyy-MM-dd
-  const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
 
   // Ticket yang sedang dilihat (view only)
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+
+  // Reset page saat filter global berubah
+  useEffect(() => {
+    setPage(1);
+  }, [type, fromDate, toDate]);
 
   // Search ditunda 400ms supaya tidak request setiap ketikan.
   useEffect(() => {
@@ -133,19 +145,19 @@ function MyActivityTable() {
     void fetchActivity();
   }, [fetchActivity]);
 
+  // Listen to global dashboard refresh event
+  useEffect(() => {
+    const handleGlobalRefresh = () => {
+      void fetchActivity();
+    };
+
+    window.addEventListener('refresh-dashboard-activity', handleGlobalRefresh);
+    return () => {
+      window.removeEventListener('refresh-dashboard-activity', handleGlobalRefresh);
+    };
+  }, [fetchActivity]);
+
   const hasFilter = Boolean(search || type || fromDate || toDate);
-
-  const resetFilter = () => {
-    setSearchInput('');
-    setSearch('');
-    setType('');
-    setFromDate('');
-    setToDate('');
-    setPage(1);
-  };
-
-  const filterClass =
-    'rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
   return (
     <>
@@ -170,10 +182,10 @@ function MyActivityTable() {
           </div>
 
           {/* FILTERS */}
-          <div className="mt-5 flex flex-col gap-2 lg:flex-row lg:items-center">
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 
             {/* SEARCH */}
-            <div className="relative w-full lg:w-72">
+            <div className="relative w-full sm:w-80">
               <Search
                 size={18}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -188,57 +200,18 @@ function MyActivityTable() {
               />
             </div>
 
-            {/* TYPE */}
-            <select
-              value={type}
-              onChange={(event) => {
-                setType(event.target.value);
-                setPage(1);
-              }}
-              className={filterClass}
-            >
-              <option value="">All Types</option>
-              <option value="1">Maintenance</option>
-              <option value="2">Procurement</option>
-            </select>
-
-            {/* DATE RANGE (tanggal aksi saya) */}
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={fromDate}
-                max={toDate || undefined}
-                onChange={(event) => {
-                  setFromDate(event.target.value);
-                  setPage(1);
-                }}
-                className={filterClass}
-                title="From date"
-              />
-
-              <span className="text-sm text-slate-400">to</span>
-
-              <input
-                type="date"
-                value={toDate}
-                min={fromDate || undefined}
-                onChange={(event) => {
-                  setToDate(event.target.value);
-                  setPage(1);
-                }}
-                className={filterClass}
-                title="To date"
-              />
-            </div>
-
-            <div className="flex gap-2 lg:ml-auto">
-              {hasFilter && (
+            <div className="flex items-center gap-2 sm:ml-auto">
+              {searchInput && (
                 <button
                   type="button"
-                  onClick={resetFilter}
-                  className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50"
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearch('');
+                    setPage(1);
+                  }}
+                  className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 transition"
                 >
-                  Reset
+                  Clear Search
                 </button>
               )}
 

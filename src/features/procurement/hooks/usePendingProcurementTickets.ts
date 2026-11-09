@@ -84,7 +84,7 @@ export function usePendingProcurementTickets() {
     }
   }, [search, page, sortBy, desc]);
 
-  const fetchPendingTicketById = async (
+  const fetchPendingTicketById = useCallback(async (
     id: string
   ): Promise<ProcurementTicket> => {
     try {
@@ -98,7 +98,7 @@ export function usePendingProcurementTickets() {
 
       throw new Error(getErrorMessage(error));
     }
-  };
+  }, []);
 
   useEffect(() => {
     void fetchPendingTickets();
