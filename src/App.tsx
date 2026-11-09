@@ -1,3 +1,4 @@
+
 import {
   BrowserRouter,
   Navigate,
@@ -11,6 +12,7 @@ import DashboardPage from './features/dashboard/pages/DashboardPage';
 import MyProfilePage from './features/profile/pages/MyProfilePage';
 import SettingsPage from './features/settings/pages/SettingsPage';
 import ProcurementPage from './features/procurement/pages/ProcurementPage';
+import MaintenanceDashboard from './features/maintenance/pages/MaintenanceDashboard';
 
 function App() {
   return (
@@ -21,10 +23,30 @@ function App() {
 
         {/* Main Application */}
         <Route element={<MainLayout />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/profile" element={<MyProfilePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/procurement" element={<ProcurementPage />} />
+          <Route
+            path="/dashboard"
+            element={<DashboardPage />}
+          />
+
+          <Route
+            path="/profile"
+            element={<MyProfilePage />}
+          />
+
+          <Route
+            path="/settings"
+            element={<SettingsPage />}
+          />
+
+          <Route
+            path="/procurement"
+            element={<ProcurementPage />}
+          />
+
+          <Route
+            path="/maintenance"
+            element={<MaintenanceDashboard />}
+          />
         </Route>
 
         {/* Redirect unknown routes */}
