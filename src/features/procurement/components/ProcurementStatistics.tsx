@@ -1,4 +1,3 @@
-
 import {
   ClipboardList,
   RefreshCw,
@@ -6,54 +5,43 @@ import {
   XCircle,
 } from 'lucide-react';
 
-import type {
-  ProcurementTicketListItem,
-} from '../types/procurement.types';
+import type { MyTicketStatistics } from '../types/procurement.types';
 
 interface ProcurementStatisticsProps {
-  tickets: ProcurementTicketListItem[];
+  statistics: MyTicketStatistics | null;
+  isLoading: boolean;
 }
 
 function ProcurementStatistics({
-  tickets,
+  statistics: data,
+  isLoading,
 }: ProcurementStatisticsProps) {
-  const totalRequests = tickets.length;
-
-  const pendingRequests = tickets.filter(
-    (ticket) => ticket.closedAt === null
-  ).length;
-
-  const closedRequests = tickets.filter(
-    (ticket) => ticket.closedAt !== null
-  ).length;
-
-  const rejectedRequests = tickets.filter(
-    (ticket) =>
-      ticket.currentStep.toUpperCase() === 'REJECTED'
-  ).length;
+  // Angka dari backend; '...' saat loading, '-' kalau gagal.
+  const show = (value: number | undefined) =>
+    isLoading && !data ? '...' : value ?? '-';
 
   const statistics = [
     {
       title: 'Total Requests',
-      value: totalRequests,
+      value: show(data?.totalRequests),
       icon: ClipboardList,
       iconColor: 'text-blue-600',
     },
     {
       title: 'Active Requests',
-      value: pendingRequests,
+      value: show(data?.activeRequests),
       icon: RefreshCw,
       iconColor: 'text-amber-500',
     },
     {
       title: 'Closed Requests',
-      value: closedRequests,
+      value: show(data?.closedRequests),
       icon: CheckCircle2,
       iconColor: 'text-green-600',
     },
     {
       title: 'Rejected Requests',
-      value: rejectedRequests,
+      value: show(data?.rejectedRequests),
       icon: XCircle,
       iconColor: 'text-red-600',
     },

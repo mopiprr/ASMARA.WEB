@@ -102,6 +102,29 @@ export const getStatusStyle = (step: string): string => {
   return 'bg-blue-50 text-blue-700 border-blue-200';
 };
 
+export const getStatusDot = (step: string): string => {
+  const status = step.toLowerCase();
+
+  if (status.includes('completed') || status.includes('approved')) {
+    return 'bg-green-500';
+  }
+
+  if (status.includes('reject') || status.includes('cancel')) {
+    return 'bg-red-500';
+  }
+
+  if (
+    status.includes('created') ||
+    status.includes('review') ||
+    status.includes('need') ||
+    status.includes('revision')
+  ) {
+    return 'bg-amber-500';
+  }
+
+  return 'bg-blue-500';
+};
+
 // ==========================================
 // PROCUREMENT TOTAL
 // ==========================================

@@ -21,6 +21,7 @@ import { usePendingProcurementTickets } from '../hooks/usePendingProcurementTick
 import { useProcurementForm } from '../hooks/useProcurementForm';
 import { useProcurementActions } from '../hooks/useProcurementActions';
 import { useInventoryOptions } from '../hooks/useInventoryOptions';
+import { useProcurementStatistics } from '../hooks/useProcurementStatistics';
 
 import type {
   ProcurementLocationState,
@@ -103,6 +104,12 @@ function ProcurementPage() {
     goToPage: goToPendingPage,
   } = usePendingProcurementTickets();
 
+  const {
+    statistics,
+    isLoading: isLoadingStatistics,
+    fetchStatistics,
+  } = useProcurementStatistics();
+
   // ==========================================
   // REFRESH BOTH TABLES
   // ==========================================
@@ -111,6 +118,7 @@ function ProcurementPage() {
     await Promise.all([
       fetchTickets(),
       fetchPendingTickets(),
+      fetchStatistics(),
     ]);
   };
 
@@ -136,6 +144,7 @@ function ProcurementPage() {
   const {
     categories,
     categoryError,
+    loadCategories,
     inventoryItemsByCategory,
     loadingItems,
     itemErrors,
@@ -165,6 +174,8 @@ function ProcurementPage() {
     form.setSubmitSuccess('');
 
     setIsModalOpen(true);
+
+    void loadCategories();
   };
 
   const handleCloseModal = () => {
@@ -406,26 +417,6 @@ function ProcurementPage() {
         onNewRequest={handleOpenModal}
       />
 
-      {/* INVENTORY CATEGORY ERROR */}
-      {categoryError && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-          <AlertCircle
-            size={20}
-            className="mt-0.5 shrink-0 text-red-500"
-          />
-
-          <div>
-            <p className="text-sm font-semibold text-red-700">
-              Failed to load inventory categories
-            </p>
-
-            <p className="mt-1 text-xs text-red-600">
-              {categoryError}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* DETAIL ERROR */}
       {pendingDetailError && (
         <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
@@ -448,7 +439,8 @@ function ProcurementPage() {
 
       {/* STATISTICS */}
       <ProcurementStatistics
-        tickets={tickets}
+        statistics={statistics}
+        isLoading={isLoadingStatistics}
       />
 
       {/* PROCUREMENT TABS */}
@@ -478,7 +470,7 @@ function ProcurementPage() {
                   : 'bg-gray-100 text-gray-600'
               }`}
             >
-              {tickets.length}
+              {totalCount}
             </span>
           </button>
 
@@ -565,7 +557,7 @@ function ProcurementPage() {
         isLoadingItems={loadingItems}
         itemErrors={itemErrors}
         isSubmitting={form.isSubmitting}
-        submitError={form.submitError}
+        submitError={form.submitError || categoryError}
         submitSuccess={form.submitSuccess}
         onSubjectChange={form.setSubject}
         onDescriptionChange={form.setDescription}

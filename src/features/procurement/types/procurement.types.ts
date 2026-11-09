@@ -146,3 +146,10 @@ export interface PagedResult<T> {
   hasPrevious: boolean;
   hasNext: boolean;
 }
+
+export interface MyTicketStatistics {
+  totalRequests: number;
+  activeRequests: number;
+  closedRequests: number;
+  rejectedRequests: number;
+}
