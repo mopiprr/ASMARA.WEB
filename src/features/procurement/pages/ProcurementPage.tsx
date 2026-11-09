@@ -65,6 +65,13 @@ function ProcurementPage() {
     isLoadingTickets,
     ticketError,
     fetchTickets,
+    sortBy,
+    desc,
+    toggleSort,
+    page,
+    setPage,
+    totalCount,
+    totalPages,
   } = useProcurementTickets();
 
   // ==========================================
@@ -78,6 +85,10 @@ function ProcurementPage() {
 
     search: pendingSearch,
     setSearch: setPendingSearch,
+
+    sortBy: pendingSortBy,
+    desc: pendingDesc,
+    toggleSort: togglePendingSort,
 
     page: pendingPage,
     totalCount: pendingTotalCount,
@@ -442,6 +453,13 @@ function ProcurementPage() {
             error={ticketError}
             onRefresh={fetchTickets}
             onView={handleViewTicket}
+            sortBy={sortBy}
+            desc={desc}
+            onSort={toggleSort}
+            page={page}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            onPageChange={setPage}
           />
         )}
 
@@ -463,6 +481,9 @@ function ProcurementPage() {
             onRefresh={fetchPendingTickets}
             onView={handleViewPendingTicket}
 
+            sortBy={pendingSortBy}
+            desc={pendingDesc}
+            onSort={togglePendingSort}
             isLoadingDetail={isLoadingDetail}
           />
         )}

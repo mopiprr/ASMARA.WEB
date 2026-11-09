@@ -6,6 +6,11 @@ import {
   ClipboardList,
   AlertCircle,
   Eye,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 import type {
@@ -17,6 +22,7 @@ import {
 } from '../utils/procurement.utils';
 
 import ProcurementStatusBadge from './ProcurementStatusBadge';
+import type { TicketSortField } from '../hooks/useProcurementTickets';
 
 // ==========================================
 // PROPS
@@ -28,6 +34,52 @@ interface ProcurementTableProps {
   error: string;
   onRefresh: () => void;
   onView: (ticket: ProcurementTicketListItem) => void;
+  sortBy: TicketSortField;
+  desc: boolean;
+  onSort: (field: TicketSortField) => void;
+  page: number;
+  totalPages: number;
+  totalCount: number;
+  onPageChange: (page: number) => void;
+}
+
+// ==========================================
+// SORTABLE HEADER
+// ==========================================
+
+interface SortableHeaderProps {
+  label: string;
+  field: TicketSortField;
+  sortBy: TicketSortField;
+  desc: boolean;
+  onSort: (field: TicketSortField) => void;
+}
+
+function SortableHeader({
+  label,
+  field,
+  sortBy,
+  desc,
+  onSort,
+}: SortableHeaderProps) {
+  const isActive = sortBy === field;
+
+  const Icon = !isActive ? ArrowUpDown : desc ? ArrowDown : ArrowUp;
+
+  return (
+    <th className="px-6 py-4 font-semibold">
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className={`inline-flex items-center gap-1.5 uppercase tracking-wider transition hover:text-slate-600 ${
+          isActive ? 'text-blue-600' : ''
+        }`}
+      >
+        {label}
+        <Icon size={13} className={isActive ? '' : 'opacity-50'} />
+      </button>
+    </th>
+  );
 }
 
 // ==========================================
@@ -40,6 +92,13 @@ function ProcurementTable({
   error,
   onRefresh,
   onView,
+  sortBy,
+  desc,
+  onSort,
+  page,
+  totalPages,
+  totalCount,
+  onPageChange,
 }: ProcurementTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -97,7 +156,7 @@ function ProcurementTable({
                 onChange={(event) =>
                   setSearchQuery(event.target.value)
                 }
-                placeholder="Search requests..."
+                placeholder="Search tickets..."
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
@@ -127,29 +186,37 @@ function ProcurementTable({
 
           <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
             <tr>
-              <th className="px-6 py-4 font-semibold">
-                Ticket
-              </th>
+              <SortableHeader
+                label="Ticket Number"
+                field="ticketNumber"
+                sortBy={sortBy}
+                desc={desc}
+                onSort={onSort}
+              />
 
-              <th className="px-6 py-4 font-semibold">
-                Request Details
-              </th>
+              <SortableHeader
+                label="Request Details"
+                field="subject"
+                sortBy={sortBy}
+                desc={desc}
+                onSort={onSort}
+              />
 
-              <th className="px-6 py-4 font-semibold">
-                Requester
-              </th>
+              <SortableHeader
+                label="Date"
+                field="date"
+                sortBy={sortBy}
+                desc={desc}
+                onSort={onSort}
+              />
 
-              <th className="px-6 py-4 font-semibold">
-                Date
-              </th>
-
-              <th className="px-6 py-4 font-semibold">
-                Estimated Value
-              </th>
-
-              <th className="px-6 py-4 font-semibold">
-                Status
-              </th>
+              <SortableHeader
+                label="Status"
+                field="status"
+                sortBy={sortBy}
+                desc={desc}
+                onSort={onSort}
+              />
 
               <th className="px-6 py-4 font-semibold">
                 Action
@@ -163,7 +230,7 @@ function ProcurementTable({
             {isLoading && tickets.length === 0 ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={5}
                   className="px-6 py-16 text-center"
                 >
                   <RefreshCw
@@ -262,21 +329,9 @@ function ProcurementTable({
                     </p>
                   </td>
 
-                  {/* REQUESTER */}
-                  <td className="px-6 py-4">
-                    <span className="text-slate-700">
-                      {ticket.requesterName || '-'}
-                    </span>
-                  </td>
-
                   {/* DATE */}
                   <td className="whitespace-nowrap px-6 py-4 text-slate-500">
                     {formatDate(ticket.createdAt)}
-                  </td>
-
-                  {/* ESTIMATED VALUE */}
-                  <td className="whitespace-nowrap px-6 py-4 font-medium text-slate-500">
-                    -
                   </td>
 
                   {/* STATUS */}
@@ -308,14 +363,36 @@ function ProcurementTable({
       </div>
 
       {/* TABLE FOOTER */}
-      <div className="flex flex-col justify-between gap-2 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center">
-        <p className="text-xs text-slate-400">
-          Showing {filteredTickets.length} of {tickets.length} requests
+      <div className="flex flex-col gap-3 border-t border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-gray-500">
+          Showing {filteredTickets.length} of {totalCount} requests
         </p>
 
-        <p className="text-xs text-slate-400">
-          Data based on your access permissions.
-        </p>
+        <div className="flex items-center justify-end gap-3">
+          <span className="text-xs text-gray-500">
+            Page {page} of {Math.max(totalPages, 1)}
+          </span>
+
+          <button
+            type="button"
+            onClick={() => onPageChange(page - 1)}
+            disabled={page <= 1 || isLoading}
+            className="rounded-lg border border-gray-300 p-2 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label="Previous page"
+          >
+            <ChevronLeft size={17} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onPageChange(page + 1)}
+            disabled={page >= totalPages || isLoading}
+            className="rounded-lg border border-gray-300 p-2 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label="Next page"
+          >
+            <ChevronRight size={17} />
+          </button>
+        </div>
       </div>
 
     </section>

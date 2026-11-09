@@ -8,6 +8,8 @@ import type {
   ProcurementTicket,
 } from '../types/procurement.types';
 
+export type PendingSortField = 'ticketNumber' | 'subject' | 'requester' | 'date';
+
 const PAGE_SIZE = 10;
 
 export function usePendingProcurementTickets() {
@@ -17,6 +19,9 @@ export function usePendingProcurementTickets() {
   const [error, setError] = useState('');
 
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<PendingSortField>('date');
+  const [desc, setDesc] = useState(true);
+
   const [page, setPage] = useState(1);
 
   const [totalCount, setTotalCount] = useState(0);
@@ -56,8 +61,8 @@ export function usePendingProcurementTickets() {
             Search: search.trim() || undefined,
             Page: page,
             PageSize: PAGE_SIZE,
-            SortBy: 'date',
-            Desc: true,
+            SortBy: sortBy,
+            Desc: desc,
           },
         }
       );
@@ -77,7 +82,7 @@ export function usePendingProcurementTickets() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, page]);
+  }, [search, page, sortBy, desc]);
 
   const fetchPendingTicketById = async (
     id: string
@@ -104,6 +109,17 @@ export function usePendingProcurementTickets() {
     setPage(1);
   };
 
+  const toggleSort = (field: PendingSortField) => {
+    if (field === sortBy) {
+      setDesc((previous) => !previous);
+    } else {
+      setSortBy(field);
+      setDesc(false);
+    }
+
+    setPage(1);
+  };
+
   const goToPage = (nextPage: number) => {
     if (nextPage < 1 || nextPage > totalPages) return;
 
@@ -126,5 +142,9 @@ export function usePendingProcurementTickets() {
     fetchPendingTickets,
     fetchPendingTicketById,
     goToPage,
+
+    sortBy,
+    desc,
+    toggleSort,
   };
 }
