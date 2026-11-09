@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import api from '../../../services/api';
 
@@ -23,27 +22,25 @@ export function useInventoryOptions() {
   const [itemErrors, setItemErrors] = useState<ErrorState>({});
 
   // Fetch categories
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        setIsLoadingCategories(true);
-        setCategoryError('');
+  const loadCategories = useCallback(async () => {
+    if (categories.length > 0 || isLoadingCategories) return;
 
-        const response = await api.get<CategoryOption[]>(
-          '/inventory/categories'
-        );
+    try {
+      setIsLoadingCategories(true);
+      setCategoryError('');
 
-        setCategories(response.data);
-      } catch (error) {
-        console.error('Failed to fetch item categories:', error);
-        setCategoryError('Failed to load item categories.');
-      } finally {
-        setIsLoadingCategories(false);
-      }
-    };
+      const response = await api.get<CategoryOption[]>(
+        '/inventory/categories'
+      );
 
-    void fetchCategories();
-  }, []);
+      setCategories(response.data);
+    } catch (error) {
+      console.error('Failed to fetch item categories:', error);
+      setCategoryError('Failed to load item categories.');
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  }, [categories.length, isLoadingCategories]);
 
   // Fetch inventory items by category
   const fetchInventoryItems = async (categoryId: string) => {
@@ -101,6 +98,7 @@ export function useInventoryOptions() {
     categoryError,
     inventoryItemsByCategory,
     loadingItems,
+    loadCategories,
     itemErrors,
     fetchInventoryItems,
   };
