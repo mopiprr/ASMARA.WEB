@@ -12,6 +12,8 @@ import MyProfilePage from './features/profile/pages/MyProfilePage';
 import SettingsPage from './features/settings/pages/SettingsPage';
 import ProcurementPage from './features/procurement/pages/ProcurementPage';
 import AssetManagementPage from './features/assets/pages/AssetManagementPage';
+import MaintenanceDashboard from './features/maintenance/pages/MaintenanceDashboard';
+import InventoryPage from './features/inventory/pages/InventoryPage';
 
 function App() {
   return (
@@ -27,6 +29,8 @@ function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/procurement" element={<ProcurementPage />} />
           <Route path="/assets" element={<AssetManagementPage />} />
+          <Route path="/maintenance" element={<MaintenanceDashboard />} />
+          <Route path="/inventory" element={<InventoryPage />} />
         </Route>
 
         {/* Redirect unknown routes */}
