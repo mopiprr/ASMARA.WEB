@@ -14,6 +14,7 @@ import ProcurementPage from './features/procurement/pages/ProcurementPage';
 import AssetManagementPage from './features/assets/pages/AssetManagementPage';
 import MaintenanceDashboard from './features/maintenance/pages/MaintenanceDashboard';
 import InventoryPage from './features/inventory/pages/InventoryPage';
+import EmployeeManagementPage from './features/employees/pages/EmployeeManagementPage';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
           <Route path="/assets" element={<AssetManagementPage />} />
           <Route path="/maintenance" element={<MaintenanceDashboard />} />
           <Route path="/inventory" element={<InventoryPage />} />
+          <Route path="/employees" element={<EmployeeManagementPage />} />
         </Route>
 
         {/* Redirect unknown routes */}
