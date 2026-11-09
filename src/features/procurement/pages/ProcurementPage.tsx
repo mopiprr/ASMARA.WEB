@@ -1,6 +1,6 @@
 
-import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   ClipboardList,
@@ -33,6 +33,7 @@ import type {
 type ProcurementTab = 'requests' | 'pending';
 
 function ProcurementPage() {
+  const navigate = useNavigate();
   const location = useLocation();
 
   const locationState =
@@ -43,6 +44,9 @@ function ProcurementPage() {
   // ==========================================
   // PAGE STATE
   // ==========================================
+
+  const [searchParams] = useSearchParams();
+  const handledTicketIdRef = useRef<string | null>(null);
 
   const [activeTab, setActiveTab] =
     useState<ProcurementTab>('requests');
@@ -237,6 +241,60 @@ function ProcurementPage() {
   };
 
   // ==========================================
+  // URL PARAMS DEEP LINKING (FROM DASHBOARD)
+  // ==========================================
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'pending') {
+      setActiveTab('pending');
+    } else if (tabParam === 'requests' || tabParam === 'my_request') {
+      setActiveTab('requests');
+    }
+
+    const ticketIdParam = searchParams.get('ticketId');
+    if (ticketIdParam) {
+      if (handledTicketIdRef.current === ticketIdParam) {
+        return;
+      }
+      handledTicketIdRef.current = ticketIdParam;
+
+      void (async () => {
+        try {
+          setIsLoadingDetail(true);
+          setPendingDetailError('');
+
+          if (tabParam === 'pending') {
+            const detail = await fetchPendingTicketById(ticketIdParam);
+            setSelectedTicket(detail);
+          } else {
+            const response = await api.get<ProcurementTicket>(
+              `/tickets/${ticketIdParam}`
+            );
+            setSelectedTicket(response.data);
+          }
+        } catch (err: unknown) {
+          console.error('Failed to open ticket from URL param:', err);
+          const apiError = err as {
+            response?: { data?: { message?: string; detail?: string } };
+            message?: string;
+          };
+          setPendingDetailError(
+            apiError.response?.data?.detail ||
+              apiError.response?.data?.message ||
+              apiError.message ||
+              'Failed to load ticket detail from URL.'
+          );
+        } finally {
+          setIsLoadingDetail(false);
+        }
+      })();
+    } else {
+      handledTicketIdRef.current = null;
+    }
+  }, [searchParams, fetchPendingTicketById]);
+
+  // ==========================================
   // CLOSE DETAIL MODAL
   // ==========================================
 
@@ -246,6 +304,11 @@ function ProcurementPage() {
     setSelectedTicket(null);
     setActionError('');
     setPendingDetailError('');
+    handledTicketIdRef.current = null;
+
+    // Bersihkan parameter dan arahkan ke /procurement dengan tab yang sedang aktif
+    const tabQuery = activeTab === 'pending' ? '?tab=pending' : '';
+    navigate(`/procurement${tabQuery}`, { replace: true });
   };
 
   // ==========================================

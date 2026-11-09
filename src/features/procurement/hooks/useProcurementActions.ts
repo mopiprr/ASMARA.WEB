@@ -55,8 +55,11 @@ export function useProcurementActions({
         setActionError('');
 
         await api.post(
-          `/procurements/${ticketId}/${action}`,
-          { note }
+          `/procurements/${ticketId}/action`,
+          {
+            action: action.charAt(0).toUpperCase() + action.slice(1),
+            note: note.trim() || null,
+          }
         );
 
         if (onSuccess) {
