@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useTicketStatistics } from '../hooks/useTicketStatistics';
 import type { DashboardResponse } from '../types/dashboard.types';
+import MyActivityTable from '../components/MyActivityTable';
 
 const API_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:5243';
@@ -693,6 +694,9 @@ function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* My Activity */}
+      <MyActivityTable />
 
       {/* Assets Statistics */}
       <section>
