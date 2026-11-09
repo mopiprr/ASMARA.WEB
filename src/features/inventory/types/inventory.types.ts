@@ -16,6 +16,9 @@ export interface InventoryItem {
   itemName: string;
   qty: number | null;
   isActive: boolean;
+  trackingType?: TrackingType;
+  totalAssetCount?: number | null;
+  availableAssetCount?: number | null;
 }
 
 export type StockStatusFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock';

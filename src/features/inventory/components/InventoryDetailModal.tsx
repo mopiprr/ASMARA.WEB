@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { X, Package, Tag, Copy, Check, Hash, Layers, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Package, Tag, Copy, Check, Hash, Layers, ShieldCheck, ShieldAlert, Boxes, ArrowRight } from 'lucide-react';
 import type { InventoryItem, InventoryCategory } from '../types/inventory.types';
 import { getStockStatus, getTrackingTypeLabel } from '../utils/inventory.utils';
 
@@ -10,6 +11,7 @@ interface InventoryDetailModalProps {
 }
 
 export function InventoryDetailModal({ item, categories, onClose }: InventoryDetailModalProps) {
+  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
   if (!item) return null;
@@ -122,13 +124,21 @@ export function InventoryDetailModal({ item, categories, onClose }: InventoryDet
             <div className="rounded-xl border border-slate-200 p-3.5">
               <div className="flex items-center gap-2 text-slate-400 text-xs font-medium mb-1">
                 <Package size={14} />
-                <span>Physical Stock on Hand</span>
+                <span>
+                  {category?.trackingType === 2 || item.trackingType === 2
+                    ? 'Stock Ready in Storage'
+                    : 'Physical Stock on Hand'}
+                </span>
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-xl font-bold text-slate-800">
-                  {item.qty ?? 0}
+                  {item.availableAssetCount ?? item.qty ?? 0}
                 </span>
-                <span className="text-xs text-slate-500">units</span>
+                <span className="text-xs text-slate-500">
+                  {category?.trackingType === 2 || item.trackingType === 2
+                    ? `ready (${item.totalAssetCount ?? 0} total)`
+                    : 'units'}
+                </span>
               </div>
             </div>
 
@@ -144,6 +154,37 @@ export function InventoryDetailModal({ item, categories, onClose }: InventoryDet
               </span>
             </div>
           </div>
+
+          {/* NON-CONSUMABLE ASSET TRACKING BANNER */}
+          {(category?.trackingType === 2 || item.trackingType === 2) && (
+            <div className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50/60 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+                  <Boxes size={18} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">
+                    Serialized Fixed Asset
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    {item.availableAssetCount ?? item.qty ?? 0} ready in storage · {item.totalAssetCount ?? 0} total units tracked individually
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  navigate(`/assets?search=${encodeURIComponent(item.itemName)}`);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700 transition"
+              >
+                <span>Lihat di Aset</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
+          )}
 
           {/* CATALOG STATUS */}
           <div className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 bg-white">
