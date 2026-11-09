@@ -785,7 +785,9 @@ function ProcurementDetailModal({
             </section>
           )}
 
-          <TicketHistorySection history={ticket.history} />
+          {!canShowApprovalActions && (
+            <TicketHistorySection history={ticket.history} />
+          )}
 
           {/* ERROR */}
           {actionError && (
