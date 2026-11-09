@@ -1,11 +1,16 @@
-import { Package, RefreshCw } from 'lucide-react';
+import { Package, RefreshCw, ShieldCheck, Lock } from 'lucide-react';
 
 interface InventoryHeaderProps {
   isLoading: boolean;
+  isInventoryUser?: boolean;
   onRefresh: () => void;
 }
 
-export function InventoryHeader({ isLoading, onRefresh }: InventoryHeaderProps) {
+export function InventoryHeader({
+  isLoading,
+  isInventoryUser = true,
+  onRefresh,
+}: InventoryHeaderProps) {
   return (
     <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
       <div>
@@ -23,7 +28,19 @@ export function InventoryHeader({ isLoading, onRefresh }: InventoryHeaderProps) 
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
+        {isInventoryUser ? (
+          <span className="hidden items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 sm:inline-flex">
+            <ShieldCheck size={14} />
+            <span>Inventory Authorized</span>
+          </span>
+        ) : (
+          <span className="hidden items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 sm:inline-flex">
+            <Lock size={14} />
+            <span>Limited Guest Access</span>
+          </span>
+        )}
+
         <button
           type="button"
           onClick={onRefresh}
@@ -31,7 +48,10 @@ export function InventoryHeader({ isLoading, onRefresh }: InventoryHeaderProps) 
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
           title="Refresh Data"
         >
-          <RefreshCw size={16} className={isLoading ? 'animate-spin text-blue-600' : 'text-slate-500'} />
+          <RefreshCw
+            size={16}
+            className={isLoading ? 'animate-spin text-blue-600' : 'text-slate-500'}
+          />
           <span>Refresh</span>
         </button>
       </div>

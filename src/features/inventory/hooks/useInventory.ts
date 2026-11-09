@@ -6,13 +6,40 @@ import type {
   StockStatusFilter,
   InventorySummary,
 } from '../types/inventory.types';
-import { LOW_STOCK_THRESHOLD } from '../utils/inventory.utils';
+import { LOW_STOCK_THRESHOLD, isUserInInventoryRole } from '../utils/inventory.utils';
+
+function getStoredUser() {
+  const raw =
+    localStorage.getItem('user') || sessionStorage.getItem('user');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+interface UserProfileResponse {
+  employeeId: string;
+  fullName: string;
+  department?: string;
+  departmentName?: string;
+  roles?: string[];
+}
 
 export function useInventory() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Role verification state
+  const [profile, setProfile] = useState<UserProfileResponse | null>(null);
+  const [isCheckingRole, setIsCheckingRole] = useState<boolean>(true);
+  const [isInventoryUser, setIsInventoryUser] = useState<boolean>(() => {
+    const stored = getStoredUser();
+    return isUserInInventoryRole(stored, null);
+  });
 
   // Filters
   const [search, setSearch] = useState<string>('');
@@ -24,6 +51,32 @@ export function useInventory() {
       setIsLoading(true);
       setError(null);
 
+      // 1. Verify user profile and permissions
+      let currentProfile = profile;
+      if (!currentProfile) {
+        try {
+          const profileRes = await api.get<UserProfileResponse>('/profile/me');
+          currentProfile = profileRes.data;
+          setProfile(currentProfile);
+        } catch (profileErr) {
+          console.warn('Failed to fetch user profile in useInventory:', profileErr);
+        }
+      }
+
+      const storedUser = getStoredUser();
+      const hasPermission = isUserInInventoryRole(storedUser, currentProfile);
+      setIsInventoryUser(hasPermission);
+      setIsCheckingRole(false);
+
+      // 2. If user is NOT from Inventory, DO NOT fetch items data (restricted)
+      if (!hasPermission) {
+        setItems([]);
+        setCategories([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // 3. User is authorized: Fetch items and categories
       const [itemsResponse, categoriesResponse] = await Promise.all([
         api.get<InventoryItem[]>('/inventory/items'),
         api.get<InventoryCategory[]>('/inventory/categories'),
@@ -37,7 +90,7 @@ export function useInventory() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [profile]);
 
   useEffect(() => {
     void fetchData();
@@ -45,6 +98,15 @@ export function useInventory() {
 
   // Overall Catalog Summary (based on all items)
   const summary: InventorySummary = useMemo(() => {
+    if (!isInventoryUser) {
+      return {
+        totalSkus: 0,
+        totalUnits: 0,
+        lowStockCount: 0,
+        outOfStockCount: 0,
+      };
+    }
+
     let totalUnits = 0;
     let lowStockCount = 0;
     let outOfStockCount = 0;
@@ -67,10 +129,14 @@ export function useInventory() {
       lowStockCount,
       outOfStockCount,
     };
-  }, [items]);
+  }, [items, isInventoryUser]);
 
   // Filtered Items
   const filteredItems = useMemo(() => {
+    if (!isInventoryUser) {
+      return [];
+    }
+
     const keyword = search.trim().toLowerCase();
 
     return items.filter((item) => {
@@ -109,7 +175,7 @@ export function useInventory() {
 
       return true;
     });
-  }, [items, search, selectedCategory, stockStatus]);
+  }, [items, search, selectedCategory, stockStatus, isInventoryUser]);
 
   const resetFilters = useCallback(() => {
     setSearch('');
@@ -127,6 +193,9 @@ export function useInventory() {
     filteredItems,
     summary,
     isLoading,
+    isCheckingRole,
+    isInventoryUser,
+    userProfile: profile,
     error,
     search,
     setSearch,
