@@ -82,11 +82,15 @@ export interface MaintenanceTicket {
   procurementDetails: unknown[] | null;
   history: MaintenanceHistoryItem[] | null;
 
+  // Workflow permissions.
   canApprove: boolean;
   canRevise: boolean;
   canReject: boolean;
   canReceiveGoods: boolean;
   canResubmit: boolean;
+  canAssignHandler: boolean;
+  canSendItem: boolean;
+  canReceiveItem: boolean;
 }
 
 // Aset yang dapat dipilih untuk Maintenance.
@@ -99,11 +103,13 @@ export interface MaintenanceAssetOption {
 }
 
 // Handler yang dapat ditugaskan oleh IT Support.
+
 export interface MaintenanceHandlerOption {
-  id: string;
+  employeeId: string;
   employeeNumber: string;
   fullName: string;
 }
+
 
 // Request membuat tiket.
 export interface CreateMaintenancePayload {
@@ -121,7 +127,7 @@ export interface MaintenanceNotePayload {
 // Request assign handler.
 export interface AssignMaintenanceHandlerPayload {
   technicianId: string;
-  instructionNote?: string | null;
+  instructionNote?: string;
 }
 
 // Backend RepairResultEnum:

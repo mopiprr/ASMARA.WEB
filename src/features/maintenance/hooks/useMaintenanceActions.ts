@@ -114,9 +114,8 @@ const rejectMaintenance = useCallback(
   (ticketId: string, payload: MaintenanceNotePayload) =>
     execute(async () => {
       const response = await api.post<MaintenanceTransitionResult>(
-        `/maintenances/${ticketId}/action`,
+        `/maintenances/${ticketId}/reject`,
         {
-          action: 'Reject',
           note: payload.note,
         },
       );
@@ -128,24 +127,24 @@ const rejectMaintenance = useCallback(
 
 
   // IT Support: Assign handler.
-  const assignHandler = useCallback(
-    (
-      ticketId: string,
-      payload: AssignMaintenanceHandlerPayload,
-    ) =>
-      execute(async () => {
-        const response =
-          await api.post<MaintenanceTransitionResult>(
-            `/maintenances/${ticketId}/assign-handler`,
-            payload,
-          );
+const assignHandler = useCallback(
+  (
+    ticketId: string,
+    payload: AssignMaintenanceHandlerPayload,
+  ) =>
+    execute(async () => {
+      const response = await api.post<MaintenanceTransitionResult>(
+        `/maintenances/${ticketId}/assign-handler`,
+        payload,
+      );
 
-        return response.data;
-      }),
-    [execute],
-  );
+      return response.data;
+    }),
+  [execute],
+);
 
   // Requester: Send item.
+
   const sendItem = useCallback(
     (
       ticketId: string,
@@ -154,8 +153,11 @@ const rejectMaintenance = useCallback(
       execute(async () => {
         const response =
           await api.post<MaintenanceTransitionResult>(
-            `/maintenances/${ticketId}/send`,
-            payload,
+            `/maintenances/${ticketId}/action`,
+            {
+              action: 'Send',
+              note: payload.note,
+            },
           );
 
         return response.data;
