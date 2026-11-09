@@ -5,10 +5,13 @@ interface AssetStatusBadgeProps {
 }
 
 function AssetStatusBadge({ status }: AssetStatusBadgeProps) {
-  const { label, style } = getAssetStatus(status);
+  const { label, style, dotStyle } = getAssetStatus(status);
 
   return (
-    <span className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${style}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${style}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${dotStyle}`} />
       {label}
     </span>
   );
