@@ -28,7 +28,11 @@ interface TrendBarItem {
   total: number;
 }
 
-export function TicketActivityTrendChart() {
+interface TicketActivityTrendChartProps {
+  isApprover?: boolean;
+}
+
+export function TicketActivityTrendChart({ isApprover = false }: TicketActivityTrendChartProps) {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [hasLoaded, setHasLoaded] = useState<boolean>(false);
@@ -41,9 +45,9 @@ export function TicketActivityTrendChart() {
       setIsLoading(true);
       setError(null);
 
-      // Fetch user's tickets up to 100 recent tickets for trend calculation
+      // Fetch tickets up to 200 recent tickets for trend calculation (including subordinates for approvers/managers)
       const response = await api.get('/tickets', {
-        params: { pageSize: 100 },
+        params: { pageSize: 200, includeSubordinates: true },
       });
 
       const tickets: RawTicketItem[] = response.data?.items ?? [];
@@ -200,7 +204,7 @@ export function TicketActivityTrendChart() {
             <TrendingUp size={20} />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-base font-bold text-slate-800">
                 Ticket Activity & Timeline Trend
               </h2>
@@ -213,9 +217,20 @@ export function TicketActivityTrendChart() {
                   ? '6-Month View'
                   : '4-Year View'}
               </span>
+              {isApprover ? (
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                  Team & Subordinates Scope
+                </span>
+              ) : (
+                <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                  Personal Scope
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500">
-              Interactive ticket submission volume by day, week, month, or year
+              {isApprover
+                ? 'Interactive ticket volume for you and your reporting team across timeframes'
+                : 'Interactive ticket submission volume by day, week, month, or year'}
             </p>
           </div>
         </div>

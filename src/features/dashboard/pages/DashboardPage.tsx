@@ -152,8 +152,8 @@ function DashboardPage() {
           currentStepName: t.currentStepName,
         }));
       } else if (category === 'completed') {
-        const res = await api.get('/tickets/completed/my', {
-          params: { page: 1, pageSize: 5, desc: true },
+        const res = await api.get('/tickets', {
+          params: { isClosed: true, page: 1, pageSize: 5, desc: true },
         });
         const list = (res.data as { items?: any[] })?.items ?? [];
         items = list.map((t: any) => ({
@@ -161,7 +161,7 @@ function DashboardPage() {
           ticketNumber: String(t.ticketNumber),
           subject: String(t.subject),
           ticketType: Number(t.ticketType),
-          ticketTypeName: t.ticketTypeName || (Number(t.ticketType) === 1 ? 'Maintenance' : 'Procurement'),
+          ticketTypeName: Number(t.ticketType) === 1 ? 'Maintenance' : 'Procurement',
           currentStep: t.currentStep,
           currentStepName: t.currentStepName,
         }));
@@ -592,7 +592,7 @@ function DashboardPage() {
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Overview of tickets in your scope
+              Overview of your personal ticket requests
             </p>
           </div>
 
@@ -889,9 +889,7 @@ function DashboardPage() {
                   </h2>
 
                   <p className="text-xs text-slate-500">
-                    {isApprover
-                      ? 'Team & subordinates workflow health'
-                      : 'Your ticket resolution efficiency'}
+                    Your personal ticket resolution efficiency
                   </p>
                 </div>
               </div>
@@ -1026,23 +1024,16 @@ function DashboardPage() {
 
           {/* Scope Footer Notice */}
           <div className="mt-5 border-t border-slate-100 pt-3 text-[11px] text-slate-400">
-            {isApprover ? (
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-500" />
-                Aggregated scope: You and all reporting subordinates
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-400" />
-                Personal scope: Based on your submitted requests
-              </span>
-            )}
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-400" />
+              Personal scope: Based on your submitted requests
+            </span>
           </div>
         </div>
       </section>
 
       {/* Ticket Activity & Monthly Trend (Lazy Loaded) */}
-      <TicketActivityTrendChart />
+      <TicketActivityTrendChart isApprover={isApprover} />
 
       {/* My Activity */}
       <MyActivityTable
