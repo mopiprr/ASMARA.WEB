@@ -5,6 +5,8 @@ import type {
   InventoryCategory,
   StockStatusFilter,
   InventorySummary,
+  CreateInventoryItemPayload,
+  UpdateInventoryItemPayload,
 } from '../types/inventory.types';
 import { LOW_STOCK_THRESHOLD, getStockQty } from '../utils/inventory.utils';
 import { isForbiddenError } from '../../../utils/apiError';
@@ -131,6 +133,60 @@ export function useInventory(enabled = true) {
     search.trim() || selectedCategory !== 'all' || stockStatus !== 'all'
   );
 
+  const createItem = useCallback(
+    async (payload: CreateInventoryItemPayload) => {
+      try {
+        const response = await api.post<InventoryItem>('/inventory/items', payload);
+        await fetchData();
+        return response.data;
+      } catch (err: any) {
+        const msg =
+          err.response?.data?.message ||
+          err.response?.data?.detail ||
+          err.message ||
+          'Failed to create inventory item.';
+        throw new Error(msg);
+      }
+    },
+    [fetchData]
+  );
+
+  const updateItem = useCallback(
+    async (id: number, payload: UpdateInventoryItemPayload) => {
+      try {
+        const response = await api.put<InventoryItem>(`/inventory/items/${id}`, payload);
+        await fetchData();
+        return response.data;
+      } catch (err: any) {
+        const msg =
+          err.response?.data?.message ||
+          err.response?.data?.detail ||
+          err.message ||
+          'Failed to update inventory item.';
+        throw new Error(msg);
+      }
+    },
+    [fetchData]
+  );
+
+  const deleteItem = useCallback(
+    async (id: number) => {
+      try {
+        await api.delete(`/inventory/items/${id}`);
+        await fetchData();
+        return true;
+      } catch (err: any) {
+        const msg =
+          err.response?.data?.message ||
+          err.response?.data?.detail ||
+          err.message ||
+          'Failed to deactivate inventory item.';
+        throw new Error(msg);
+      }
+    },
+    [fetchData]
+  );
+
   return {
     items,
     categories,
@@ -148,5 +204,8 @@ export function useInventory(enabled = true) {
     resetFilters,
     hasActiveFilters,
     refetch: fetchData,
+    createItem,
+    updateItem,
+    deleteItem,
   };
 }
