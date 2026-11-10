@@ -23,6 +23,7 @@ import type {
 import type { ProcurementAction } from '../hooks/useProcurementActions';
 
 import TicketHistorySection from '../../../components/common/TicketHistorySection';
+import { ConfirmDialog, type ConfirmDialogType } from '../../../components/common/ConfirmDialog';
 
 import { formatIDR } from '../utils/procurement.utils';
 
@@ -61,6 +62,17 @@ interface EditableItem {
   price: string;
 }
 
+interface ConfirmModalConfig {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  description?: string;
+  type: ConfirmDialogType;
+  confirmText: string;
+  cancelText?: string;
+  onConfirm: () => Promise<void>;
+}
+
 function createEmptyItem(): EditableItem {
   return {
     itemId: '',
@@ -91,6 +103,7 @@ function ProcurementDetailModal({
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [editableItems, setEditableItems] = useState<EditableItem[]>([]);
+  const [confirmConfig, setConfirmConfig] = useState<ConfirmModalConfig | null>(null);
 
   useEffect(() => {
     if (!ticket) return;
@@ -99,6 +112,7 @@ function ProcurementDetailModal({
     setDescription(ticket.description ?? '');
     setNote('');
     setIsEditing(false);
+    setConfirmConfig(null);
 
     setEditableItems(
       (ticket.procurementDetails ?? []).map((item) => ({
@@ -272,6 +286,106 @@ function ProcurementDetailModal({
       setIsEditing(false);
       onClose();
     }
+  };
+
+  const promptAction = (action: ProcurementAction) => {
+    if (isProcessing) return;
+    if (action !== 'approve' && !note.trim()) return;
+
+    if (action === 'approve') {
+      setConfirmConfig({
+        isOpen: true,
+        title: 'Approve Procurement Request',
+        message: `Are you sure you want to approve procurement request ${ticket.ticketNumber}?`,
+        description: `Total estimated value: ${formatIDR(estimatedTotal)}. This request will proceed to the next approval step or purchasing.`,
+        type: 'info',
+        confirmText: 'Yes, Approve',
+        cancelText: 'Cancel',
+        onConfirm: async () => {
+          try {
+            await handleAction('approve');
+          } finally {
+            setConfirmConfig(null);
+          }
+        },
+      });
+    } else if (action === 'reject') {
+      setConfirmConfig({
+        isOpen: true,
+        title: 'Reject Procurement Request',
+        message: `Are you sure you want to reject procurement request ${ticket.ticketNumber}?`,
+        description: 'This action will permanently reject this procurement request. The requester will be notified.',
+        type: 'danger',
+        confirmText: 'Yes, Reject',
+        cancelText: 'Cancel',
+        onConfirm: async () => {
+          try {
+            await handleAction('reject');
+          } finally {
+            setConfirmConfig(null);
+          }
+        },
+      });
+    } else if (action === 'revise') {
+      setConfirmConfig({
+        isOpen: true,
+        title: 'Request Revision',
+        message: `Are you sure you want to return procurement request ${ticket.ticketNumber} for revision?`,
+        description: 'The requester will receive this request back with your notes to make required corrections.',
+        type: 'warning',
+        confirmText: 'Yes, Request Revision',
+        cancelText: 'Cancel',
+        onConfirm: async () => {
+          try {
+            await handleAction('revise');
+          } finally {
+            setConfirmConfig(null);
+          }
+        },
+      });
+    }
+  };
+
+  const promptReceiveGoods = () => {
+    if (isProcessing || !canShowReceiveGoods) return;
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Confirm Purchase Completion',
+      message: `Are you sure you want to mark procurement request ${ticket.ticketNumber} as purchased?`,
+      description: 'Ensure that all requested items or services have been received and verified according to the ticket details.',
+      type: 'success',
+      confirmText: 'Yes, Mark as Purchased',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          await handleReceiveGoods();
+        } finally {
+          setConfirmConfig(null);
+        }
+      },
+    });
+  };
+
+  const promptResubmit = () => {
+    if (isProcessing) return;
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Confirm Resubmission',
+      message: `Are you sure you want to resubmit procurement request ${ticket.ticketNumber} with the updated details?`,
+      description: `The new estimated total is ${formatIDR(editableTotal)}. The ticket will be re-submitted for approval.`,
+      type: 'info',
+      confirmText: 'Yes, Resubmit',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          await handleResubmit();
+        } finally {
+          setConfirmConfig(null);
+        }
+      },
+    });
   };
 
   const inputClass =
@@ -678,8 +792,8 @@ function ProcurementDetailModal({
               </h3>
 
               <p className="mb-4 text-xs text-slate-500">
-                Periksa kembali data pengajuan sebelum mengirimkannya
-                kembali untuk proses persetujuan.
+                Please review your updated request details carefully before
+                resubmitting for approval.
               </p>
 
               <label
@@ -838,7 +952,7 @@ function ProcurementDetailModal({
           {canShowResubmit && isEditing && (
             <button
               type="button"
-              onClick={() => void handleResubmit()}
+              onClick={promptResubmit}
               disabled={
                 isProcessing ||
                 !subject.trim() ||
@@ -869,7 +983,7 @@ function ProcurementDetailModal({
               {canRevise && (
                 <button
                   type="button"
-                  onClick={() => void handleAction('revise')}
+                  onClick={() => promptAction('revise')}
                   disabled={isProcessing || !note.trim()}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -885,7 +999,7 @@ function ProcurementDetailModal({
               {canReject && (
                 <button
                   type="button"
-                  onClick={() => void handleAction('reject')}
+                  onClick={() => promptAction('reject')}
                   disabled={isProcessing || !note.trim()}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -901,7 +1015,7 @@ function ProcurementDetailModal({
               {canApprove && (
                 <button
                   type="button"
-                  onClick={() => void handleAction('approve')}
+                  onClick={() => promptAction('approve')}
                   disabled={isProcessing}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -920,7 +1034,7 @@ function ProcurementDetailModal({
           {canShowReceiveGoods && (
             <button
               type="button"
-              onClick={() => void handleReceiveGoods()}
+              onClick={promptReceiveGoods}
               disabled={isProcessing}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -934,6 +1048,26 @@ function ProcurementDetailModal({
           )}
         </div>
       </div>
+
+      {/* CONFIRMATION DIALOG */}
+      {confirmConfig && (
+        <ConfirmDialog
+          isOpen={confirmConfig.isOpen}
+          title={confirmConfig.title}
+          message={confirmConfig.message}
+          description={confirmConfig.description}
+          type={confirmConfig.type}
+          confirmText={confirmConfig.confirmText}
+          cancelText={confirmConfig.cancelText}
+          isLoading={isProcessing}
+          onConfirm={confirmConfig.onConfirm}
+          onCancel={() => {
+            if (!isProcessing) {
+              setConfirmConfig(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
