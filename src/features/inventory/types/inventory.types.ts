@@ -35,3 +35,17 @@ export interface InventorySummary {
   lowStockCount: number;
   outOfStockCount: number;
 }
+
+export interface CreateInventoryItemPayload {
+  itemCategoryId: number;
+  itemName: string;
+  initialStock: number;
+}
+
+export interface UpdateInventoryItemPayload {
+  itemName: string;
+  itemCategoryId?: number;
+  newStock?: number;
+  isActive?: boolean;
+}
+

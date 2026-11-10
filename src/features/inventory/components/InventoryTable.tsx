@@ -8,6 +8,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Pencil,
+  Trash2,
   AlertCircle,
   RotateCcw,
   ArrowUpDown,
@@ -42,6 +44,8 @@ interface InventoryTableProps {
   onResetFilters: () => void;
   hasActiveFilters: boolean;
   onViewItem: (item: InventoryItem) => void;
+  onEditItem?: (item: InventoryItem) => void;
+  onDeleteItem?: (item: InventoryItem) => void;
   onRetry: () => void;
 }
 
@@ -62,6 +66,8 @@ export function InventoryTable({
   onResetFilters,
   hasActiveFilters,
   onViewItem,
+  onEditItem,
+  onDeleteItem,
   onRetry,
 }: InventoryTableProps) {
   const navigate = useNavigate();
@@ -310,8 +316,8 @@ export function InventoryTable({
 
       {/* TABLE */}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[850px] text-left text-xs">
-          <thead className="bg-slate-50 uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100">
+        <table className="w-full min-w-[950px] text-left text-xs">
+          <thead className="border-b border-slate-100 bg-slate-50 font-semibold uppercase tracking-wider text-slate-500">
             <tr>
               {/* SKU CODE (SORTABLE) */}
               <th
@@ -519,9 +525,9 @@ export function InventoryTable({
 
                     {/* ITEM NAME */}
                     <td className="px-6 py-4">
-                      <span className="font-semibold text-slate-900 line-clamp-1">
+                      <p className="line-clamp-2 font-bold text-slate-900 text-sm">
                         {item.itemName}
-                      </span>
+                      </p>
                     </td>
 
                     {/* CATEGORY & TRACKING TYPE */}
@@ -590,12 +596,12 @@ export function InventoryTable({
                     {/* CATALOG ACTIVE BADGE */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       {item.isActive ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                           Active
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-400">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400">
                           <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
                           Inactive
                         </span>
@@ -604,18 +610,50 @@ export function InventoryTable({
 
                     {/* ACTION */}
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onViewItem(item);
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-                        title="View item details"
-                      >
-                        <Eye size={13} />
-                        <span>View</span>
-                      </button>
+                      <div className="flex flex-col items-end gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewItem(item);
+                          }}
+                          className="inline-flex items-center justify-center gap-1.5 w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 shadow-2xs"
+                          title="Lihat detail spesifikasi"
+                        >
+                          <Eye size={13} />
+                          <span>Detail</span>
+                        </button>
+
+                        {onEditItem && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditItem(item);
+                            }}
+                            className="inline-flex items-center justify-center gap-1.5 w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-amber-700 transition hover:border-amber-300 hover:bg-amber-50 shadow-2xs"
+                            title="Ubah data / stok barang"
+                          >
+                            <Pencil size={13} />
+                            <span>Edit</span>
+                          </button>
+                        )}
+
+                        {onDeleteItem && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteItem(item);
+                            }}
+                            className="inline-flex items-center justify-center gap-1.5 w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-50 shadow-2xs"
+                            title="Nonaktifkan barang"
+                          >
+                            <Trash2 size={13} />
+                            <span>Hapus</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

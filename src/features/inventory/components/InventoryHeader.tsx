@@ -1,15 +1,17 @@
-import { Package, RefreshCw, ShieldCheck, Lock } from 'lucide-react';
+import { Package, RefreshCw, ShieldCheck, Lock, Plus } from 'lucide-react';
 
 interface InventoryHeaderProps {
   isLoading: boolean;
   isInventoryUser?: boolean;
   onRefresh: () => void;
+  onAddItem?: () => void;
 }
 
 export function InventoryHeader({
   isLoading,
   isInventoryUser = true,
   onRefresh,
+  onAddItem,
 }: InventoryHeaderProps) {
   return (
     <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -54,6 +56,18 @@ export function InventoryHeader({
           />
           <span>Refresh</span>
         </button>
+
+        {onAddItem && (
+          <button
+            type="button"
+            onClick={onAddItem}
+            disabled={isLoading}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
+          >
+            <Plus size={16} />
+            <span>Add Item</span>
+          </button>
+        )}
       </div>
     </section>
   );
