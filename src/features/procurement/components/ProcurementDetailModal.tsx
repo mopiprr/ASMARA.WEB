@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 import {
   X,
@@ -14,19 +14,23 @@ import {
   Trash2,
   Send,
   Upload,
-} from 'lucide-react';
+} from "lucide-react";
 
 import type {
   ProcurementTicket,
   ResubmitProcurementPayload,
-} from '../types/procurement.types';
+} from "../types/procurement.types";
 
-import type { ProcurementAction } from '../hooks/useProcurementActions';
+import type { ProcurementAction } from "../hooks/useProcurementActions";
 
-import TicketHistorySection from '../../../components/common/TicketHistorySection';
-import PurchaseProofSection from './PurchaseProofSection';
+import TicketHistorySection from "../../../components/common/TicketHistorySection";
+import PurchaseProofSection from "./PurchaseProofSection";
+import {
+  ConfirmDialog,
+  type ConfirmDialogType,
+} from "../../../components/common/ConfirmDialog";
 
-import { formatIDR } from '../utils/procurement.utils';
+import { formatIDR } from "../utils/procurement.utils";
 
 interface ProcurementDetailModalProps {
   ticket: ProcurementTicket | null;
@@ -41,19 +45,11 @@ interface ProcurementDetailModalProps {
 
   onClose: () => void;
 
-  onAction: (
-    action: ProcurementAction,
-    note: string
-  ) => Promise<boolean>;
+  onAction: (action: ProcurementAction, note: string) => Promise<boolean>;
 
-  onReceiveGoods: (
-    note: string,
-    proofFile: File
-  ) => Promise<boolean>;
+  onReceiveGoods: (note: string, proofFile: File) => Promise<boolean>;
 
-  onResubmit: (
-    payload: ResubmitProcurementPayload
-  ) => Promise<boolean>;
+  onResubmit: (payload: ResubmitProcurementPayload) => Promise<boolean>;
 }
 
 interface EditableItem {
@@ -66,14 +62,24 @@ interface EditableItem {
 
 // Batas ukuran bukti pembelian
 const MAX_PROOF_SIZE = 5 * 1024 * 1024; // 5 MB
+interface ConfirmModalConfig {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  description?: string;
+  type: ConfirmDialogType;
+  confirmText: string;
+  cancelText?: string;
+  onConfirm: () => Promise<void>;
+}
 
 function createEmptyItem(): EditableItem {
   return {
-    itemId: '',
-    itemCategoryId: '',
-    itemName: '',
-    quantity: '1',
-    price: '0',
+    itemId: "",
+    itemCategoryId: "",
+    itemName: "",
+    quantity: "1",
+    price: "0",
   };
 }
 
@@ -91,42 +97,46 @@ function ProcurementDetailModal({
   onReceiveGoods,
   onResubmit,
 }: ProcurementDetailModalProps) {
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState("");
 
   // Bukti pembelian (Receive Goods)
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofPreviewUrl, setProofPreviewUrl] = useState<string | null>(null);
-  const [proofError, setProofError] = useState('');
+  const [proofError, setProofError] = useState("");
 
   const [isEditing, setIsEditing] = useState(false);
-  const [subject, setSubject] = useState('');
-  const [description, setDescription] = useState('');
+  const [subject, setSubject] = useState("");
+  const [description, setDescription] = useState("");
   const [editableItems, setEditableItems] = useState<EditableItem[]>([]);
+  const [confirmConfig, setConfirmConfig] = useState<ConfirmModalConfig | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!ticket) return;
 
     setSubject(ticket.subject);
-    setDescription(ticket.description ?? '');
-    setNote('');
+    setDescription(ticket.description ?? "");
+    setNote("");
     setIsEditing(false);
+    setConfirmConfig(null);
 
     setProofFile(null);
-    setProofError('');
+    setProofError("");
 
     setEditableItems(
       (ticket.procurementDetails ?? []).map((item) => ({
-        itemId: item.itemId?.toString() ?? '',
+        itemId: item.itemId?.toString() ?? "",
         itemCategoryId: item.itemCategoryId.toString(),
         itemName: item.itemName,
         quantity: item.quantity.toString(),
         price: item.price.toString(),
-      }))
+      })),
     );
   }, [ticket]);
 
   useEffect(() => {
-    if (!proofFile || !proofFile.type.startsWith('image/')) {
+    if (!proofFile || !proofFile.type.startsWith("image/")) {
       setProofPreviewUrl(null);
       return;
     }
@@ -142,68 +152,59 @@ function ProcurementDetailModal({
   const currentStep = ticket.currentStep?.toUpperCase();
 
   const isApprovalStep =
-    currentStep === 'DEPARTMENT_APPROVAL' ||
-    currentStep === 'FINANCE_APPROVAL';
+    currentStep === "DEPARTMENT_APPROVAL" || currentStep === "FINANCE_APPROVAL";
 
   const canShowApprovalActions =
-    isApprovalStep &&
-    (canApprove || canRevise || canReject);
+    isApprovalStep && (canApprove || canRevise || canReject);
 
-  const canShowReceiveGoods =
-    canReceiveGoods &&
-    currentStep === 'PURCHASING';
+  const canShowReceiveGoods = canReceiveGoods && currentStep === "PURCHASING";
 
   const canShowResubmit =
     (canResubmit ?? ticket.canResubmit ?? false) &&
-    currentStep === 'EMPLOYEE_REVISION';
+    currentStep === "EMPLOYEE_REVISION";
 
   const isResubmitting = canShowResubmit && isEditing;
 
   const canShowHistory =
-    !canShowApprovalActions &&
-    !canShowReceiveGoods &&
-    !isResubmitting;
+    !canShowApprovalActions && !canShowReceiveGoods && !isResubmitting;
 
   const lastRevision = [...(ticket.history ?? [])]
     .reverse()
-    .find((entry) => entry.action === 'Revise');
+    .find((entry) => entry.action === "Revise");
 
   const items = ticket.procurementDetails ?? [];
 
   const estimatedTotal = items.reduce(
     (total, item) => total + item.totalPrice,
-    0
+    0,
   );
 
-  const editableTotal = editableItems.reduce(
-    (total, item) => {
-      const quantity = Number(item.quantity) || 0;
-      const price = Number(item.price) || 0;
+  const editableTotal = editableItems.reduce((total, item) => {
+    const quantity = Number(item.quantity) || 0;
+    const price = Number(item.price) || 0;
 
-      return total + quantity * price;
-    },
-    0
-  );
+    return total + quantity * price;
+  }, 0);
 
   const handleAction = async (action: ProcurementAction) => {
     if (isProcessing) return;
 
-    if (action !== 'approve' && !note.trim()) return;
+    if (action !== "approve" && !note.trim()) return;
 
     const success = await onAction(action, note);
 
     if (success) {
-      setNote('');
+      setNote("");
       onClose();
     }
   };
 
-    const handleProofChange = (file: File | null) => {
-    setProofError('');
+  const handleProofChange = (file: File | null) => {
+    setProofError("");
 
     if (file && file.size > MAX_PROOF_SIZE) {
       setProofFile(null);
-      setProofError('File size must not exceed 10 MB.');
+      setProofError("File size must not exceed 5 MB.");
       return;
     }
 
@@ -214,14 +215,14 @@ function ProcurementDetailModal({
     if (isProcessing || !canShowReceiveGoods) return;
 
     if (!proofFile) {
-      setProofError('Purchase proof is required.');
+      setProofError("Purchase proof is required.");
       return;
     }
 
     const success = await onReceiveGoods(note, proofFile);
 
     if (success) {
-      setNote('');
+      setNote("");
       setProofFile(null);
       onClose();
     }
@@ -230,27 +231,22 @@ function ProcurementDetailModal({
   const updateItem = (
     index: number,
     field: keyof EditableItem,
-    value: string
+    value: string,
   ) => {
     setEditableItems((previous) =>
       previous.map((item, itemIndex) =>
-        itemIndex === index
-          ? { ...item, [field]: value }
-          : item
-      )
+        itemIndex === index ? { ...item, [field]: value } : item,
+      ),
     );
   };
 
   const addItem = () => {
-    setEditableItems((previous) => [
-      ...previous,
-      createEmptyItem(),
-    ]);
+    setEditableItems((previous) => [...previous, createEmptyItem()]);
   };
 
   const removeItem = (index: number) => {
     setEditableItems((previous) =>
-      previous.filter((_, itemIndex) => itemIndex !== index)
+      previous.filter((_, itemIndex) => itemIndex !== index),
     );
   };
 
@@ -282,17 +278,14 @@ function ProcurementDetailModal({
       if (!Number.isInteger(quantity) || quantity <= 0) return true;
       if (!Number.isFinite(price) || price < 0) return true;
 
-      if (!item.itemId && (
-        !Number.isInteger(categoryId) ||
-        categoryId <= 0
-      )) {
+      if (!item.itemId && (!Number.isInteger(categoryId) || categoryId <= 0)) {
         return true;
       }
 
-      if (item.itemId && (
-        !Number.isInteger(Number(item.itemId)) ||
-        Number(item.itemId) <= 0
-      )) {
+      if (
+        item.itemId &&
+        (!Number.isInteger(Number(item.itemId)) || Number(item.itemId) <= 0)
+      ) {
         return true;
       }
 
@@ -306,9 +299,7 @@ function ProcurementDetailModal({
       description: description.trim(),
       note: note.trim(),
       items: editableItems.map((item) => ({
-        itemId: item.itemId
-          ? Number(item.itemId)
-          : null,
+        itemId: item.itemId ? Number(item.itemId) : null,
 
         itemCategoryId: item.itemId
           ? Number(item.itemCategoryId)
@@ -323,29 +314,128 @@ function ProcurementDetailModal({
     const success = await onResubmit(payload);
 
     if (success) {
-      setNote('');
+      setNote("");
       setIsEditing(false);
       onClose();
     }
   };
 
+  const promptAction = (action: ProcurementAction) => {
+    if (isProcessing) return;
+    if (action !== "approve" && !note.trim()) return;
+
+    if (action === "approve") {
+      setConfirmConfig({
+        isOpen: true,
+        title: "Approve Procurement Request",
+        message: `Are you sure you want to approve procurement request ${ticket.ticketNumber}?`,
+        description: `Total estimated value: ${formatIDR(estimatedTotal)}. This request will proceed to the next approval step or purchasing.`,
+        type: "info",
+        confirmText: "Yes, Approve",
+        cancelText: "Cancel",
+        onConfirm: async () => {
+          try {
+            await handleAction("approve");
+          } finally {
+            setConfirmConfig(null);
+          }
+        },
+      });
+    } else if (action === "reject") {
+      setConfirmConfig({
+        isOpen: true,
+        title: "Reject Procurement Request",
+        message: `Are you sure you want to reject procurement request ${ticket.ticketNumber}?`,
+        description:
+          "This action will permanently reject this procurement request. The requester will be notified.",
+        type: "danger",
+        confirmText: "Yes, Reject",
+        cancelText: "Cancel",
+        onConfirm: async () => {
+          try {
+            await handleAction("reject");
+          } finally {
+            setConfirmConfig(null);
+          }
+        },
+      });
+    } else if (action === "revise") {
+      setConfirmConfig({
+        isOpen: true,
+        title: "Request Revision",
+        message: `Are you sure you want to return procurement request ${ticket.ticketNumber} for revision?`,
+        description:
+          "The requester will receive this request back with your notes to make required corrections.",
+        type: "warning",
+        confirmText: "Yes, Request Revision",
+        cancelText: "Cancel",
+        onConfirm: async () => {
+          try {
+            await handleAction("revise");
+          } finally {
+            setConfirmConfig(null);
+          }
+        },
+      });
+    }
+  };
+
+  const promptReceiveGoods = () => {
+    if (isProcessing || !canShowReceiveGoods) return;
+
+    setConfirmConfig({
+      isOpen: true,
+      title: "Confirm Purchase Completion",
+      message: `Are you sure you want to mark procurement request ${ticket.ticketNumber} as purchased?`,
+      description:
+        "Ensure that all requested items or services have been received and verified according to the ticket details.",
+      type: "success",
+      confirmText: "Yes, Mark as Purchased",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        try {
+          await handleReceiveGoods();
+        } finally {
+          setConfirmConfig(null);
+        }
+      },
+    });
+  };
+
+  const promptResubmit = () => {
+    if (isProcessing) return;
+
+    setConfirmConfig({
+      isOpen: true,
+      title: "Confirm Resubmission",
+      message: `Are you sure you want to resubmit procurement request ${ticket.ticketNumber} with the updated details?`,
+      description: `The new estimated total is ${formatIDR(editableTotal)}. The ticket will be re-submitted for approval.`,
+      type: "info",
+      confirmText: "Yes, Resubmit",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        try {
+          await handleResubmit();
+        } finally {
+          setConfirmConfig(null);
+        }
+      },
+    });
+  };
+
   const inputClass =
-    'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50';
+    "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50";
 
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
       onMouseDown={(event) => {
-        if (
-          event.target === event.currentTarget &&
-          !isProcessing
-        ) {
+        if (event.target === event.currentTarget && !isProcessing) {
           onClose();
         }
       }}
     >
       <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-
         {/* HEADER */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
           <div className="flex items-center gap-3">
@@ -376,7 +466,6 @@ function ProcurementDetailModal({
 
         {/* BODY */}
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
-
           {/* REQUEST INFORMATION */}
           <section>
             <div className="mb-4 flex items-center justify-between">
@@ -389,7 +478,7 @@ function ProcurementDetailModal({
                   type="button"
                   onClick={() => {
                     setIsEditing(true);
-                    setNote('');
+                    setNote("");
                   }}
                   disabled={isProcessing}
                   className="inline-flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 transition hover:bg-blue-100"
@@ -401,7 +490,6 @@ function ProcurementDetailModal({
             </div>
 
             <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 p-4 sm:grid-cols-2">
-
               <div className="sm:col-span-2">
                 <label className="mb-1 block text-xs text-slate-400">
                   Request Subject
@@ -410,9 +498,7 @@ function ProcurementDetailModal({
                 {isEditing ? (
                   <input
                     value={subject}
-                    onChange={(event) =>
-                      setSubject(event.target.value)
-                    }
+                    onChange={(event) => setSubject(event.target.value)}
                     maxLength={100}
                     disabled={isProcessing}
                     className={inputClass}
@@ -432,32 +518,26 @@ function ProcurementDetailModal({
               </div>
 
               <div>
-                <p className="text-xs text-slate-400">
-                  Requester
-                </p>
+                <p className="text-xs text-slate-400">Requester</p>
 
                 <p className="mt-1 text-sm font-semibold text-slate-800">
-                  {ticket.employeeName || '-'}
+                  {ticket.employeeName || "-"}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-slate-400">
-                  Current Step
-                </p>
+                <p className="text-xs text-slate-400">Current Step</p>
 
                 <p className="mt-1 text-sm font-semibold text-blue-600">
-                  {ticket.currentStep || '-'}
+                  {ticket.currentStep || "-"}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-slate-400">
-                  Created At
-                </p>
+                <p className="text-xs text-slate-400">Created At</p>
 
                 <p className="mt-1 text-sm font-semibold text-slate-800">
-                  {new Date(ticket.createdAt).toLocaleString('id-ID')}
+                  {new Date(ticket.createdAt).toLocaleString("id-ID")}
                 </p>
               </div>
 
@@ -470,9 +550,7 @@ function ProcurementDetailModal({
                   <>
                     <textarea
                       value={description}
-                      onChange={(event) =>
-                        setDescription(event.target.value)
-                      }
+                      onChange={(event) => setDescription(event.target.value)}
                       maxLength={500}
                       rows={4}
                       disabled={isProcessing}
@@ -486,7 +564,7 @@ function ProcurementDetailModal({
                   </>
                 ) : (
                   <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
-                    {ticket.description || '-'}
+                    {ticket.description || "-"}
                   </p>
                 )}
               </div>
@@ -500,7 +578,8 @@ function ProcurementDetailModal({
                 <FileText size={17} className="text-slate-500" />
 
                 <h3 className="text-sm font-bold text-slate-800">
-                  Procurement Items ({isEditing ? editableItems.length : items.length})
+                  Procurement Items (
+                  {isEditing ? editableItems.length : items.length})
                 </h3>
               </div>
 
@@ -547,7 +626,6 @@ function ProcurementDetailModal({
                     </div>
 
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-
                       <div>
                         <label className="mb-1 block text-xs font-medium text-slate-500">
                           Item Name
@@ -556,7 +634,7 @@ function ProcurementDetailModal({
                         <input
                           value={item.itemName}
                           onChange={(event) =>
-                            updateItem(index, 'itemName', event.target.value)
+                            updateItem(index, "itemName", event.target.value)
                           }
                           disabled={isProcessing}
                           className={inputClass}
@@ -574,7 +652,7 @@ function ProcurementDetailModal({
                           min="1"
                           value={item.itemId}
                           onChange={(event) =>
-                            updateItem(index, 'itemId', event.target.value)
+                            updateItem(index, "itemId", event.target.value)
                           }
                           disabled={isProcessing}
                           className={inputClass}
@@ -592,7 +670,11 @@ function ProcurementDetailModal({
                           min="1"
                           value={item.itemCategoryId}
                           onChange={(event) =>
-                            updateItem(index, 'itemCategoryId', event.target.value)
+                            updateItem(
+                              index,
+                              "itemCategoryId",
+                              event.target.value,
+                            )
                           }
                           disabled={isProcessing}
                           className={inputClass}
@@ -610,7 +692,7 @@ function ProcurementDetailModal({
                           min="1"
                           value={item.quantity}
                           onChange={(event) =>
-                            updateItem(index, 'quantity', event.target.value)
+                            updateItem(index, "quantity", event.target.value)
                           }
                           disabled={isProcessing}
                           className={inputClass}
@@ -627,7 +709,7 @@ function ProcurementDetailModal({
                           min="0"
                           value={item.price}
                           onChange={(event) =>
-                            updateItem(index, 'price', event.target.value)
+                            updateItem(index, "price", event.target.value)
                           }
                           disabled={isProcessing}
                           className={inputClass}
@@ -636,21 +718,20 @@ function ProcurementDetailModal({
                     </div>
 
                     <div className="mt-3 flex justify-between border-t border-slate-100 pt-3 text-sm">
-                      <span className="text-slate-500">
-                        Subtotal
-                      </span>
+                      <span className="text-slate-500">Subtotal</span>
 
                       <span className="font-semibold text-slate-800">
                         {formatIDR(
                           (Number(item.quantity) || 0) *
-                          (Number(item.price) || 0)
+                            (Number(item.price) || 0),
                         )}
                       </span>
                     </div>
 
                     {item.itemId && (
                       <p className="mt-2 text-xs text-blue-600">
-                        Inventory item selected. The backend will validate its ID and category.
+                        Inventory item selected. The backend will validate its
+                        ID and category.
                       </p>
                     )}
 
@@ -673,15 +754,9 @@ function ProcurementDetailModal({
                     <tr>
                       <th className="px-4 py-3">Item</th>
                       <th className="px-4 py-3">Category</th>
-                      <th className="px-4 py-3 text-center">
-                        Quantity
-                      </th>
-                      <th className="px-4 py-3 text-right">
-                        Price
-                      </th>
-                      <th className="px-4 py-3 text-right">
-                        Subtotal
-                      </th>
+                      <th className="px-4 py-3 text-center">Quantity</th>
+                      <th className="px-4 py-3 text-right">Price</th>
+                      <th className="px-4 py-3 text-right">Subtotal</th>
                     </tr>
                   </thead>
 
@@ -733,14 +808,14 @@ function ProcurementDetailModal({
               </h3>
 
               <p className="mb-4 text-xs text-slate-500">
-                Periksa kembali data pengajuan sebelum mengirimkannya
-                kembali untuk proses persetujuan.
+                Please review your updated request details carefully before
+                resubmitting for approval.
               </p>
 
               {lastRevision?.note && (
                 <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                   <p className="text-xs font-semibold text-amber-700">
-                    Revision requested by {lastRevision.employeeName || '-'}
+                    Revision requested by {lastRevision.employeeName || "-"}
                   </p>
 
                   <p className="mt-1 whitespace-pre-wrap text-sm text-amber-800">
@@ -853,7 +928,10 @@ function ProcurementDetailModal({
               {/* ERROR RECEIVE GOODS */}
               {(proofError || actionError) && (
                 <div className="mt-4 flex gap-3 rounded-xl border border-red-200 bg-red-50 p-3">
-                  <AlertCircle size={17} className="mt-0.5 shrink-0 text-red-500" />
+                  <AlertCircle
+                    size={17}
+                    className="mt-0.5 shrink-0 text-red-500"
+                  />
 
                   <p className="text-sm text-red-700">
                     {proofError || actionError}
@@ -876,7 +954,7 @@ function ProcurementDetailModal({
               <label
                 htmlFor="procurement-purchase-proof"
                 className={`flex cursor-pointer items-center gap-3 rounded-xl border border-dashed px-4 py-4 transition hover:bg-slate-50 ${
-                  proofError ? 'border-red-300' : 'border-slate-300'
+                  proofError ? "border-red-300" : "border-slate-300"
                 }`}
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
@@ -885,13 +963,13 @@ function ProcurementDetailModal({
 
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-700">
-                    {proofFile ? proofFile.name : 'Choose a file'}
+                    {proofFile ? proofFile.name : "Choose a file"}
                   </p>
 
                   <p className="text-xs text-slate-400">
                     {proofFile
                       ? `${(proofFile.size / 1024 / 1024).toFixed(2)} MB · click to change`
-                      : 'Photo, PDF, or any other file'}
+                      : "Photo, PDF, or any other file"}
                   </p>
                 </div>
               </label>
@@ -924,45 +1002,37 @@ function ProcurementDetailModal({
             />
           )}
 
-          {canShowHistory && (
-            <TicketHistorySection history={ticket.history} />
-          )}
+          {canShowHistory && <TicketHistorySection history={ticket.history} />}
 
           {/* ERROR */}
           {actionError && !canShowReceiveGoods && (
             <div className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-              <AlertCircle
-                size={19}
-                className="mt-0.5 shrink-0 text-red-500"
-              />
+              <AlertCircle size={19} className="mt-0.5 shrink-0 text-red-500" />
 
-              <p className="text-sm text-red-700">
-                {actionError}
-              </p>
+              <p className="text-sm text-red-700">{actionError}</p>
             </div>
           )}
         </div>
 
         {/* FOOTER */}
         <div className="flex flex-col-reverse justify-between gap-3 border-t border-slate-100 bg-white px-6 py-5 sm:flex-row sm:items-center">
-
           <button
             type="button"
             onClick={() => {
               if (isEditing) {
                 setIsEditing(false);
                 setSubject(ticket.subject);
-                setDescription(ticket.description ?? '');
+                setDescription(ticket.description ?? "");
                 setEditableItems(
                   (ticket.procurementDetails ?? []).map((item) => ({
-                    itemId: item.itemId?.toString() ?? '',
+                    itemId: item.itemId?.toString() ?? "",
                     itemCategoryId: item.itemCategoryId.toString(),
                     itemName: item.itemName,
                     quantity: item.quantity.toString(),
                     price: item.price.toString(),
-                  }))
+                  })),
                 );
-                setNote('');
+                setNote("");
               } else {
                 onClose();
               }
@@ -970,25 +1040,26 @@ function ProcurementDetailModal({
             disabled={isProcessing}
             className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
           >
-            {isEditing ? 'Cancel Editing' : 'Close'}
+            {isEditing ? "Cancel Editing" : "Close"}
           </button>
 
           {/* RESUBMIT BUTTON */}
           {canShowResubmit && isEditing && (
             <button
               type="button"
-              onClick={() => void handleResubmit()}
+              onClick={promptResubmit}
               disabled={
                 isProcessing ||
                 !subject.trim() ||
                 subject.trim().length > 100 ||
                 description.length > 500 ||
                 editableItems.length === 0 ||
-                editableItems.some((item) =>
-                  !item.itemName.trim() ||
-                  !item.itemCategoryId ||
-                  Number(item.quantity) <= 0 ||
-                  Number(item.price) < 0
+                editableItems.some(
+                  (item) =>
+                    !item.itemName.trim() ||
+                    !item.itemCategoryId ||
+                    Number(item.quantity) <= 0 ||
+                    Number(item.price) < 0,
                 )
               }
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1008,7 +1079,7 @@ function ProcurementDetailModal({
               {canRevise && (
                 <button
                   type="button"
-                  onClick={() => void handleAction('revise')}
+                  onClick={() => promptAction("revise")}
                   disabled={isProcessing || !note.trim()}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -1024,7 +1095,7 @@ function ProcurementDetailModal({
               {canReject && (
                 <button
                   type="button"
-                  onClick={() => void handleAction('reject')}
+                  onClick={() => promptAction("reject")}
                   disabled={isProcessing || !note.trim()}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -1040,7 +1111,7 @@ function ProcurementDetailModal({
               {canApprove && (
                 <button
                   type="button"
-                  onClick={() => void handleAction('approve')}
+                  onClick={() => promptAction("approve")}
                   disabled={isProcessing}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -1059,7 +1130,7 @@ function ProcurementDetailModal({
           {canShowReceiveGoods && (
             <button
               type="button"
-              onClick={() => void handleReceiveGoods()}
+              onClick={promptReceiveGoods}
               disabled={isProcessing || !proofFile}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -1073,6 +1144,26 @@ function ProcurementDetailModal({
           )}
         </div>
       </div>
+
+      {/* CONFIRMATION DIALOG */}
+      {confirmConfig && (
+        <ConfirmDialog
+          isOpen={confirmConfig.isOpen}
+          title={confirmConfig.title}
+          message={confirmConfig.message}
+          description={confirmConfig.description}
+          type={confirmConfig.type}
+          confirmText={confirmConfig.confirmText}
+          cancelText={confirmConfig.cancelText}
+          isLoading={isProcessing}
+          onConfirm={confirmConfig.onConfirm}
+          onCancel={() => {
+            if (!isProcessing) {
+              setConfirmConfig(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
