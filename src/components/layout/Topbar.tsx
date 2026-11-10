@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 type TopbarProps = {
   onOpenSidebar: () => void;
@@ -63,6 +64,7 @@ function getUserSubtitle(profile: UserProfile | null): string {
 function Topbar({ onOpenSidebar }: TopbarProps) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   const navigate = useNavigate();
 
@@ -244,7 +246,10 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
 
                 <button
                   type="button"
-                  onClick={handleSignOut}
+                  onClick={() => {
+                    setProfileOpen(false);
+                    setShowSignOutConfirm(true);
+                  }}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition hover:bg-red-50"
                 >
                   <LogOut size={17} />
@@ -255,6 +260,19 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
           )}
         </div>
       </div>
+
+      {/* SIGN OUT CONFIRMATION DIALOG */}
+      <ConfirmDialog
+        isOpen={showSignOutConfirm}
+        title="Sign Out"
+        message="Are you sure you want to sign out?"
+        description="You will be logged out of your session and redirected to the login screen."
+        type="danger"
+        confirmText="Yes, Sign Out"
+        cancelText="Cancel"
+        onConfirm={handleSignOut}
+        onCancel={() => setShowSignOutConfirm(false)}
+      />
     </header>
   );
 }

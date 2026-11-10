@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
+import { ConfirmDialog } from '../../../components/common/ConfirmDialog';
 
 function SettingsPage() {
   const API_BASE_URL =
@@ -26,10 +27,9 @@ function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error' | ''>('');
+  const [showConfirmChangePassword, setShowConfirmChangePassword] = useState(false);
 
-  const handleChangePassword = async (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
+  const handlePreSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     setMessage('');
@@ -68,6 +68,22 @@ function SettingsPage() {
     if (!token) {
       setMessage('Your session has expired. Please login again.');
       setMessageType('error');
+      return;
+    }
+
+    // Valid inputs, open confirmation dialog
+    setShowConfirmChangePassword(true);
+  };
+
+  const executeChangePassword = async () => {
+    const token =
+      localStorage.getItem('accessToken') ||
+      sessionStorage.getItem('accessToken');
+
+    if (!token) {
+      setMessage('Your session has expired. Please login again.');
+      setMessageType('error');
+      setShowConfirmChangePassword(false);
       return;
     }
 
@@ -117,6 +133,7 @@ function SettingsPage() {
       setMessageType('error');
     } finally {
       setLoading(false);
+      setShowConfirmChangePassword(false);
     }
   };
 
@@ -159,7 +176,7 @@ function SettingsPage() {
           </div>
 
           <form
-            onSubmit={handleChangePassword}
+            onSubmit={handlePreSubmit}
             className="space-y-5"
           >
             {/* CURRENT PASSWORD */}
@@ -309,6 +326,24 @@ function SettingsPage() {
           </form>
         </div>
       </div>
+
+      {/* CHANGE PASSWORD CONFIRMATION DIALOG */}
+      <ConfirmDialog
+        isOpen={showConfirmChangePassword}
+        title="Change Password"
+        message="Are you sure you want to change your password?"
+        description="Your password will be updated immediately. You will need to use your new password the next time you log in."
+        type="warning"
+        confirmText="Yes, Change Password"
+        cancelText="Cancel"
+        isLoading={loading}
+        onConfirm={executeChangePassword}
+        onCancel={() => {
+          if (!loading) {
+            setShowConfirmChangePassword(false);
+          }
+        }}
+      />
     </div>
   );
 }

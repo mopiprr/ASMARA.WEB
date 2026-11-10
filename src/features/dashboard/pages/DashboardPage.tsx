@@ -7,7 +7,6 @@ import {
   CalendarDays,
   AlertCircle,
   Activity,
-  Hourglass,
   Package,
   RefreshCw,
   Filter,
@@ -325,6 +324,56 @@ function DashboardPage() {
     month: 'long',
     year: 'numeric',
   }).format(new Date());
+
+  // Resolution & SLA Performance Metrics (Pilihan B)
+  const totalTicketCount = ticketStats.totalTickets;
+  const completedTicketCount = ticketStats.completedTickets;
+  const inProgressTicketCount = ticketStats.inProgressTickets;
+  const pendingTicketCount = ticketStats.pendingTickets;
+
+  const resolutionRate =
+    totalTicketCount > 0
+      ? Math.round((completedTicketCount / totalTicketCount) * 100)
+      : 0;
+
+  const inProgressRate =
+    totalTicketCount > 0
+      ? Math.round((inProgressTicketCount / totalTicketCount) * 100)
+      : 0;
+
+  const pendingRate =
+    totalTicketCount > 0
+      ? Math.round((pendingTicketCount / totalTicketCount) * 100)
+      : 0;
+
+  const healthStatus = useMemo(() => {
+    if (totalTicketCount === 0) {
+      return {
+        label: 'No Tickets',
+        badge: 'bg-slate-100 text-slate-600 border-slate-200',
+        description: 'No ticket volume recorded in this timeframe.',
+      };
+    }
+    if (resolutionRate >= 70) {
+      return {
+        label: 'Optimal',
+        badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        description: 'High completion efficiency across your scope.',
+      };
+    }
+    if (resolutionRate >= 40) {
+      return {
+        label: 'On Track',
+        badge: 'bg-blue-50 text-blue-700 border-blue-200',
+        description: 'Steady progress; active tickets being handled.',
+      };
+    }
+    return {
+      label: 'Needs Attention',
+      badge: 'bg-amber-50 text-amber-700 border-amber-200',
+      description: 'Multiple active tickets are awaiting completion.',
+    };
+  }, [totalTicketCount, resolutionRate]);
 
   if (loading) {
     return (
@@ -824,52 +873,170 @@ function DashboardPage() {
           />
         </div>
 
-        {/* Approval Summary */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-              <Hourglass size={22} />
+        {/* Resolution & SLA Performance (Pilihan B) */}
+        <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div>
+            {/* Card Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <CheckCircle2 size={22} />
+                </div>
+
+                <div>
+                  <h2 className="font-bold text-slate-800">
+                    Resolution Performance
+                  </h2>
+
+                  <p className="text-xs text-slate-500">
+                    {isApprover
+                      ? 'Team & subordinates workflow health'
+                      : 'Your ticket resolution efficiency'}
+                  </p>
+                </div>
+              </div>
+
+              <span
+                className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${healthStatus.badge}`}
+              >
+                {healthStatus.label}
+              </span>
             </div>
 
-            <div>
-              <h2 className="font-bold text-slate-800">
-                Action & Approval Summary
-              </h2>
+            {/* Circular Progress Ring & High-level Metric */}
+            <div className="mt-5 flex items-center gap-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/60 p-4 border border-slate-100">
+              {/* Circular Gauge Ring */}
+              <div className="relative flex h-20 w-20 shrink-0 items-center justify-center">
+                <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
+                  {/* Background Track */}
+                  <path
+                    className="text-slate-200"
+                    strokeWidth="3.5"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  {/* Progress Circle */}
+                  <path
+                    className="text-emerald-500 transition-all duration-700 ease-out"
+                    strokeDasharray={`${resolutionRate}, 100`}
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <div className="absolute flex flex-col items-center justify-center">
+                  <span className="font-mono text-base font-bold text-slate-800">
+                    {resolutionRate}%
+                  </span>
+                  <span className="text-[9px] font-semibold text-slate-400 uppercase">
+                    Solved
+                  </span>
+                </div>
+              </div>
 
-              <p className="text-xs text-slate-500">
-                Ticket workflow progress
-              </p>
+              {/* Summary details */}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Resolution Rate
+                </p>
+                <p className="mt-1 text-sm font-bold text-slate-800">
+                  {completedTicketCount.toLocaleString('en-US')}{' '}
+                  <span className="text-xs font-normal text-slate-500">
+                    of {totalTicketCount.toLocaleString('en-US')} tickets completed
+                  </span>
+                </p>
+                <p className="mt-1 text-xs text-slate-500 leading-snug">
+                  {healthStatus.description}
+                </p>
+              </div>
+            </div>
+
+            {/* Detailed Progress Breakdown */}
+            <div className="mt-5 space-y-3.5">
+              {/* Completed Bar */}
+              <div>
+                <div className="flex items-center justify-between text-xs font-medium">
+                  <span className="flex items-center gap-1.5 text-slate-700">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    Completed
+                  </span>
+                  <span className="font-bold text-slate-800">
+                    {completedTicketCount.toLocaleString('en-US')}{' '}
+                    <span className="text-slate-400 font-normal">
+                      ({resolutionRate}%)
+                    </span>
+                  </span>
+                </div>
+                <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                    style={{ width: `${resolutionRate}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* In Progress Bar */}
+              <div>
+                <div className="flex items-center justify-between text-xs font-medium">
+                  <span className="flex items-center gap-1.5 text-slate-700">
+                    <span className="h-2 w-2 rounded-full bg-violet-500" />
+                    In Progress
+                  </span>
+                  <span className="font-bold text-slate-800">
+                    {inProgressTicketCount.toLocaleString('en-US')}{' '}
+                    <span className="text-slate-400 font-normal">
+                      ({inProgressRate}%)
+                    </span>
+                  </span>
+                </div>
+                <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-violet-500 transition-all duration-500"
+                    style={{ width: `${inProgressRate}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Pending Action Bar */}
+              <div>
+                <div className="flex items-center justify-between text-xs font-medium">
+                  <span className="flex items-center gap-1.5 text-slate-700">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                    {isApprover ? 'Pending Approval' : 'Need Revision'}
+                  </span>
+                  <span className="font-bold text-slate-800">
+                    {pendingTicketCount.toLocaleString('en-US')}{' '}
+                    <span className="text-slate-400 font-normal">
+                      ({pendingRate}%)
+                    </span>
+                  </span>
+                </div>
+                <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                    style={{ width: `${pendingRate}%` }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="mt-7 rounded-xl bg-amber-50 p-5">
-            <p className="text-sm font-medium text-amber-700">
-              {isApprover ? 'Waiting for Your Approval' : 'Tickets Needing Revision'}
-            </p>
-
-            <p className="mt-2 text-3xl font-bold text-amber-800">
-              {ticketStats.pendingTickets.toLocaleString('en-US')}
-            </p>
-
-            <p className="mt-2 text-xs leading-relaxed text-amber-700">
-              {isApprover
-                ? 'Tickets waiting for your review and approval will appear here.'
-                : 'Tickets returned by manager that need your revision will appear here.'}
-            </p>
-          </div>
-
-          <div className="mt-4 rounded-xl bg-emerald-50 p-5">
-            <p className="text-sm font-medium text-emerald-700">
-              Completed Tickets
-            </p>
-
-            <p className="mt-2 text-3xl font-bold text-emerald-800">
-              {ticketStats.completedTickets.toLocaleString('en-US')}
-            </p>
-
-            <p className="mt-2 text-xs text-emerald-700">
-              Tickets that have been resolved and closed.
-            </p>
+          {/* Scope Footer Notice */}
+          <div className="mt-5 border-t border-slate-100 pt-3 text-[11px] text-slate-400">
+            {isApprover ? (
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-500" />
+                Aggregated scope: You and all reporting subordinates
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-400" />
+                Personal scope: Based on your submitted requests
+              </span>
+            )}
           </div>
         </div>
       </section>
