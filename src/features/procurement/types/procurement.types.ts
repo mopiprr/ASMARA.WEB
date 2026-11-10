@@ -113,6 +113,7 @@ export interface ProcurementTicket {
   maintenanceDetail: unknown | null;
   procurementDetails: ProcurementDetail[] | null;
   history?: TicketHistoryItem[] | null;
+  purchaseProofFileName?: string | null;
 
   // Permission dari backend.
   canApprove: boolean;

@@ -87,15 +87,21 @@ export function useProcurementActions({
   const receiveGoods = useCallback(
     async (
       ticketId: string,
-      note: string
+      note: string,
+      proofFile: File
     ): Promise<boolean> => {
       try {
         setIsProcessing(true);
         setActionError('');
 
+        const formData = new FormData();
+        formData.append('note', note);
+        formData.append('proofFile', proofFile);
+
         await api.post(
           `/procurements/${ticketId}/receive-goods`,
-          { note }
+          formData,
+          { headers: { 'Content-Type': undefined } }
         );
 
         if (onSuccess) {

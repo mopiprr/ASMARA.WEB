@@ -355,13 +355,15 @@ function ProcurementPage() {
   // ==========================================
 
   const handleReceiveGoods = async (
-    note: string
+    note: string,
+    proofFile: File
   ): Promise<boolean> => {
     if (!selectedTicket) return false;
 
     return receiveGoods(
       selectedTicket.id,
-      note
+      note,
+      proofFile
     );
   };
 

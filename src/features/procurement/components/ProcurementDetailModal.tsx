@@ -13,6 +13,7 @@ import {
   Plus,
   Trash2,
   Send,
+  Upload,
 } from 'lucide-react';
 
 import type {
@@ -23,6 +24,7 @@ import type {
 import type { ProcurementAction } from '../hooks/useProcurementActions';
 
 import TicketHistorySection from '../../../components/common/TicketHistorySection';
+import PurchaseProofSection from './PurchaseProofSection';
 
 import { formatIDR } from '../utils/procurement.utils';
 
@@ -45,7 +47,8 @@ interface ProcurementDetailModalProps {
   ) => Promise<boolean>;
 
   onReceiveGoods: (
-    note: string
+    note: string,
+    proofFile: File
   ) => Promise<boolean>;
 
   onResubmit: (
@@ -60,6 +63,9 @@ interface EditableItem {
   quantity: string;
   price: string;
 }
+
+// Batas ukuran bukti pembelian
+const MAX_PROOF_SIZE = 5 * 1024 * 1024; // 5 MB
 
 function createEmptyItem(): EditableItem {
   return {
@@ -87,6 +93,11 @@ function ProcurementDetailModal({
 }: ProcurementDetailModalProps) {
   const [note, setNote] = useState('');
 
+  // Bukti pembelian (Receive Goods)
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreviewUrl, setProofPreviewUrl] = useState<string | null>(null);
+  const [proofError, setProofError] = useState('');
+
   const [isEditing, setIsEditing] = useState(false);
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
@@ -100,6 +111,9 @@ function ProcurementDetailModal({
     setNote('');
     setIsEditing(false);
 
+    setProofFile(null);
+    setProofError('');
+
     setEditableItems(
       (ticket.procurementDetails ?? []).map((item) => ({
         itemId: item.itemId?.toString() ?? '',
@@ -110,6 +124,18 @@ function ProcurementDetailModal({
       }))
     );
   }, [ticket]);
+
+  useEffect(() => {
+    if (!proofFile || !proofFile.type.startsWith('image/')) {
+      setProofPreviewUrl(null);
+      return;
+    }
+
+    const url = URL.createObjectURL(proofFile);
+    setProofPreviewUrl(url);
+
+    return () => URL.revokeObjectURL(url);
+  }, [proofFile]);
 
   if (!ticket) return null;
 
@@ -130,6 +156,17 @@ function ProcurementDetailModal({
   const canShowResubmit =
     (canResubmit ?? ticket.canResubmit ?? false) &&
     currentStep === 'EMPLOYEE_REVISION';
+
+  const isResubmitting = canShowResubmit && isEditing;
+
+  const canShowHistory =
+    !canShowApprovalActions &&
+    !canShowReceiveGoods &&
+    !isResubmitting;
+
+  const lastRevision = [...(ticket.history ?? [])]
+    .reverse()
+    .find((entry) => entry.action === 'Revise');
 
   const items = ticket.procurementDetails ?? [];
 
@@ -161,13 +198,31 @@ function ProcurementDetailModal({
     }
   };
 
+    const handleProofChange = (file: File | null) => {
+    setProofError('');
+
+    if (file && file.size > MAX_PROOF_SIZE) {
+      setProofFile(null);
+      setProofError('File size must not exceed 10 MB.');
+      return;
+    }
+
+    setProofFile(file);
+  };
+
   const handleReceiveGoods = async () => {
     if (isProcessing || !canShowReceiveGoods) return;
 
-    const success = await onReceiveGoods(note);
+    if (!proofFile) {
+      setProofError('Purchase proof is required.');
+      return;
+    }
+
+    const success = await onReceiveGoods(note, proofFile);
 
     if (success) {
       setNote('');
+      setProofFile(null);
       onClose();
     }
   };
@@ -682,6 +737,18 @@ function ProcurementDetailModal({
                 kembali untuk proses persetujuan.
               </p>
 
+              {lastRevision?.note && (
+                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-xs font-semibold text-amber-700">
+                    Revision requested by {lastRevision.employeeName || '-'}
+                  </p>
+
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-amber-800">
+                    {lastRevision.note}
+                  </p>
+                </div>
+              )}
+
               <label
                 htmlFor="procurement-resubmit-note"
                 className="mb-2 block text-sm font-medium text-slate-700"
@@ -782,15 +849,87 @@ function ProcurementDetailModal({
               <p className="mt-1 text-right text-xs text-slate-400">
                 {note.length}/200 characters
               </p>
+
+              {/* ERROR RECEIVE GOODS */}
+              {(proofError || actionError) && (
+                <div className="mt-4 flex gap-3 rounded-xl border border-red-200 bg-red-50 p-3">
+                  <AlertCircle size={17} className="mt-0.5 shrink-0 text-red-500" />
+
+                  <p className="text-sm text-red-700">
+                    {proofError || actionError}
+                  </p>
+                </div>
+              )}
+
+              {/* BUKTI PEMBELIAN (WAJIB) */}
+              <label
+                htmlFor="procurement-purchase-proof"
+                className="mb-2 mt-4 block text-sm font-medium text-slate-700"
+              >
+                Purchase Proof
+                <span className="ml-0.5 text-red-500">*</span>
+                <span className="ml-1 text-xs font-normal text-slate-400">
+                  (Receipt / invoice, max 5 MB)
+                </span>
+              </label>
+
+              <label
+                htmlFor="procurement-purchase-proof"
+                className={`flex cursor-pointer items-center gap-3 rounded-xl border border-dashed px-4 py-4 transition hover:bg-slate-50 ${
+                  proofError ? 'border-red-300' : 'border-slate-300'
+                }`}
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <Upload size={18} />
+                </div>
+
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-700">
+                    {proofFile ? proofFile.name : 'Choose a file'}
+                  </p>
+
+                  <p className="text-xs text-slate-400">
+                    {proofFile
+                      ? `${(proofFile.size / 1024 / 1024).toFixed(2)} MB · click to change`
+                      : 'Photo, PDF, or any other file'}
+                  </p>
+                </div>
+              </label>
+
+              <input
+                id="procurement-purchase-proof"
+                type="file"
+                disabled={isProcessing}
+                onChange={(event) =>
+                  handleProofChange(event.target.files?.[0] ?? null)
+                }
+                className="hidden"
+              />
+
+              {proofPreviewUrl && (
+                <img
+                  src={proofPreviewUrl}
+                  alt="Purchase proof preview"
+                  className="mt-3 max-h-56 w-full rounded-lg border border-slate-200 bg-slate-50 object-contain"
+                />
+              )}
             </section>
           )}
 
-          {!canShowApprovalActions && (
+          {/* BUKTI PEMBELIAN (setelah Receive Goods) */}
+          {ticket.purchaseProofFileName && (
+            <PurchaseProofSection
+              ticketId={ticket.id}
+              fileName={ticket.purchaseProofFileName}
+            />
+          )}
+
+          {canShowHistory && (
             <TicketHistorySection history={ticket.history} />
           )}
 
           {/* ERROR */}
-          {actionError && (
+          {actionError && !canShowReceiveGoods && (
             <div className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
               <AlertCircle
                 size={19}
@@ -921,7 +1060,7 @@ function ProcurementDetailModal({
             <button
               type="button"
               onClick={() => void handleReceiveGoods()}
-              disabled={isProcessing}
+              disabled={isProcessing || !proofFile}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isProcessing ? (
