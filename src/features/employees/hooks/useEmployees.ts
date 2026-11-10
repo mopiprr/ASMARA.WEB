@@ -11,14 +11,17 @@ import type {
 
 import { getApiErrorMessage } from '../utils/employee.utils';
 
+import { isForbiddenError } from '../../../utils/apiError';
+
 const PAGE_SIZE = 10;
 
-export function useEmployees() {
+export function useEmployees(enabled = true) {
   const [employees, setEmployees] = useState<EmployeeListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isForbidden, setIsForbidden] = useState(false);
 
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -38,6 +41,8 @@ export function useEmployees() {
   }, [searchInput]);
 
   const fetchEmployees = useCallback(async () => {
+    if (!enabled) return;
+
     try {
       setIsLoading(true);
       setError('');
@@ -59,6 +64,11 @@ export function useEmployees() {
     } catch (err: unknown) {
       console.error('Failed to fetch employees:', err);
 
+      if (isForbiddenError(err)) {
+        setIsForbidden(true);
+        return;
+      }
+
       setEmployees([]);
       setTotalCount(0);
       setTotalPages(0);
@@ -66,7 +76,7 @@ export function useEmployees() {
     } finally {
       setIsLoading(false);
     }
-  }, [status, search, sortBy, desc, page]);
+  }, [enabled, status, search, sortBy, desc, page]);
 
   useEffect(() => {
     void fetchEmployees();
@@ -98,6 +108,7 @@ export function useEmployees() {
     employees,
     isLoading,
     error,
+    isForbidden,  
     fetchEmployees,
 
     searchInput,

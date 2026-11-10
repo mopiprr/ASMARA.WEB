@@ -1,23 +1,26 @@
 import { useState } from 'react';
 
-import { ShieldAlert, UserPlus } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 
 import EmployeeTable from '../components/EmployeeTable';
 import EmployeeDetailModal from '../components/EmployeeDetailModal';
 import EmployeeFormModal from '../components/EmployeeFormModal';
+import AccessDenied from '../../../components/common/AccessDenied';
+
+import { hasAnyRole } from '../../../utils/auth';
+import { ROLE_ADMIN } from '../utils/employee.utils';
 
 import { useEmployees } from '../hooks/useEmployees';
 import { useEmployeeForm } from '../hooks/useEmployeeForm';
 
-import { isCurrentUserAdmin } from '../utils/employee.utils';
-
 function EmployeeManagementPage() {
-  const isAdmin = isCurrentUserAdmin();
+  const canAccess = hasAnyRole([ROLE_ADMIN]);
 
   const {
     employees,
     isLoading,
     error,
+    isForbidden,
     fetchEmployees,
 
     searchInput,
@@ -35,7 +38,7 @@ function EmployeeManagementPage() {
     totalCount,
     totalPages,
     goToPage,
-  } = useEmployees();
+  } = useEmployees(canAccess);
 
   // Detail (view)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
@@ -67,20 +70,8 @@ function EmployeeManagementPage() {
   };
 
   // Halaman khusus Admin (backend juga menolak non-admin dengan 403).
-  if (!isAdmin) {
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-        <ShieldAlert size={44} className="mx-auto text-slate-300" />
-
-        <h2 className="mt-4 text-lg font-bold text-slate-800">
-          Access denied
-        </h2>
-
-        <p className="mt-1 text-sm text-slate-500">
-          Only administrators can manage employees.
-        </p>
-      </div>
-    );
+  if (!canAccess || isForbidden) {
+    return <AccessDenied message="Only administrators can manage employees." />;
   }
 
   return (

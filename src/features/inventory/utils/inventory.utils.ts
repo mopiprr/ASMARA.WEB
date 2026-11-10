@@ -2,6 +2,8 @@ import type { TrackingType } from '../types/inventory.types';
 
 export const LOW_STOCK_THRESHOLD = 5;
 
+export const INVENTORY_ACCESS_ROLES = ['ROL-06']; // Inventory
+
 export type StockStatusType = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
 
 export interface StockBadgeInfo {

@@ -6,14 +6,17 @@ import type { PagedResult } from '../../procurement/types/procurement.types';
 
 import type { AssetListItem, AssetSortField } from '../types/asset.types';
 
+import { isForbiddenError } from '../../../utils/apiError';
+
 const PAGE_SIZE = 10;
 
-export function useAssets() {
+export function useAssets(enabled = true) {
   const [assets, setAssets] = useState<AssetListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isForbidden, setIsForbidden] = useState(false);
 
   // Filter, sorting, paging
   const [searchInput, setSearchInput] = useState('');
@@ -34,6 +37,8 @@ export function useAssets() {
   }, [searchInput]);
 
   const fetchAssets = useCallback(async () => {
+    if (!enabled) return;
+
     try {
       setIsLoading(true);
       setError('');
@@ -54,6 +59,10 @@ export function useAssets() {
       setTotalPages(response.data.totalPages ?? 0);
     } catch (err: unknown) {
       console.error('Failed to fetch assets:', err);
+      if (isForbiddenError(err)) {
+        setIsForbidden(true);
+        return;
+      }
 
       const apiError = err as {
         response?: {
@@ -75,7 +84,7 @@ export function useAssets() {
     } finally {
       setIsLoading(false);
     }
-  }, [status, search, sortBy, desc, page]);
+  }, [enabled, status, search, sortBy, desc, page]);
 
   useEffect(() => {
     void fetchAssets();
@@ -108,6 +117,7 @@ export function useAssets() {
     assets,
     isLoading,
     error,
+    isForbidden,
     fetchAssets,
 
     searchInput,

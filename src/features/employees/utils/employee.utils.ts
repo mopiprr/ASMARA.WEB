@@ -24,21 +24,6 @@ export function formatDate(value: string | null) {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 }
 
-export function isCurrentUserAdmin() {
-  try {
-    const raw =
-      localStorage.getItem('user') || sessionStorage.getItem('user');
-
-    if (!raw) return false;
-
-    const user = JSON.parse(raw) as { roles?: { roleCode: string }[] };
-
-    return user.roles?.some((role) => role.roleCode === ROLE_ADMIN) ?? false;
-  } catch {
-    return false;
-  }
-}
-
 export function getApiErrorMessage(err: unknown, fallback: string) {
   const apiError = err as {
     response?: {

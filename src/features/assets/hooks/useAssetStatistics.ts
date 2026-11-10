@@ -4,11 +4,13 @@ import api from '../../../services/api';
 
 import type { AssetStatistics } from '../types/asset.types';
 
-export function useAssetStatistics() {
+export function useAssetStatistics(enabled = true) {
   const [statistics, setStatistics] = useState<AssetStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchStatistics = useCallback(async () => {
+    if (!enabled) return;
+
     try {
       setIsLoading(true);
 
@@ -21,7 +23,7 @@ export function useAssetStatistics() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
     void fetchStatistics();

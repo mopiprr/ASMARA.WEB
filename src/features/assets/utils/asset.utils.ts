@@ -1,3 +1,6 @@
+// Role yang boleh membuka Asset Management.
+export const ASSET_ACCESS_ROLES = ['ROL-06']; // Inventory
+
 // Label & warna badge per status asset (sesuai AssetStatusEnum di backend).
 export const ASSET_STATUSES: Record<number, { label: string; style: string; dotStyle: string }> = {
   1: { label: 'Available', style: 'bg-emerald-50 text-emerald-700 border-emerald-200', dotStyle: 'bg-emerald-500' },

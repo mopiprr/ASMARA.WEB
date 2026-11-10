@@ -1,14 +1,20 @@
 import AssetTable from '../components/AssetTable';
 import AssetStatisticsCards from '../components/AssetStatisticsCards';
+import AccessDenied from '../../../components/common/AccessDenied';
 
+import { hasAnyRole } from '../../../utils/auth';
+import { ASSET_ACCESS_ROLES } from '../utils/asset.utils';
 import { useAssets } from '../hooks/useAssets';
 import { useAssetStatistics } from '../hooks/useAssetStatistics';
 
 function AssetManagementPage() {
+  const canAccess = hasAnyRole(ASSET_ACCESS_ROLES);
+
   const {
     assets,
     isLoading,
     error,
+    isForbidden,
     fetchAssets,
 
     searchInput,
@@ -26,20 +32,23 @@ function AssetManagementPage() {
     totalCount,
     totalPages,
     goToPage,
-  } = useAssets();
+  } = useAssets(canAccess);
 
   const {
     statistics,
     isLoading: isLoadingStatistics,
     fetchStatistics,
-  } = useAssetStatistics();
+  } = useAssetStatistics(canAccess);
 
   // Refresh tabel sekaligus angka di card.
   const handleRefresh = () => {
     void fetchAssets();
     void fetchStatistics();
   };
-
+  
+  if (!canAccess || isForbidden) {
+    return <AccessDenied message="Only the Inventory department can access this page." />;
+  }
   return (
     <div className="space-y-8">
 
