@@ -19,8 +19,10 @@ export function useAssets(enabled = true) {
   const [isForbidden, setIsForbidden] = useState(false);
 
   // Filter, sorting, paging
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState(
+    () => new URLSearchParams(window.location.search).get('search') ?? ''
+  );
+  const [search, setSearch] = useState(searchInput.trim());
   const [status, setStatus] = useState('');   // '' = semua status
   const [sortBy, setSortBy] = useState<AssetSortField>('assetTag');
   const [desc, setDesc] = useState(false);

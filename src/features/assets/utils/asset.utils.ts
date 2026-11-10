@@ -1,6 +1,11 @@
 // Role yang boleh membuka Asset Management.
 export const ASSET_ACCESS_ROLES = ['ROL-06']; // Inventory
 
+// Asset hanya bisa di-assign kalau statusnya Available (1) atau In Use (2).
+export function canAssignAsset(status: number) {
+  return status === 1 || status === 2;
+}
+
 // Label & warna badge per status asset (sesuai AssetStatusEnum di backend).
 export const ASSET_STATUSES: Record<number, { label: string; style: string; dotStyle: string }> = {
   1: { label: 'Available', style: 'bg-emerald-50 text-emerald-700 border-emerald-200', dotStyle: 'bg-emerald-500' },

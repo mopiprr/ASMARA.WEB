@@ -6,7 +6,7 @@ import type {
   StockStatusFilter,
   InventorySummary,
 } from '../types/inventory.types';
-import { LOW_STOCK_THRESHOLD } from '../utils/inventory.utils';
+import { LOW_STOCK_THRESHOLD, getStockQty } from '../utils/inventory.utils';
 import { isForbiddenError } from '../../../utils/apiError';
 
 export function useInventory(enabled = true) {
@@ -60,8 +60,8 @@ export function useInventory(enabled = true) {
     let outOfStockCount = 0;
 
     for (const item of items) {
-      const qty = item.qty;
-      if (qty === null || qty === undefined || qty <= 0) {
+      const qty = getStockQty(item);
+      if (qty <= 0) {
         outOfStockCount++;
       } else {
         totalUnits += qty;
@@ -102,17 +102,17 @@ export function useInventory(enabled = true) {
       }
 
       // 3. Stock status match
-      const qty = item.qty;
+      const qty = getStockQty(item);
       if (stockStatus === 'in_stock') {
-        if (qty === null || qty === undefined || qty < LOW_STOCK_THRESHOLD) {
+        if (qty < LOW_STOCK_THRESHOLD) {
           return false;
         }
       } else if (stockStatus === 'low_stock') {
-        if (qty === null || qty === undefined || qty <= 0 || qty >= LOW_STOCK_THRESHOLD) {
+        if (qty <= 0 || qty >= LOW_STOCK_THRESHOLD) {
           return false;
         }
       } else if (stockStatus === 'out_of_stock') {
-        if (qty !== null && qty !== undefined && qty > 0) {
+        if (qty > 0) {
           return false;
         }
       }

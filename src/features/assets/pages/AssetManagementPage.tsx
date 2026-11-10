@@ -1,13 +1,22 @@
+import { useState } from 'react';
+
+import AssetHeader from '../components/AssetHeader';
 import AssetTable from '../components/AssetTable';
+import AssignAssetModal from '../components/AssignAssetModal';
 import AssetStatisticsCards from '../components/AssetStatisticsCards';
 import AccessDenied from '../../../components/common/AccessDenied';
 
 import { hasAnyRole } from '../../../utils/auth';
 import { ASSET_ACCESS_ROLES } from '../utils/asset.utils';
+
 import { useAssets } from '../hooks/useAssets';
 import { useAssetStatistics } from '../hooks/useAssetStatistics';
+import { useAssignAsset } from '../hooks/useAssignAsset';
+
+import type { AssetListItem } from '../types/asset.types';
 
 function AssetManagementPage() {
+  // Cek role dulu: kalau tidak berhak, API tidak dipanggil sama sekali.
   const canAccess = hasAnyRole(ASSET_ACCESS_ROLES);
 
   const {
@@ -45,32 +54,43 @@ function AssetManagementPage() {
     void fetchAssets();
     void fetchStatistics();
   };
-  
+
+  // Assign asset ke employee
+  const [assetToAssign, setAssetToAssign] = useState<AssetListItem | null>(null);
+
+  const assignment = useAssignAsset({
+    onSuccess: async () => {
+      await Promise.all([fetchAssets(), fetchStatistics()]);
+    },
+  });
+
+  const handleOpenAssign = (asset: AssetListItem) => {
+    setAssetToAssign(asset);
+
+    // Daftar employee diambil saat modal pertama kali dibuka.
+    void assignment.loadEmployees();
+  };
+
+  // Role tidak cocok, atau backend tetap menolak (403) -> Access denied.
   if (!canAccess || isForbidden) {
-    return <AccessDenied message="Only the Inventory department can access this page." />;
+    return <AccessDenied message="You do not have permission to manage assets." />;
   }
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
 
-      {/* PAGE HEADING */}
-      <section>
-        <p className="text-sm font-medium text-blue-600">
-          Inventory
-        </p>
+      {/* HEADER */}
+      <AssetHeader
+        isLoading={isLoading || isLoadingStatistics}
+        onRefresh={handleRefresh}
+      />
 
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-800 sm:text-3xl">
-          Asset Management
-        </h1>
-
-        <p className="mt-2 text-sm text-slate-500">
-          List of company assets and who is holding them.
-        </p>
-      </section>
-
-      {/* STATISTICS */}
+      {/* STATISTICS (klik untuk filter) */}
       <AssetStatisticsCards
         statistics={statistics}
         isLoading={isLoadingStatistics}
+        activeStatus={status}
+        onSelectStatus={changeStatus}
       />
 
       {/* ASSET LIST */}
@@ -79,6 +99,7 @@ function AssetManagementPage() {
         isLoading={isLoading}
         error={error}
         onRefresh={handleRefresh}
+        onAssign={handleOpenAssign}
 
         searchInput={searchInput}
         onSearchChange={setSearchInput}
@@ -95,6 +116,13 @@ function AssetManagementPage() {
         totalPages={totalPages}
         totalCount={totalCount}
         onPageChange={goToPage}
+      />
+
+      {/* ASSIGN */}
+      <AssignAssetModal
+        asset={assetToAssign}
+        onClose={() => setAssetToAssign(null)}
+        assignment={assignment}
       />
     </div>
   );

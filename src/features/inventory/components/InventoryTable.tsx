@@ -22,7 +22,7 @@ import type {
   InventoryCategory,
   StockStatusFilter,
 } from '../types/inventory.types';
-import { getStockStatus, getStockStatusRank, getTrackingTypeLabel } from '../utils/inventory.utils';
+import { getStockStatus, getStockStatusRank, getTrackingTypeLabel, getStockQty, isNonConsumable } from '../utils/inventory.utils';
 
 export type SortColumn = 'itemCode' | 'itemName' | 'categoryName' | 'qty' | 'stockStatus' | 'isActive';
 export type SortDirection = 'asc' | 'desc';
@@ -110,16 +110,12 @@ export function InventoryTable({
           break;
         }
         case 'qty': {
-          const qtyA = a.qty ?? 0;
-          const qtyB = b.qty ?? 0;
-          comparison = qtyA - qtyB;
-          break;
+          const qtyA = getStockQty(a);
+          const qtyB = getStockQty(b);
         }
         case 'stockStatus': {
-          const rankA = getStockStatusRank(a.qty);
-          const rankB = getStockStatusRank(b.qty);
-          comparison = rankA - rankB;
-          break;
+          const rankA = getStockStatusRank(getStockQty(a));
+          const rankB = getStockStatusRank(getStockQty(b));
         }
         case 'isActive':
           comparison = a.isActive === b.isActive ? 0 : a.isActive ? -1 : 1;
@@ -504,7 +500,7 @@ export function InventoryTable({
             ) : (
               // Items List
               paginatedItems.map((item) => {
-                const stock = getStockStatus(item.qty);
+                const stock = getStockStatus(getStockQty(item));
                 const category = categoryMap.get(item.itemCategoryId);
                 const tracking = category ? getTrackingTypeLabel(category.trackingType) : null;
 
@@ -547,20 +543,16 @@ export function InventoryTable({
 
                     {/* QUANTITY */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {category?.trackingType === 2 || item.trackingType === 2 ? (
+                      {isNonConsumable(item) ? (
                         <div className="flex flex-col gap-0.5">
-                          <div className="flex items-baseline gap-1.5">
+                          {/* Available (/Total) -> total dibuat kecil & samar */}
+                          <div className="flex items-baseline gap-1">
                             <span className="text-sm font-bold text-slate-900">
-                              {item.availableAssetCount ?? item.qty ?? 0}
+                              {getStockQty(item)}
                             </span>
-                            <span className="text-[11px] font-semibold text-emerald-600">
-                              Ready
+                            <span className="text-[11px] text-slate-400">
+                              (/{item.totalAssetCount ?? 0})
                             </span>
-                            {item.totalAssetCount !== null && item.totalAssetCount !== undefined && (
-                              <span className="text-[11px] text-slate-400">
-                                / {item.totalAssetCount} Total
-                              </span>
-                            )}
                           </div>
                           <button
                             type="button"
@@ -571,14 +563,14 @@ export function InventoryTable({
                             className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline w-fit"
                             title="Buka unit aset individual di Asset Management"
                           >
-                            <span>Lihat unit fisik</span>
+                            <span>See Units</span>
                             <ArrowRight size={10} />
                           </button>
                         </div>
                       ) : (
                         <div className="flex items-baseline gap-1">
                           <span className="text-sm font-bold text-slate-900">
-                            {item.qty !== null && item.qty !== undefined ? item.qty : 0}
+                            {getStockQty(item)}
                           </span>
                           <span className="text-slate-400 text-[11px]">unit(s)</span>
                         </div>

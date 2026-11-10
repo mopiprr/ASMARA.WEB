@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Package, Tag, Copy, Check, Hash, Layers, ShieldCheck, ShieldAlert, Boxes, ArrowRight } from 'lucide-react';
 import type { InventoryItem, InventoryCategory } from '../types/inventory.types';
-import { getStockStatus, getTrackingTypeLabel } from '../utils/inventory.utils';
+import { getStockStatus, getTrackingTypeLabel, getStockQty } from '../utils/inventory.utils';
 
 interface InventoryDetailModalProps {
   item: InventoryItem | null;
@@ -18,7 +18,7 @@ export function InventoryDetailModal({ item, categories, onClose }: InventoryDet
 
   const category = categories.find((c) => c.id === item.itemCategoryId);
   const trackingInfo = category ? getTrackingTypeLabel(category.trackingType) : null;
-  const stockInfo = getStockStatus(item.qty);
+  const stockInfo = getStockStatus(getStockQty(item));
 
   const handleCopyCode = async () => {
     try {
@@ -132,11 +132,11 @@ export function InventoryDetailModal({ item, categories, onClose }: InventoryDet
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-xl font-bold text-slate-800">
-                  {item.availableAssetCount ?? item.qty ?? 0}
+                  {getStockQty(item)}
                 </span>
                 <span className="text-xs text-slate-500">
                   {category?.trackingType === 2 || item.trackingType === 2
-                    ? `ready (${item.totalAssetCount ?? 0} total)`
+                    ? `(/${item.totalAssetCount ?? 0})`
                     : 'units'}
                 </span>
               </div>
@@ -167,7 +167,7 @@ export function InventoryDetailModal({ item, categories, onClose }: InventoryDet
                     Serialized Fixed Asset
                   </p>
                   <p className="text-[11px] text-slate-500">
-                    {item.availableAssetCount ?? item.qty ?? 0} ready in storage · {item.totalAssetCount ?? 0} total units tracked individually
+                    {getStockQty(item)} ready in storage · {item.totalAssetCount ?? 0} total units tracked individually
                   </p>
                 </div>
               </div>

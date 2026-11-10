@@ -1,6 +1,16 @@
-import type { TrackingType } from '../types/inventory.types';
+import type { InventoryItem, TrackingType } from '../types/inventory.types';
 
 export const LOW_STOCK_THRESHOLD = 5;
+
+export function isNonConsumable(item: InventoryItem) {
+  return item.trackingType === 2;
+}
+
+export function getStockQty(item: InventoryItem): number {
+  return isNonConsumable(item)
+    ? item.availableAssetCount ?? 0
+    : item.qty ?? 0;
+}
 
 export const INVENTORY_ACCESS_ROLES = ['ROL-06']; // Inventory
 

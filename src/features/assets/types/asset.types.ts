@@ -24,3 +24,10 @@ export interface AssetStatistics {
   inUse: number;
   underMaintenance: number;
 }
+
+export interface EmployeeOption {
+  id: string;
+  employeeNumber: string;
+  fullName: string;
+  departmentName: string;
+}
