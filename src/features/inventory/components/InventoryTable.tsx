@@ -112,10 +112,14 @@ export function InventoryTable({
         case 'qty': {
           const qtyA = getStockQty(a);
           const qtyB = getStockQty(b);
+          comparison = qtyA - qtyB;
+          break;
         }
         case 'stockStatus': {
           const rankA = getStockStatusRank(getStockQty(a));
           const rankB = getStockStatusRank(getStockQty(b));
+          comparison = rankA - rankB;
+          break;
         }
         case 'isActive':
           comparison = a.isActive === b.isActive ? 0 : a.isActive ? -1 : 1;
