@@ -17,6 +17,7 @@ import type { ProcurementTicket } from '../../procurement/types/procurement.type
 import { formatIDR } from '../../procurement/utils/procurement.utils';
 
 import TicketHistorySection from '../../../components/common/TicketHistorySection';
+import PurchaseProofSection from '../../procurement/components/PurchaseProofSection';
 
 // ==========================================
 // TYPES
@@ -412,6 +413,14 @@ function TicketViewModal({ ticketId, onClose }: TicketViewModalProps) {
                     </p>
                   </div>
                 </section>
+              )}
+
+              {/* BUKTI PEMBELIAN (procurement yang sudah Receive Goods) */}
+              {!isMaintenance && ticket.purchaseProofFileName && (
+                <PurchaseProofSection
+                  ticketId={ticket.id}
+                  fileName={ticket.purchaseProofFileName}
+                />
               )}
 
               {/* HISTORY */}
