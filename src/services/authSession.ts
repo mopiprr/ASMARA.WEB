@@ -44,6 +44,17 @@ export function getAccessToken() {
   return sessionStorage.getItem(TOKEN_KEY);
 }
 
+// Data user yang login (disimpan saat login / refresh).
+export function getSessionUser(): SessionUser | null {
+  try {
+    const raw = sessionStorage.getItem(USER_KEY);
+
+    return raw ? (JSON.parse(raw) as SessionUser) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function hasSession() {
   return Boolean(getAccessToken());
 }
