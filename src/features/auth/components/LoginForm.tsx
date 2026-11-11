@@ -1,6 +1,6 @@
-
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import axios from 'axios';
 import {
   Eye,
   EyeOff,
@@ -8,25 +8,31 @@ import {
   UserRound,
 } from 'lucide-react';
 
-interface LoginResponse {
-  accessToken: string;
-  expiresAt: string;
-  user: {
-    accountId: string;
-    employeeId: string;
-    employeeNumber: string;
-    fullName: string;
-    email: string;
-    roles: {
-      id: number;
-      roleCode: string;
-      roleName: string;
-    }[];
-  };
+import { login } from '../../../services/authSession';
+
+// Hanya terima path internal (cegah redirect ke situs lain).
+function getSafeRedirect(path: string | null | undefined) {
+  if (!path || !path.startsWith('/') || path.startsWith('//') || path === '/') {
+    return '/dashboard';
+  }
+
+  return path;
 }
 
 function LoginForm() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  // Halaman asal: dari ProtectedRoute (state) atau dari interceptor (?from=).
+  const fromState = (location.state as { from?: { pathname: string; search?: string } } | null)?.from;
+  const redirectTo = getSafeRedirect(
+    fromState
+      ? fromState.pathname + (fromState.search ?? '')
+      : searchParams.get('from')
+  );
+
+  const isSessionExpired = searchParams.get('expired') === '1';
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -35,9 +41,6 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const API_URL =
-    import.meta.env.VITE_API_BASE_URL || 'http://localhost:5243';
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -45,62 +48,31 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: username.trim(),
-          password,
-        }),
-      });
+      // Backend menyimpan refresh token di cookie:
+      // Remember me -> cookie 60 menit, tidak -> hilang saat browser ditutup.
+      await login(username.trim(), password, rememberMe);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.detail ||
-          data.title ||
-          data.message ||
-          'Username atau password tidak valid.'
-        );
-      }
-
-      const result: LoginResponse = data;
-
-      // Bersihkan sesi sebelumnya
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('user');
-
-      sessionStorage.removeItem('accessToken');
-      sessionStorage.removeItem('user');
-
-      // Simpan sesi berdasarkan Remember Me
-      const storage = rememberMe ? localStorage : sessionStorage;
-
-      storage.setItem('accessToken', result.accessToken);
-      storage.setItem('user', JSON.stringify(result.user));
-
-      // Beri tahu aplikasi bahwa login berhasil
-      window.dispatchEvent(new Event('auth-changed'));
-
-      console.log('Login berhasil:', result.user);
-
-      // Redirect ke Dashboard
-      navigate('/dashboard', { replace: true });
-
+      navigate(redirectTo, { replace: true });
     } catch (error) {
-      if (error instanceof TypeError) {
-        setErrorMessage(
-          'Tidak dapat terhubung ke server. Pastikan backend ASMARA sedang berjalan.'
-        );
+      if (axios.isAxiosError(error)) {
+        if (!error.response) {
+          setErrorMessage(
+            'Tidak dapat terhubung ke server. Pastikan backend ASMARA sedang berjalan.'
+          );
+        } else {
+          const data = error.response.data as
+            | { detail?: string; title?: string; message?: string }
+            | undefined;
+
+          setErrorMessage(
+            data?.detail ||
+              data?.message ||
+              data?.title ||
+              'Username atau password tidak valid.'
+          );
+        }
       } else {
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : 'Terjadi kesalahan saat login.'
-        );
+        setErrorMessage('Terjadi kesalahan saat login.');
       }
     } finally {
       setIsLoading(false);
@@ -168,6 +140,13 @@ function LoginForm() {
           </button>
         </div>
       </div>
+
+      {/* SESSION EXPIRED */}
+      {isSessionExpired && !errorMessage && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          Sesi Anda telah berakhir. Silakan login kembali.
+        </div>
+      )}
 
       {/* ERROR MESSAGE */}
       {errorMessage && (

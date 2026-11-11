@@ -26,15 +26,7 @@ interface MyProfile {
   roles: string[];
 }
 
-const API_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5243';
-
-function getAccessToken() {
-  return (
-    localStorage.getItem('accessToken') ||
-    sessionStorage.getItem('accessToken')
-  );
-}
+import api from '../../../services/api';
 
 function ProfileField({
   label,
@@ -70,42 +62,14 @@ function MyProfilePage() {
   const [error, setError] = useState('');
 
   async function loadProfile() {
-    const token = getAccessToken();
-
-    if (!token) {
-      setError('Sesi login tidak ditemukan. Silakan login kembali.');
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError('');
-
     try {
-      const response = await fetch(`${API_URL}/api/profile/me`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Sesi login telah berakhir. Silakan login kembali.');
-        }
-
-        throw new Error('Gagal mengambil informasi profil.');
-      }
-
-      const result: MyProfile = await response.json();
-      setProfile(result);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Terjadi kesalahan saat mengambil data profil.'
-      );
+      // Pakai api -> token otomatis di-refresh kalau expired.
+      const response = await api.get<MyProfile>('/profile/me');
+      setProfile(response.data);
+    } catch {
+      setError('Gagal mengambil informasi profil.');
     } finally {
       setLoading(false);
     }

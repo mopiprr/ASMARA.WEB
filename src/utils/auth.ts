@@ -1,6 +1,6 @@
 export function getCurrentUserRoles(): string[] {
   try {
-    const raw = localStorage.getItem('user') || sessionStorage.getItem('user');
+    const raw = sessionStorage.getItem('user');
 
     if (!raw) return [];
 

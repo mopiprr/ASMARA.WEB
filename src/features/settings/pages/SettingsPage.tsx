@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import {
   LockKeyhole,
@@ -10,12 +9,11 @@ import {
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
+import axios from 'axios';
 import { ConfirmDialog } from '../../../components/common/ConfirmDialog';
+import api from '../../../services/api';
 
 function SettingsPage() {
-  const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL || 'http://localhost:5243';
-
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -60,58 +58,21 @@ function SettingsPage() {
       return;
     }
 
-    // Get access token
-    const token =
-      localStorage.getItem('accessToken') ||
-      sessionStorage.getItem('accessToken');
-
-    if (!token) {
-      setMessage('Your session has expired. Please login again.');
-      setMessageType('error');
-      return;
-    }
-
     // Valid inputs, open confirmation dialog
     setShowConfirmChangePassword(true);
   };
 
   const executeChangePassword = async () => {
-    const token =
-      localStorage.getItem('accessToken') ||
-      sessionStorage.getItem('accessToken');
-
-    if (!token) {
-      setMessage('Your session has expired. Please login again.');
-      setMessageType('error');
-      setShowConfirmChangePassword(false);
-      return;
-    }
-
     try {
       setLoading(true);
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/account/change-password`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            currentPassword,
-            newPassword,
-          }),
-        }
+      // Pakai api -> token otomatis di-refresh kalau expired.
+      const response = await api.put<{ message?: string }>(
+        '/account/change-password',
+        { currentPassword, newPassword }
       );
 
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(
-          data?.message || 'Failed to change password.'
-        );
-      }
+      const data = response.data;
 
       // Reset form after success
       setCurrentPassword('');
@@ -125,10 +86,14 @@ function SettingsPage() {
       setMessage(data?.message || 'Password changed successfully.');
       setMessageType('success');
     } catch (error) {
+      const data = axios.isAxiosError(error)
+        ? (error.response?.data as { message?: string; detail?: string } | undefined)
+        : undefined;
+
       setMessage(
-        error instanceof Error
-          ? error.message
-          : 'Something went wrong. Please try again.'
+        data?.message ||
+          data?.detail ||
+          'Failed to change password.'
       );
       setMessageType('error');
     } finally {
