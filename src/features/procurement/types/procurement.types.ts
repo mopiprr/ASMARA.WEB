@@ -61,6 +61,7 @@ export interface ProcurementTicketListItem {
   subject: string;
   requesterId: string;
   requesterName: string;
+  requesterDepartment?: string | null;
   createdAt: string;
   closedAt: string | null;
   currentStep: string;
@@ -99,6 +100,7 @@ export interface ProcurementTicket {
   parentTicketId: string | null;
   employeeId: string;
   employeeName: string | null;
+  requesterDepartment?: string | null;
   ticketNumber: string;
   ticketType: number;
   subject: string;
@@ -132,6 +134,7 @@ export interface PendingProcurementTicket {
   subject: string;
   requesterId: string;
   requesterName: string;
+  requesterDepartment?: string | null;
   createdAt: string;
   currentStep: string;
   currentStepName: string;

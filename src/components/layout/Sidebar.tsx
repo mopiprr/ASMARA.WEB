@@ -5,6 +5,7 @@ import {
   Wrench,
   Package,
   Boxes,
+  CircleDollarSign,
   Users,
   Settings,
   ChevronLeft,
@@ -48,6 +49,11 @@ const navigation = [
 ];
 
 const management = [
+  {
+    label: 'Finance',
+    path: '/finance',
+    icon: CircleDollarSign,
+  },
   {
     label: 'Employees',
     path: '/employees',

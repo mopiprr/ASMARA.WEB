@@ -15,6 +15,7 @@ import AssetManagementPage from './features/assets/pages/AssetManagementPage';
 import MaintenanceDashboard from './features/maintenance/pages/MaintenanceDashboard';
 import InventoryPage from './features/inventory/pages/InventoryPage';
 import EmployeeManagementPage from './features/employees/pages/EmployeeManagementPage';
+import FinancePage from './features/finance/pages/FinancePage';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
           <Route path="/profile" element={<MyProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/procurement" element={<ProcurementPage />} />
+          <Route path="/finance" element={<FinancePage />} />
           <Route path="/assets" element={<AssetManagementPage />} />
           <Route path="/maintenance" element={<MaintenanceDashboard />} />
           <Route path="/inventory" element={<InventoryPage />} />
