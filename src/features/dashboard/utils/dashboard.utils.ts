@@ -1,5 +1,6 @@
 import { hasAnyRole } from '../../../utils/auth';
 import { ASSET_ACCESS_ROLES } from '../../assets/utils/asset.utils';
+import { FINANCE_ACCESS_ROLES } from '../../finance/utils/finance.utils';
 
 import type { StatCategory, TopTicketItem } from '../types/dashboard.types';
 
@@ -18,7 +19,8 @@ export const APPROVER_ROLES = [
 export function getDashboardAccess() {
   return {
     isApprover: hasAnyRole(APPROVER_ROLES),
-    canViewAssets: hasAnyRole(ASSET_ACCESS_ROLES), // hanya Inventory
+    canViewAssets: hasAnyRole(ASSET_ACCESS_ROLES), // hanya Inventory & Admin
+    canViewFinance: hasAnyRole(FINANCE_ACCESS_ROLES), // hanya Finance & Admin
   };
 }
 

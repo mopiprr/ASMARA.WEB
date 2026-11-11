@@ -5,10 +5,14 @@ import BudgetOverviewCards from '../components/BudgetOverviewCards';
 import DepartmentBudgetTable from '../components/DepartmentBudgetTable';
 import BudgetLogTable from '../components/BudgetLogTable';
 import BudgetAdjustmentModal from '../components/BudgetAdjustmentModal';
+import AccessDenied from '../../../components/common/AccessDenied';
+import { isFinanceUser } from '../utils/finance.utils';
 import type { DepartmentBudget, AdjustBudgetPayload } from '../types/finance.types';
 import { Building2, History, CheckCircle2, AlertCircle, X } from 'lucide-react';
 
 export default function FinancePage() {
+  const isFinance = isFinanceUser();
+
   const {
     selectedYear,
     setSelectedYear,
@@ -28,12 +32,16 @@ export default function FinancePage() {
     error,
     refetch,
     adjustBudget,
-  } = useBudget();
+  } = useBudget(new Date().getFullYear(), isFinance);
 
   const [activeTab, setActiveTab] = useState<'budgets' | 'logs'>('budgets');
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState<boolean>(false);
   const [selectedBudgetForAdjust, setSelectedBudgetForAdjust] = useState<DepartmentBudget | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  if (!isFinance) {
+    return <AccessDenied message="Only finance officers and administrators can access the Finance module." />;
+  }
 
   const handleOpenAdjust = (budget?: DepartmentBudget) => {
     setSelectedBudgetForAdjust(budget || null);

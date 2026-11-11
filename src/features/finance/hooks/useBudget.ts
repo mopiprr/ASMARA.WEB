@@ -7,7 +7,10 @@ import type {
   AdjustBudgetPayload,
 } from '../types/finance.types';
 
-export function useBudget(initialYear: number = new Date().getFullYear()) {
+export function useBudget(
+  initialYear: number = new Date().getFullYear(),
+  enabled: boolean = true,
+) {
   const [selectedYear, setSelectedYear] = useState<number>(initialYear);
   const [budgets, setBudgets] = useState<DepartmentBudget[]>([]);
   const [overview, setOverview] = useState<BudgetOverview | null>(null);
@@ -22,6 +25,10 @@ export function useBudget(initialYear: number = new Date().getFullYear()) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
+    if (!enabled) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -45,11 +52,12 @@ export function useBudget(initialYear: number = new Date().getFullYear()) {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedYear, selectedDepartmentFilter, logsPage, logsPageSize]);
+  }, [enabled, selectedYear, selectedDepartmentFilter, logsPage, logsPageSize]);
 
   useEffect(() => {
+    if (!enabled) return;
     void fetchData();
-  }, [fetchData]);
+  }, [fetchData, enabled]);
 
   const filteredBudgets = useMemo(() => {
     return budgets.filter((b) => {

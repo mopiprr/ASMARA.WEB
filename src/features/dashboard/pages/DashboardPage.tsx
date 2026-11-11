@@ -8,6 +8,7 @@ import TopTicketsPanel from '../components/TopTicketsPanel';
 import ResolutionPerformanceCard from '../components/ResolutionPerformanceCard';
 import TicketTypeDistributionChart from '../components/TicketTypeDistributionChart';
 import TicketActivityTrendChart from '../components/TicketActivityTrendChart';
+import DepartmentBudgetBarChart from '../components/DepartmentBudgetBarChart';
 import MyActivityTable from '../components/MyActivityTable';
 import AssetDistributionChart from '../components/AssetDistributionChart';
 
@@ -25,7 +26,7 @@ function DashboardPage() {
 
   // Nama & role diambil dari sesi login (tidak perlu panggil /profile/me lagi).
   const user = getSessionUser();
-  const { isApprover, canViewAssets } = getDashboardAccess();
+  const { isApprover, canViewAssets, canViewFinance } = getDashboardAccess();
 
   // Statistik tiket + filter global (tab & tanggal)
   const {
@@ -151,6 +152,9 @@ function DashboardPage() {
 
       {/* ACTIVITY TREND */}
       <TicketActivityTrendChart isApprover={isApprover} />
+
+      {/* DEPARTMENT BUDGET ALLOCATION & EXPENDITURE (khusus role Finance) */}
+      {canViewFinance && <DepartmentBudgetBarChart />}
 
       {/* MY ACTIVITY */}
       <MyActivityTable

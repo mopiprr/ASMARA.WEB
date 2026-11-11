@@ -18,6 +18,7 @@ import { hasAnyRole } from '../../utils/auth';
 import { ASSET_ACCESS_ROLES } from '../../features/assets/utils/asset.utils';
 import { INVENTORY_ACCESS_ROLES } from '../../features/inventory/utils/inventory.utils';
 import { ROLE_ADMIN } from '../../features/employees/utils/employee.utils';
+import { FINANCE_ACCESS_ROLES } from '../../features/finance/utils/finance.utils';
 
 type SidebarProps = {
   collapsed: boolean;
@@ -69,6 +70,7 @@ const management: NavItem[] = [
     label: 'Finance',
     path: '/finance',
     icon: CircleDollarSign,
+    roles: FINANCE_ACCESS_ROLES,
   },
   {
     label: 'Employees',
