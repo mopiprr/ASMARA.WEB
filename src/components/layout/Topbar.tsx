@@ -11,6 +11,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { getAccessToken, logout } from '../../services/authSession';
 
 type TopbarProps = {
   onOpenSidebar: () => void;
@@ -28,13 +29,6 @@ interface UserProfile {
   userName?: string;
   isActive?: boolean;
   roles: string[];
-}
-
-function getAccessToken() {
-  return (
-    localStorage.getItem('accessToken') ||
-    sessionStorage.getItem('accessToken')
-  );
 }
 
 function getUserSubtitle(profile: UserProfile | null): string {
@@ -107,20 +101,11 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
   const displayName = profile?.fullName || 'Loading...';
   const displaySubtitle = getUserSubtitle(profile);
 
-  function handleSignOut() {
-    // Remove authentication data.
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
-
-    sessionStorage.removeItem('accessToken');
-    sessionStorage.removeItem('user');
-
+  async function handleSignOut() {
     setProfile(null);
     setProfileOpen(false);
-
-    // Notify other components.
-    window.dispatchEvent(new Event('auth-changed'));
-
+    // Cabut refresh token di server, hapus cookie & sesi di browser.
+    await logout();
     // Redirect to login.
     navigate('/', { replace: true });
   }

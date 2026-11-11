@@ -45,3 +45,15 @@ export interface TicketStatisticsParams {
   startDate?: string;
   endDate?: string;
 }
+
+export type StatCategory = 'total' | 'pending' | 'in_progress' | 'completed';
+
+// Item ringkas untuk panel Top 5.
+export interface TopTicketItem {
+  id: string;
+  ticketNumber: string;
+  subject: string;
+  ticketType: number; // 1 = Maintenance, 2 = Procurement
+  currentStep?: string;
+  currentStepName?: string;
+}
