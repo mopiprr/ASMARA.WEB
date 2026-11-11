@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   ClipboardList,
@@ -11,6 +11,12 @@ import {
   ChevronRight,
   X,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+
+import { hasAnyRole } from '../../utils/auth';
+import { ASSET_ACCESS_ROLES } from '../../features/assets/utils/asset.utils';
+import { INVENTORY_ACCESS_ROLES } from '../../features/inventory/utils/inventory.utils';
+import { ROLE_ADMIN } from '../../features/employees/utils/employee.utils';
 
 type SidebarProps = {
   collapsed: boolean;
@@ -19,7 +25,15 @@ type SidebarProps = {
   onCloseMobile: () => void;
 };
 
-const navigation = [
+type NavItem = {
+  label: string;
+  path: string;
+  icon: LucideIcon;
+  // Kosong = semua user boleh lihat. Diisi = hanya role tersebut.
+  roles?: string[];
+};
+
+const navigation: NavItem[] = [
   {
     label: 'Dashboard',
     path: '/dashboard',
@@ -39,19 +53,22 @@ const navigation = [
     label: 'Inventory',
     path: '/inventory',
     icon: Package,
+    roles: INVENTORY_ACCESS_ROLES,
   },
   {
     label: 'Asset Management',
     path: '/assets',
     icon: Boxes,
+    roles: ASSET_ACCESS_ROLES,
   },
 ];
 
-const management = [
+const management: NavItem[] = [
   {
     label: 'Employees',
     path: '/employees',
     icon: Users,
+    roles: [ROLE_ADMIN],
   },
   {
     label: 'Settings',
@@ -60,12 +77,23 @@ const management = [
   },
 ];
 
+function canSee(item: NavItem) {
+  return !item.roles || hasAnyRole(item.roles);
+}
+
 function Sidebar({
   collapsed,
   onToggle,
   mobileOpen,
   onCloseMobile,
 }: SidebarProps) {
+  // Dipanggil supaya menu dihitung ulang setiap pindah halaman (mis. setelah login ulang).
+  useLocation();
+
+  // Hanya menu yang boleh diakses role user ini.
+  const visibleNavigation = navigation.filter(canSee);
+  const visibleManagement = management.filter(canSee);
+
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
       isActive
@@ -73,7 +101,7 @@ function Sidebar({
         : 'text-slate-400 hover:bg-slate-800 hover:text-white'
     }`;
 
-  const renderLinks = (items: typeof navigation) =>
+  const renderLinks = (items: NavItem[]) =>
     items.map(({ label, path, icon: Icon }) => (
       <NavLink
         key={path}
@@ -147,29 +175,33 @@ function Sidebar({
 
         {/* Navigation */}
         <nav className="sidebar-scroll flex-1 space-y-7 overflow-y-auto px-3 py-7">
-          <div>
-            {!collapsed && (
-              <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                Workspace
-              </p>
-            )}
+          {visibleNavigation.length > 0 && (
+            <div>
+              {!collapsed && (
+                <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Workspace
+                </p>
+              )}
 
-            <div className="space-y-1">
-              {renderLinks(navigation)}
+              <div className="space-y-1">
+                {renderLinks(visibleNavigation)}
+              </div>
             </div>
-          </div>
+          )}
 
-          <div>
-            {!collapsed && (
-              <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                Management
-              </p>
-            )}
+          {visibleManagement.length > 0 && (
+            <div>
+              {!collapsed && (
+                <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Management
+                </p>
+              )}
 
-            <div className="space-y-1">
-              {renderLinks(management)}
+              <div className="space-y-1">
+                {renderLinks(visibleManagement)}
+              </div>
             </div>
-          </div>
+          )}
         </nav>
 
         {/* Sidebar Footer */}
