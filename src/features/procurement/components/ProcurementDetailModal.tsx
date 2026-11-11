@@ -31,6 +31,8 @@ import {
 } from "../../../components/common/ConfirmDialog";
 
 import { formatIDR } from "../utils/procurement.utils";
+import ProcurementBudgetWidget from "../../finance/components/ProcurementBudgetWidget";
+import { isFinanceUser } from "../../finance/utils/finance.utils";
 
 interface ProcurementDetailModalProps {
   ticket: ProcurementTicket | null;
@@ -522,6 +524,11 @@ function ProcurementDetailModal({
 
                 <p className="mt-1 text-sm font-semibold text-slate-800">
                   {ticket.employeeName || "-"}
+                  {ticket.requesterDepartment && (
+                    <span className="ml-1 text-xs font-normal text-slate-500">
+                      ({ticket.requesterDepartment})
+                    </span>
+                  )}
                 </p>
               </div>
 
@@ -798,6 +805,16 @@ function ProcurementDetailModal({
                 {formatIDR(isEditing ? editableTotal : estimatedTotal)}
               </p>
             </div>
+
+            {/* REAL-TIME BUDGET CHECK STATUS (ONLY FOR FINANCE) */}
+            {(currentStep === "FINANCE_APPROVAL" || isFinanceUser()) && (
+              <div className="mt-4">
+                <ProcurementBudgetWidget
+                  estimatedTotal={isEditing ? editableTotal : estimatedTotal}
+                  departmentName={ticket.requesterDepartment || undefined}
+                />
+              </div>
+            )}
           </section>
 
           {/* RESUBMIT FORM */}

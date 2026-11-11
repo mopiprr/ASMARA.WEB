@@ -17,6 +17,7 @@ import InventoryPage from './features/inventory/pages/InventoryPage';
 import EmployeeManagementPage from './features/employees/pages/EmployeeManagementPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import GuestRoute from './components/auth/GuestRoute';
+import FinancePage from './features/finance/pages/FinancePage';
 
 function App() {
   return (

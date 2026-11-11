@@ -5,6 +5,7 @@ import {
   Wrench,
   Package,
   Boxes,
+  CircleDollarSign,
   Users,
   Settings,
   ChevronLeft,
@@ -64,6 +65,11 @@ const navigation: NavItem[] = [
 ];
 
 const management: NavItem[] = [
+  {
+    label: 'Finance',
+    path: '/finance',
+    icon: CircleDollarSign,
+  },
   {
     label: 'Employees',
     path: '/employees',

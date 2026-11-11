@@ -302,7 +302,10 @@ function PendingProcurementTable({
 
                   {/* REQUESTER */}
                   <td className="whitespace-nowrap px-6 py-4 text-xs font-medium text-slate-700">
-                    {ticket.requesterName}
+                    <p className="font-semibold text-slate-800">{ticket.requesterName}</p>
+                    {ticket.requesterDepartment && (
+                      <p className="text-[11px] text-slate-400">{ticket.requesterDepartment}</p>
+                    )}
                   </td>
 
                   {/* DATE */}
