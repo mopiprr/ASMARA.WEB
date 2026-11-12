@@ -93,7 +93,7 @@ export function TicketStatusDistributionChart({
       value: pending,
       percent: pendingPct,
       icon: isApprover ? Clock : RotateCcw,
-      activeColor: 'border-amber-400 ring-2 ring-amber-400/20 bg-amber-50/30',
+      activeColor: 'border-amber-500 bg-amber-50/40',
       badgeBg: 'bg-amber-100 text-amber-700',
       barColor: 'bg-amber-500',
       textColor: 'text-amber-600',
@@ -105,7 +105,7 @@ export function TicketStatusDistributionChart({
       value: inProgress,
       percent: inProgressPct,
       icon: Activity,
-      activeColor: 'border-violet-400 ring-2 ring-violet-400/20 bg-violet-50/30',
+      activeColor: 'border-violet-500 bg-violet-50/40',
       badgeBg: 'bg-violet-100 text-violet-700',
       barColor: 'bg-violet-600',
       textColor: 'text-violet-600',
@@ -117,7 +117,7 @@ export function TicketStatusDistributionChart({
       value: completed,
       percent: completedPct,
       icon: CheckCircle2,
-      activeColor: 'border-emerald-400 ring-2 ring-emerald-400/20 bg-emerald-50/30',
+      activeColor: 'border-emerald-500 bg-emerald-50/40',
       badgeBg: 'bg-emerald-100 text-emerald-700',
       barColor: 'bg-emerald-600',
       textColor: 'text-emerald-600',
@@ -125,7 +125,7 @@ export function TicketStatusDistributionChart({
   ];
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300">
+    <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
       {/* HEADER */}
       <div className="flex items-center justify-between border-b border-slate-100 pb-4">
         <div className="flex items-center gap-3">
@@ -147,39 +147,40 @@ export function TicketStatusDistributionChart({
         </span>
       </div>
 
-      {isLoading ? (
-        <div className="mt-8 flex animate-pulse flex-col items-center gap-8 sm:flex-row">
-          <div className="h-44 w-44 rounded-full bg-slate-200" />
-          <div className="w-full space-y-4">
-            <div className="h-10 rounded-xl bg-slate-200" />
-            <div className="h-10 rounded-xl bg-slate-200" />
-            <div className="h-10 rounded-xl bg-slate-200" />
-          </div>
-        </div>
-      ) : (
-        <div className="mt-6 flex flex-col items-center gap-8 sm:flex-row">
-          {/* DONUT CHART */}
-          <div
-            className="relative flex h-44 w-44 shrink-0 items-center justify-center rounded-full transition-all duration-700 shadow-xs"
-            style={{
-              background:
-                total > 0
-                  ? `conic-gradient(#f59e0b 0% ${endPending}%, #8b5cf6 ${endPending}% ${endInProgress}%, #10b981 ${endInProgress}% 100%)`
-                  : '#f1f5f9',
-            }}
-          >
-            <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-white shadow-inner text-center px-1">
-              <span className="text-2xl font-bold text-slate-800">
-                {total.toLocaleString()}
-              </span>
-              <span className="text-[11px] font-medium text-slate-400">
-                Total Tickets
-              </span>
+      <div className="flex flex-1 flex-col justify-center py-4">
+        {isLoading ? (
+          <div className="flex flex-col items-center gap-8 sm:flex-row">
+            <div className="h-44 w-44 shrink-0 rounded-full bg-slate-100" />
+            <div className="w-full flex-1 space-y-3">
+              <div className="h-12 rounded-xl bg-slate-100" />
+              <div className="h-12 rounded-xl bg-slate-100" />
+              <div className="h-12 rounded-xl bg-slate-100" />
             </div>
           </div>
+        ) : (
+          <div className="flex flex-col items-center gap-8 sm:flex-row">
+            {/* DONUT CHART */}
+            <div
+              className="relative flex h-44 w-44 shrink-0 items-center justify-center rounded-full"
+              style={{
+                background:
+                  total > 0
+                    ? `conic-gradient(#f59e0b 0% ${endPending}%, #8b5cf6 ${endPending}% ${endInProgress}%, #10b981 ${endInProgress}% 100%)`
+                    : '#f1f5f9',
+              }}
+            >
+              <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-white text-center px-1">
+                <span className="text-2xl font-bold text-slate-800">
+                  {total.toLocaleString()}
+                </span>
+                <span className="text-[11px] font-medium text-slate-400">
+                  Total Tickets
+                </span>
+              </div>
+            </div>
 
-          {/* STATUS BREAKDOWN ROWS */}
-          <div className="w-full space-y-3">
+            {/* STATUS BREAKDOWN ROWS */}
+            <div className="w-full flex-1 space-y-3">
             {statusItems.map((item) => {
               const Icon = item.icon;
               const isSelected = activeKey === item.id;
@@ -195,7 +196,7 @@ export function TicketStatusDistributionChart({
                       onToggle(item.id);
                     }
                   }}
-                  className={`group cursor-pointer rounded-xl border p-3 transition-all duration-200 hover:border-slate-300 ${
+                  className={`group cursor-pointer rounded-xl border p-3 transition-colors duration-100 hover:border-slate-300 ${
                     isSelected
                       ? item.activeColor
                       : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50'
@@ -204,7 +205,7 @@ export function TicketStatusDistributionChart({
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div
-                        className={`flex h-7 w-7 items-center justify-center rounded-lg transition ${item.badgeBg}`}
+                        className={`flex h-7 w-7 items-center justify-center rounded-lg ${item.badgeBg}`}
                       >
                         <Icon size={15} />
                       </div>
@@ -218,7 +219,7 @@ export function TicketStatusDistributionChart({
                           ) : (
                             <ChevronDown
                               size={14}
-                              className="text-slate-400 group-hover:text-slate-600 transition"
+                              className="text-slate-400 group-hover:text-slate-600"
                             />
                           )}
                         </div>
@@ -241,7 +242,7 @@ export function TicketStatusDistributionChart({
                   {/* MINI PROGRESS BAR */}
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${item.barColor}`}
+                      className={`h-full rounded-full ${item.barColor}`}
                       style={{ width: `${item.percent}%` }}
                     />
                   </div>
@@ -251,10 +252,11 @@ export function TicketStatusDistributionChart({
           </div>
         </div>
       )}
+      </div>
 
       {/* INLINE ACCORDION: TOP 5 TICKETS BY STATUS */}
       {isAccordionOpen && (
-        <div className="mt-6 border-t border-slate-100 pt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="mt-4 border-t border-slate-100 pt-4">
           <div className="mb-3 flex items-center justify-between">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
               {getAccordionTitle()}
@@ -262,7 +264,7 @@ export function TicketStatusDistributionChart({
             <button
               type="button"
               onClick={() => onToggle(activeKey)}
-              className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+              className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               title="Tutup list tiket"
             >
               <X size={15} />
@@ -271,7 +273,7 @@ export function TicketStatusDistributionChart({
 
           {/* SKELETON */}
           {isTicketsLoading ? (
-            <div className="space-y-2 py-1 animate-pulse">
+            <div className="space-y-2 py-1">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="h-14 rounded-xl bg-slate-100" />
               ))}

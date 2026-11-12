@@ -305,14 +305,14 @@ export function DepartmentBudgetBarChart() {
 
       {/* LOADING SKELETON */}
       {isLoading ? (
-        <div className="mt-8 flex h-64 items-end justify-between gap-6 px-4 animate-pulse">
+        <div className="mt-8 flex h-64 items-end justify-between gap-6 px-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex-1 flex flex-col items-center gap-3">
               <div className="w-full flex items-end justify-center gap-2 h-48">
-                <div className="w-6 sm:w-10 h-36 bg-slate-200 rounded-t-lg" />
-                <div className="w-6 sm:w-10 h-16 bg-slate-200 rounded-t-lg" />
+                <div className="w-6 sm:w-10 h-36 bg-slate-100 rounded-t-lg" />
+                <div className="w-6 sm:w-10 h-16 bg-slate-100 rounded-t-lg" />
               </div>
-              <div className="h-4 w-16 bg-slate-200 rounded" />
+              <div className="h-4 w-16 bg-slate-100 rounded" />
             </div>
           ))}
         </div>
@@ -366,14 +366,14 @@ export function DepartmentBudgetBarChart() {
                   onMouseEnter={() => setHoveredDeptId(dept.id)}
                   onMouseLeave={() => setHoveredDeptId(null)}
                 >
-                  {/* POPUP CARD ON HOVER */}
+                  {/* POPUP CARD ON HOVER (FLAT & INSTANT) */}
                   {isHovered && (
-                    <div className="absolute -top-20 z-30 flex flex-col items-center pointer-events-none animate-in fade-in zoom-in-95 duration-150">
-                      <div className="rounded-xl bg-slate-900 px-3 py-2 text-white shadow-xl">
+                    <div className="absolute -top-16 z-30 flex flex-col items-center pointer-events-none">
+                      <div className="rounded-lg bg-slate-900 px-2.5 py-1.5 text-white shadow-md">
                         <p className="text-[11px] font-bold text-slate-200">
                           {dept.departmentName} ({dept.departmentCode})
                         </p>
-                        <div className="mt-1 flex items-center gap-3 text-[10px]">
+                        <div className="mt-0.5 flex items-center gap-2.5 text-[10px]">
                           <span className="text-blue-300">
                             Alloc: {formatIDR(dept.allocatedBudget)}
                           </span>
@@ -382,37 +382,39 @@ export function DepartmentBudgetBarChart() {
                           </span>
                         </div>
                       </div>
-                      <div className="h-2 w-2 rotate-45 bg-slate-900 -mt-1" />
+                      <div className="h-1.5 w-1.5 rotate-45 bg-slate-900 -mt-1" />
                     </div>
                   )}
 
-                  {/* PAIRED BARS */}
+                  {/* PAIRED BARS (CLEAN & FLAT) */}
                   <div className="w-full flex items-end justify-center gap-1.5 sm:gap-2.5 h-full pb-1">
                     {/* BAR 1: ALLOCATED BUDGET */}
                     <div className="relative flex flex-col items-center w-full max-w-[28px] sm:max-w-[42px] h-full justify-end">
-                      <span className="mb-1 text-[9px] font-bold text-blue-700 opacity-0 group-hover:opacity-100 transition truncate max-w-full">
+                      <span className="mb-1 text-[9px] font-bold text-blue-700 opacity-0 group-hover:opacity-100 truncate max-w-full">
                         {formatCompactIDR(dept.allocatedBudget)}
                       </span>
                       <div
                         style={{ height: `${Math.max(allocHeightPct, 4)}%` }}
-                        className={`w-full rounded-t-lg bg-gradient-to-t from-blue-700 via-blue-600 to-blue-500 shadow-sm transition-all duration-300 ${
-                          isHovered ? 'ring-2 ring-blue-400 ring-offset-1 brightness-110' : ''
+                        className={`w-full rounded-t ${
+                          isHovered ? 'bg-blue-700' : 'bg-blue-600'
                         }`}
                       />
                     </div>
 
                     {/* BAR 2: SPENT BUDGET */}
                     <div className="relative flex flex-col items-center w-full max-w-[28px] sm:max-w-[42px] h-full justify-end">
-                      <span className="mb-1 text-[9px] font-bold text-emerald-700 opacity-0 group-hover:opacity-100 transition truncate max-w-full">
+                      <span className="mb-1 text-[9px] font-bold text-emerald-700 opacity-0 group-hover:opacity-100 truncate max-w-full">
                         {formatCompactIDR(dept.spentBudget)}
                       </span>
                       <div
                         style={{ height: `${Math.max(spentHeightPct, dept.spentBudget > 0 ? 4 : 2)}%` }}
-                        className={`w-full rounded-t-lg transition-all duration-300 shadow-sm ${
+                        className={`w-full rounded-t ${
                           dept.spentBudget > 0
-                            ? 'bg-gradient-to-t from-emerald-600 via-emerald-500 to-teal-400'
+                            ? isHovered
+                              ? 'bg-emerald-700'
+                              : 'bg-emerald-600'
                             : 'bg-slate-200'
-                        } ${isHovered ? 'ring-2 ring-emerald-400 ring-offset-1 brightness-110' : ''}`}
+                        }`}
                       />
                     </div>
                   </div>
@@ -469,7 +471,7 @@ export function DepartmentBudgetBarChart() {
               return (
                 <div
                   key={dept.id}
-                  className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 transition hover:border-blue-200 hover:bg-blue-50/20"
+                  className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 hover:border-slate-300"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-bold text-slate-800 truncate" title={dept.departmentName}>
@@ -487,7 +489,7 @@ export function DepartmentBudgetBarChart() {
                   {/* Mini Progress Bar */}
                   <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${
+                      className={`h-full rounded-full ${
                         isHigh ? 'bg-red-500' : 'bg-emerald-500'
                       }`}
                       style={{ width: `${Math.min(util, 100)}%` }}

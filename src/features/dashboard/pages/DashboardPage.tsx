@@ -106,7 +106,7 @@ function DashboardPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 items-start">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <TicketTypeDistributionChart
             procurementCount={typeDistribution.distribution.procurement}
             maintenanceCount={typeDistribution.distribution.maintenance}
