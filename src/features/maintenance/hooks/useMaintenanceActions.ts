@@ -49,6 +49,7 @@ export function useMaintenanceActions({
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionError, setActionError] = useState('');
 
+  // Wrapper untuk seluruh request Maintenance.
   const execute = useCallback(
     async <T,>(request: () => Promise<T>): Promise<T> => {
       try {
@@ -93,58 +94,66 @@ export function useMaintenanceActions({
     [execute],
   );
 
+  // Department Manager / approver: Approve.
+  const approveMaintenance = useCallback(
+    (
+      ticketId: string,
+      payload: MaintenanceNotePayload = {},
+    ) =>
+      execute(async () => {
+        const response =
+          await api.post<MaintenanceTransitionResult>(
+            `/maintenances/${ticketId}/action`,
+            {
+              action: 'Approve',
+              note: payload.note,
+            },
+          );
 
-const approveMaintenance = useCallback(
-  (ticketId: string, payload: MaintenanceNotePayload = {}) =>
-    execute(async () => {
-      const response = await api.post<MaintenanceTransitionResult>(
-        `/maintenances/${ticketId}/action`,
-        {
-          action: 'Approve',
-          note: payload.note,
-        },
-      );
+        return response.data;
+      }),
+    [execute],
+  );
 
-      return response.data;
-    }),
-  [execute],
-);
+  // Department Manager / approver: Reject.
+  const rejectMaintenance = useCallback(
+    (
+      ticketId: string,
+      payload: MaintenanceNotePayload,
+    ) =>
+      execute(async () => {
+        const response =
+          await api.post<MaintenanceTransitionResult>(
+            `/maintenances/${ticketId}/reject`,
+            {
+              note: payload.note,
+            },
+          );
 
-const rejectMaintenance = useCallback(
-  (ticketId: string, payload: MaintenanceNotePayload) =>
-    execute(async () => {
-      const response = await api.post<MaintenanceTransitionResult>(
-        `/maintenances/${ticketId}/reject`,
-        {
-          note: payload.note,
-        },
-      );
-
-      return response.data;
-    }),
-  [execute],
-);
-
+        return response.data;
+      }),
+    [execute],
+  );
 
   // IT Support: Assign handler.
-const assignHandler = useCallback(
-  (
-    ticketId: string,
-    payload: AssignMaintenanceHandlerPayload,
-  ) =>
-    execute(async () => {
-      const response = await api.post<MaintenanceTransitionResult>(
-        `/maintenances/${ticketId}/assign-handler`,
-        payload,
-      );
+  const assignHandler = useCallback(
+    (
+      ticketId: string,
+      payload: AssignMaintenanceHandlerPayload,
+    ) =>
+      execute(async () => {
+        const response =
+          await api.post<MaintenanceTransitionResult>(
+            `/maintenances/${ticketId}/assign-handler`,
+            payload,
+          );
 
-      return response.data;
-    }),
-  [execute],
-);
+        return response.data;
+      }),
+    [execute],
+  );
 
   // Requester: Send item.
-
   const sendItem = useCallback(
     (
       ticketId: string,
@@ -201,7 +210,7 @@ const assignHandler = useCallback(
     [execute],
   );
 
-  // Inventory: Check part availability.
+  // Inventory: Check spare part availability.
   const checkPart = useCallback(
     (
       ticketId: string,
@@ -219,16 +228,16 @@ const assignHandler = useCallback(
     [execute],
   );
 
-  // Close Maintenance ticket.
-  const closeMaintenance = useCallback(
+  // Inventory: Create Procurement for required spare parts.
+  const orderPart = useCallback(
     (
       ticketId: string,
-      payload: MaintenanceNotePayload = {},
+      payload: OrderMaintenancePartPayload,
     ) =>
       execute(async () => {
         const response =
-          await api.post<MaintenanceTransitionResult>(
-            `/maintenances/${ticketId}/close`,
+          await api.post<MaintenanceChildTicketResult>(
+            `/maintenances/${ticketId}/order-part`,
             payload,
           );
 
@@ -237,7 +246,64 @@ const assignHandler = useCallback(
     [execute],
   );
 
-  // IT Support: Dispose.
+  // Inventory: Send spare parts to Maintenance Handler.
+  const sendPart = useCallback(
+    (
+      ticketId: string,
+      payload: MaintenanceNotePayload = {},
+    ) =>
+      execute(async () => {
+        const response =
+          await api.post<MaintenanceTransitionResult>(
+            `/maintenances/${ticketId}/send-part`,
+            payload,
+          );
+
+        return response.data;
+      }),
+    [execute],
+  );
+
+  // Maintenance Handler: Receive spare parts.
+  const receivePart = useCallback(
+    (
+      ticketId: string,
+      payload: MaintenanceNotePayload = {},
+    ) =>
+      execute(async () => {
+        const response =
+          await api.post<MaintenanceTransitionResult>(
+            `/maintenances/${ticketId}/receive`,
+            payload,
+          );
+
+        return response.data;
+      }),
+    [execute],
+  );
+
+  // Requester: Close Maintenance ticket.
+  const closeMaintenance = useCallback(
+    (
+      ticketId: string,
+      payload: MaintenanceNotePayload = {},
+    ) =>
+      execute(async () => {
+        const response =
+          await api.post<MaintenanceTransitionResult>(
+            `/maintenances/${ticketId}/action`,
+            {
+              action: 'Close',
+              note: payload.note ?? '',
+            },
+          );
+
+        return response.data;
+      }),
+    [execute],
+  );
+
+  // Division Manager: Dispose.
   const disposeMaintenance = useCallback(
     (
       ticketId: string,
@@ -246,8 +312,11 @@ const assignHandler = useCallback(
       execute(async () => {
         const response =
           await api.post<MaintenanceTransitionResult>(
-            `/maintenances/${ticketId}/dispose`,
-            payload,
+            `/maintenances/${ticketId}/action`,
+            {
+              action: 'Dispose',
+              note: payload.note ?? '',
+            },
           );
 
         return response.data;
@@ -264,8 +333,11 @@ const assignHandler = useCallback(
       execute(async () => {
         const response =
           await api.post<MaintenanceTransitionResult>(
-            `/maintenances/${ticketId}/archive`,
-            payload,
+            `/maintenances/${ticketId}/action`,
+            {
+              action: 'Archive',
+              note: payload.note ?? '',
+            },
           );
 
         return response.data;
@@ -280,29 +352,12 @@ const assignHandler = useCallback(
       payload: MaintenanceReplacementPayload,
     ) =>
       execute(async () => {
-        const response =
-          await api.post<MaintenanceTransitionResult>(
-            `/maintenances/${ticketId}/replacement`,
-            payload,
-          );
-
-        return response.data;
-      }),
-    [execute],
-  );
-
-  // Inventory: Order part (creates child Procurement).
-  const orderPart = useCallback(
-    (
-      ticketId: string,
-      payload: OrderMaintenancePartPayload,
-    ) =>
-      execute(async () => {
-        const response =
-          await api.post<MaintenanceChildTicketResult>(
-            `/maintenances/${ticketId}/order-part`,
-            payload,
-          );
+        const response = await api.post<
+          MaintenanceTransitionResult | MaintenanceChildTicketResult
+        >(
+          `/maintenances/${ticketId}/replacement`,
+          payload,
+        );
 
         return response.data;
       }),
@@ -338,13 +393,17 @@ const assignHandler = useCallback(
     assignHandler,
     sendItem,
     receiveItem,
+
     submitRepairResult,
     checkPart,
+    orderPart,
+    sendPart,
+    receivePart,
+
     closeMaintenance,
     disposeMaintenance,
     archiveMaintenance,
     processReplacement,
-    orderPart,
     sendReplacement,
   };
 }

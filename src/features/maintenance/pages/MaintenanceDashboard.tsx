@@ -24,9 +24,14 @@ import type {
   AssignMaintenanceHandlerPayload,
   CreateMaintenancePayload,
   MaintenanceNotePayload,
+  MaintenancePartCheckPayload,
+  MaintenanceReplacementPayload,
   MaintenanceTicket,
   MaintenanceTicketListItem,
+  OrderMaintenancePartPayload,
   PendingMaintenanceTicket,
+  SendMaintenanceReplacementPayload,
+  SubmitRepairResultPayload,
 } from '../types/maintenance.types';
 
 type MaintenanceTab = 'requests' | 'pending';
@@ -39,9 +44,7 @@ function MaintenanceDashboard() {
     useState<MaintenanceTicket | null>(null);
 
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
-
   const [detailError, setDetailError] = useState('');
-
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // ==========================================
@@ -106,14 +109,26 @@ function MaintenanceDashboard() {
     assignHandler,
     sendItem,
     receiveItem,
+    closeMaintenance,
+    submitRepairResult,
+    checkPart,
+    orderPart,
+    sendPart,
+    receivePart,
+    disposeMaintenance,
+    archiveMaintenance,
+    processReplacement,
+    sendReplacement,
     isProcessing,
     actionError,
     setActionError,
   } = useMaintenanceActions({
     onSuccess: async () => {
-      await fetchTickets();
-      await fetchPendingTickets();
-      await fetchAssets();
+      await Promise.all([
+        fetchTickets(),
+        fetchPendingTickets(),
+        fetchAssets(),
+      ]);
     },
   });
 
@@ -133,7 +148,7 @@ function MaintenanceDashboard() {
   };
 
   // ==========================================
-  // LOAD DETAIL AND HANDLERS
+  // LOAD MAINTENANCE DETAIL
   // ==========================================
 
   const loadMaintenanceDetail = async (
@@ -148,10 +163,6 @@ function MaintenanceDashboard() {
     try {
       const detail = await fetchDetail(ticketId);
 
-      // ======================================
-      // DEBUG: MAINTENANCE DETAIL
-      // ======================================
-
       console.log('========================================');
       console.log('MAINTENANCE DETAIL RESPONSE');
       console.log('========================================');
@@ -159,10 +170,6 @@ function MaintenanceDashboard() {
       console.log('TICKET ID:', ticketId);
       console.log('TICKET NUMBER:', detail.ticketNumber);
       console.log('CURRENT STEP:', detail.currentStep);
-
-      // ======================================
-      // DEBUG: PERMISSIONS
-      // ======================================
 
       console.log('========================================');
       console.log('MAINTENANCE PERMISSIONS');
@@ -174,10 +181,26 @@ function MaintenanceDashboard() {
       console.log('CAN ASSIGN HANDLER:', detail.canAssignHandler);
       console.log('CAN SEND ITEM:', detail.canSendItem);
       console.log('CAN RECEIVE ITEM:', detail.canReceiveItem);
-
-      // ======================================
-      // DEBUG: WORKFLOW HISTORY
-      // ======================================
+      console.log(
+        'CAN SUBMIT REPAIR RESULT:',
+        detail.canSubmitRepairResult,
+      );
+      console.log('CAN RECEIVE PART:', detail.canReceivePart);
+      console.log('CAN CHECK PART:', detail.canCheckPart);
+      console.log('CAN ORDER PART:', detail.canOrderPart);
+      console.log('CAN SEND PART:', detail.canSendPart);
+      console.log(
+        'CAN REVIEW REPAIR RESULT:',
+        detail.canReviewRepairResult,
+      );
+      console.log(
+        'CAN PROCESS REPLACEMENT:',
+        detail.canProcessReplacement,
+      );
+      console.log(
+        'CAN SEND REPLACEMENT:',
+        detail.canSendReplacement,
+      );
 
       console.log('========================================');
       console.log('WORKFLOW HISTORY');
@@ -186,52 +209,36 @@ function MaintenanceDashboard() {
       console.log('HISTORY:', detail.history);
       console.log('HISTORY COUNT:', detail.history?.length);
 
-      // ======================================
-      // DEBUG: FULL RESPONSE
-      // ======================================
-
       console.log('========================================');
       console.log('FULL MAINTENANCE RESPONSE');
       console.log('========================================');
 
       console.log(detail);
 
-      // ======================================
-      // SET SELECTED TICKET
-      // ======================================
-
       setSelectedTicket(detail);
 
-      // ======================================
-      // LOAD HANDLERS IF PERMITTED
-      // ======================================
-
+      // Load handler options only when assignment is permitted.
       if (detail.canAssignHandler === true) {
-        console.log('========================================');
-        console.log('LOADING MAINTENANCE HANDLERS');
-        console.log('========================================');
-
         try {
           await fetchHandlers();
-
-          console.log('FINISHED FETCHING MAINTENANCE HANDLERS');
-
-          console.log('========================================');
-          console.log('MAINTENANCE HANDLER STATE');
-          console.log('========================================');
-
-          console.log('HANDLER COUNT:', handlers.length);
-          console.log('HANDLERS:', handlers);
         } catch (handlerFetchError) {
           console.error(
             'FAILED TO FETCH MAINTENANCE HANDLERS:',
             handlerFetchError,
           );
         }
-      } else {
-        console.log(
-          'Handler assignment is not permitted for this ticket.',
-        );
+      }
+
+      // Load the latest asset options when replacement decision is permitted.
+      if (detail.canProcessReplacement === true) {
+        try {
+          await fetchAssets();
+        } catch (assetFetchError) {
+          console.error(
+            'FAILED TO FETCH REPLACEMENT ASSETS:',
+            assetFetchError,
+          );
+        }
       }
     } catch (error: unknown) {
       console.error('Failed to load maintenance detail:', error);
@@ -263,7 +270,10 @@ function MaintenanceDashboard() {
   const handleViewPendingTicket = async (
     ticket: PendingMaintenanceTicket,
   ) => {
-    await loadMaintenanceDetail(ticket.id, fetchPendingTicketById);
+    await loadMaintenanceDetail(
+      ticket.id,
+      fetchPendingTicketById,
+    );
   };
 
   // ==========================================
@@ -279,7 +289,7 @@ function MaintenanceDashboard() {
   };
 
   // ==========================================
-  // HANDLE ACTION RESULT
+  // COMMON ACTION HANDLER
   // ==========================================
 
   const handleAction = async (
@@ -353,7 +363,7 @@ function MaintenanceDashboard() {
     );
 
   // ==========================================
-  // HANDLER RECEIVE ITEM
+  // REQUESTER RECEIVE ITEM
   // ==========================================
 
   const handleReceiveItem = (
@@ -362,6 +372,126 @@ function MaintenanceDashboard() {
     handleAction(
       () => receiveItem(selectedTicket!.id, payload),
       'Failed to receive maintenance item.',
+    );
+
+  // ==========================================
+  // REQUESTER CLOSE TICKET
+  // ==========================================
+
+  const handleCloseTicket = (
+    payload: MaintenanceNotePayload,
+  ) =>
+    handleAction(
+      () => closeMaintenance(selectedTicket!.id, payload),
+      'Failed to close maintenance ticket.',
+    );
+
+  // ==========================================
+  // DIVISION MANAGER: ARCHIVE MAINTENANCE
+  // ==========================================
+
+  const handleArchiveMaintenance = (
+    payload: MaintenanceNotePayload,
+  ) =>
+    handleAction(
+      () => archiveMaintenance(selectedTicket!.id, payload),
+      'Failed to archive maintenance asset.',
+    );
+
+  // ==========================================
+  // DIVISION MANAGER: DISPOSE MAINTENANCE
+  // ==========================================
+
+  const handleDisposeMaintenance = (
+    payload: MaintenanceNotePayload,
+  ) =>
+    handleAction(
+      () => disposeMaintenance(selectedTicket!.id, payload),
+      'Failed to dispose maintenance asset.',
+    );
+
+  // ==========================================
+  // HANDLER SUBMIT REPAIR RESULT
+  // ==========================================
+
+  const handleSubmitRepairResult = (
+    payload: SubmitRepairResultPayload,
+  ) =>
+    handleAction(
+      () => submitRepairResult(selectedTicket!.id, payload),
+      'Failed to submit repair result.',
+    );
+
+  // ==========================================
+  // INVENTORY CHECK PART
+  // ==========================================
+
+  const handleCheckPart = (
+    payload: MaintenancePartCheckPayload,
+  ) =>
+    handleAction(
+      () => checkPart(selectedTicket!.id, payload),
+      'Failed to check spare part availability.',
+    );
+
+  // ==========================================
+  // INVENTORY ORDER PART
+  // ==========================================
+
+  const handleOrderPart = (
+    payload: OrderMaintenancePartPayload,
+  ) =>
+    handleAction(
+      () => orderPart(selectedTicket!.id, payload),
+      'Failed to create spare part procurement request.',
+    );
+
+  // ==========================================
+  // INVENTORY SEND PART
+  // ==========================================
+
+  const handleSendPart = (
+    payload: MaintenanceNotePayload,
+  ) =>
+    handleAction(
+      () => sendPart(selectedTicket!.id, payload),
+      'Failed to send spare parts to maintenance handler.',
+    );
+
+  // ==========================================
+  // HANDLER RECEIVE PART
+  // ==========================================
+
+  const handleReceivePart = (
+    payload: MaintenanceNotePayload,
+  ) =>
+    handleAction(
+      () => receivePart(selectedTicket!.id, payload),
+      'Failed to receive spare parts.',
+    );
+
+  // ==========================================
+  // INVENTORY: PROCESS REPLACEMENT
+  // ==========================================
+
+  const handleProcessReplacement = (
+    payload: MaintenanceReplacementPayload,
+  ) =>
+    handleAction(
+      () => processReplacement(selectedTicket!.id, payload),
+      'Failed to process replacement availability.',
+    );
+
+  // ==========================================
+  // INVENTORY: SEND REPLACEMENT
+  // ==========================================
+
+  const handleSendReplacement = (
+    payload: SendMaintenanceReplacementPayload,
+  ) =>
+    handleAction(
+      () => sendReplacement(selectedTicket!.id, payload),
+      'Failed to send replacement asset.',
     );
 
   // ==========================================
@@ -430,6 +560,7 @@ function MaintenanceDashboard() {
             }`}
           >
             <ClipboardList size={17} />
+
             My Requests
 
             <span
@@ -455,6 +586,7 @@ function MaintenanceDashboard() {
             }`}
           >
             <Clock size={17} />
+
             Pending Tasks
 
             <span
@@ -529,6 +661,7 @@ function MaintenanceDashboard() {
         error={detailError}
         actionError={actionError}
         handlers={handlers}
+        assets={assets}
         isLoadingHandlers={isLoadingHandlers}
         handlerError={handlerError}
         onClose={handleCloseDetail}
@@ -537,6 +670,16 @@ function MaintenanceDashboard() {
         onAssignHandler={handleAssignHandler}
         onSendItem={handleSendItem}
         onReceiveItem={handleReceiveItem}
+        onCloseTicket={handleCloseTicket}
+        onArchive={handleArchiveMaintenance}
+        onDispose={handleDisposeMaintenance}
+        onSubmitRepairResult={handleSubmitRepairResult}
+        onCheckPart={handleCheckPart}
+        onOrderPart={handleOrderPart}
+        onSendPart={handleSendPart}
+        onReceivePart={handleReceivePart}
+        onProcessReplacement={handleProcessReplacement}
+        onSendReplacement={handleSendReplacement}
         onRefreshHandlers={fetchHandlers}
       />
     </div>
