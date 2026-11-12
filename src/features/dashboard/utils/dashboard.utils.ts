@@ -1,5 +1,6 @@
 import { hasAnyRole } from '../../../utils/auth';
 import { ASSET_ACCESS_ROLES } from '../../assets/utils/asset.utils';
+import { FINANCE_ACCESS_ROLES } from '../../finance/utils/finance.utils';
 
 import type { StatCategory, TopTicketItem } from '../types/dashboard.types';
 
@@ -18,7 +19,9 @@ export const APPROVER_ROLES = [
 export function getDashboardAccess() {
   return {
     isApprover: hasAnyRole(APPROVER_ROLES),
-    canViewAssets: hasAnyRole(ASSET_ACCESS_ROLES), // hanya Inventory
+    canViewAssets: hasAnyRole(ASSET_ACCESS_ROLES), // hanya Inventory & Admin
+    canViewFinance: hasAnyRole(FINANCE_ACCESS_ROLES), // hanya Finance & Admin
+    hasSubordinates: hasAnyRole(['ROL-02', 'ROL-03', 'ROL-09']), // Manager & Admin yang memiliki bawahan
   };
 }
 
@@ -50,6 +53,10 @@ export function toTopTicketItem(raw: Record<string, unknown>): TopTicketItem {
 
 export function getTopTicketsTitle(category: StatCategory, isApprover: boolean) {
   switch (category) {
+    case 'procurement':
+      return 'Top 5 Pengajuan Procurement Terbaru';
+    case 'maintenance':
+      return 'Top 5 Pengajuan Maintenance Terbaru';
     case 'pending':
       return isApprover
         ? 'Top 5 Tiket — Menunggu Approval Anda'
@@ -59,6 +66,6 @@ export function getTopTicketsTitle(category: StatCategory, isApprover: boolean) 
     case 'completed':
       return 'Top 5 Tiket — Telah Selesai (Completed)';
     default:
-      return 'Top 5 Tiket — Seluruh Tiket Diajukan';
+      return 'Top 5 Tiket Terbaru';
   }
 }

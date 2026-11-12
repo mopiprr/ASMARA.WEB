@@ -1,13 +1,12 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ticket } from 'lucide-react';
 
 import DashboardHeader from '../components/DashboardHeader';
 import DashboardFilterBar from '../components/DashboardFilterBar';
-import TicketStatisticsCards from '../components/TicketStatisticsCards';
-import TopTicketsPanel from '../components/TopTicketsPanel';
-import ResolutionPerformanceCard from '../components/ResolutionPerformanceCard';
 import TicketTypeDistributionChart from '../components/TicketTypeDistributionChart';
+import TicketStatusDistributionChart from '../components/TicketStatusDistributionChart';
 import TicketActivityTrendChart from '../components/TicketActivityTrendChart';
+import DepartmentBudgetBarChart from '../components/DepartmentBudgetBarChart';
 import MyActivityTable from '../components/MyActivityTable';
 import AssetDistributionChart from '../components/AssetDistributionChart';
 
@@ -25,7 +24,8 @@ function DashboardPage() {
 
   // Nama & role diambil dari sesi login (tidak perlu panggil /profile/me lagi).
   const user = getSessionUser();
-  const { isApprover, canViewAssets } = getDashboardAccess();
+  const { isApprover, canViewAssets, canViewFinance, hasSubordinates } = getDashboardAccess();
+  const [scope, setScope] = useState<'personal' | 'team'>('personal');
 
   // Statistik tiket + filter global (tab & tanggal)
   const {
@@ -43,7 +43,7 @@ function DashboardPage() {
 
   const typeDistribution = useTicketTypeDistribution(startDate, endDate);
 
-  const topTickets = useTopTickets();
+  const topTickets = useTopTickets(scope === 'team');
 
   const activityTypeParam =
     ticketFilter === 'maintenance'
@@ -61,7 +61,10 @@ function DashboardPage() {
   };
 
   const handleOpenTicket = (ticket: TopTicketItem) => {
-    const tab = topTickets.activeCategory === 'pending' ? 'pending' : 'requests';
+    // Hanya arahkan ke tab 'pending' jika user adalah approver dan memang sedang melihat list pending approval.
+    // Untuk pemohon biasa (atau tiket pribadi yang sedang menunggu approval orang lain), harus selalu ke tab 'requests'.
+    const isPendingApprovalTask = isApprover && topTickets.activeCategory === 'pending';
+    const tab = isPendingApprovalTask ? 'pending' : 'requests';
     const page = ticket.ticketType === 2 ? 'procurement' : 'maintenance';
 
     navigate(`/${page}?tab=${tab}&ticketId=${ticket.id}`);
@@ -82,24 +85,14 @@ function DashboardPage() {
           onEndDateChange={setEndDate}
           isRefreshing={isLoadingStats}
           onRefresh={handleRefresh}
+          hasSubordinates={hasSubordinates}
+          scope={scope}
+          onScopeChange={setScope}
         />
       </section>
 
-      {/* TICKET STATISTICS + TOP 5 */}
+      {/* TICKET DISTRIBUTION & STATUS (2 DONUT CHARTS WITH INLINE ACCORDIONS) */}
       <section>
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">
-              Ticket Statistics
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Overview of your personal ticket requests
-            </p>
-          </div>
-
-          <Ticket size={22} className="text-blue-600" />
-        </div>
-
         {statsError && (
           <div className="mb-4 flex items-center justify-between rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
             <span>{statsError}</span>
@@ -113,50 +106,45 @@ function DashboardPage() {
           </div>
         )}
 
-        <TicketStatisticsCards
-          stats={stats}
-          isApprover={isApprover}
-          isLoading={isLoadingStats}
-          activeCategory={topTickets.activeCategory}
-          onToggle={topTickets.toggleCategory}
-        />
-
-        {topTickets.activeCategory && (
-          <TopTicketsPanel
-            category={topTickets.activeCategory}
-            isApprover={isApprover}
-            isLoading={topTickets.isLoading}
-            error={topTickets.error}
-            totalCount={topTickets.tickets.length}
-            procurementTickets={topTickets.procurementTickets}
-            maintenanceTickets={topTickets.maintenanceTickets}
-            onClose={topTickets.close}
-            onOpenTicket={handleOpenTicket}
-          />
-        )}
-      </section>
-
-      {/* DISTRIBUTION & RESOLUTION */}
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 items-start">
           <TicketTypeDistributionChart
             procurementCount={typeDistribution.distribution.procurement}
             maintenanceCount={typeDistribution.distribution.maintenance}
             isLoading={typeDistribution.isLoading}
+            activeKey={topTickets.activeCategory}
+            onToggle={topTickets.toggleCategory}
+            tickets={topTickets.tickets}
+            isTicketsLoading={topTickets.isLoading}
+            ticketsError={topTickets.error}
+            onOpenTicket={handleOpenTicket}
+          />
+
+          <TicketStatusDistributionChart
+            stats={stats}
+            isApprover={isApprover}
+            isLoading={isLoadingStats}
+            activeKey={topTickets.activeCategory}
+            onToggle={topTickets.toggleCategory}
+            tickets={topTickets.tickets}
+            isTicketsLoading={topTickets.isLoading}
+            ticketsError={topTickets.error}
+            onOpenTicket={handleOpenTicket}
           />
         </div>
-
-        <ResolutionPerformanceCard stats={stats} isApprover={isApprover} />
       </section>
 
       {/* ACTIVITY TREND */}
       <TicketActivityTrendChart isApprover={isApprover} />
 
-      {/* MY ACTIVITY */}
+      {/* DEPARTMENT BUDGET ALLOCATION & EXPENDITURE (khusus role Finance) */}
+      {canViewFinance && <DepartmentBudgetBarChart />}
+
+      {/* MY ACTIVITY / MY RECENT REQUESTS */}
       <MyActivityTable
         type={activityTypeParam}
         fromDate={startDate}
         toDate={endDate}
+        isApprover={isApprover}
       />
 
       {/* ASSET (khusus role Inventory) */}

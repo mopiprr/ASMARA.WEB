@@ -46,7 +46,12 @@ export interface TicketStatisticsParams {
   endDate?: string;
 }
 
-export type StatCategory = 'total' | 'pending' | 'in_progress' | 'completed';
+export type StatCategory =
+  | 'procurement'
+  | 'maintenance'
+  | 'pending'
+  | 'in_progress'
+  | 'completed';
 
 // Item ringkas untuk panel Top 5.
 export interface TopTicketItem {

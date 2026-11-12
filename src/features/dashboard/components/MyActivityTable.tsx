@@ -27,11 +27,12 @@ interface ActivityTicket {
   ticketNumber: string;
   ticketType: number;          // 1 = Maintenance, 2 = Procurement
   subject: string;
-  requesterName: string;
+  requesterName?: string;
   currentStep: string;
   currentStepName: string;
-  myLastAction: string;
-  myLastActionAt: string;
+  myLastAction?: string;
+  myLastActionAt?: string;
+  createdAt?: string;
 }
 
 const PAGE_SIZE = 10;
@@ -61,12 +62,14 @@ interface MyActivityTableProps {
   type?: string;      // '' | '1' | '2'
   fromDate?: string;  // yyyy-MM-dd
   toDate?: string;    // yyyy-MM-dd
+  isApprover?: boolean;
 }
 
 function MyActivityTable({
   type = '',
   fromDate = '',
   toDate = '',
+  isApprover = true,
 }: MyActivityTableProps) {
   const [tickets, setTickets] = useState<ActivityTicket[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -102,25 +105,46 @@ function MyActivityTable({
       setIsLoading(true);
       setError('');
 
-      const response = await api.get<PagedResult<ActivityTicket>>(
-        '/dashboard/my-activity',
-        {
-          params: {
-            type: type || undefined,
-            search: search || undefined,
-            fromDate: fromDate || undefined,
-            toDate: toDate || undefined,
-            page,
-            pageSize: PAGE_SIZE,
-          },
-        }
-      );
+      if (isApprover) {
+        // Approver / Manager / Finance / Handler: tiket orang lain yang pernah diapprove/ditangani
+        const response = await api.get<PagedResult<ActivityTicket>>(
+          '/dashboard/my-activity',
+          {
+            params: {
+              type: type || undefined,
+              search: search || undefined,
+              fromDate: fromDate || undefined,
+              toDate: toDate || undefined,
+              page,
+              pageSize: PAGE_SIZE,
+            },
+          }
+        );
 
-      setTickets(response.data.items ?? []);
-      setTotalCount(response.data.totalCount ?? 0);
-      setTotalPages(response.data.totalPages ?? 0);
+        setTickets(response.data.items ?? []);
+        setTotalCount(response.data.totalCount ?? 0);
+        setTotalPages(response.data.totalPages ?? 0);
+      } else {
+        // Employee biasa (Requester): riwayat pengajuan tiket milik sendiri
+        const response = await api.get<PagedResult<ActivityTicket>>(
+          '/tickets',
+          {
+            params: {
+              type: type ? Number(type) : undefined,
+              search: search || undefined,
+              page,
+              pageSize: PAGE_SIZE,
+              desc: true,
+            },
+          }
+        );
+
+        setTickets(response.data.items ?? []);
+        setTotalCount(response.data.totalCount ?? 0);
+        setTotalPages(response.data.totalPages ?? 0);
+      }
     } catch (err: unknown) {
-      console.error('Failed to fetch my activity:', err);
+      console.error('Failed to fetch activity/tickets:', err);
 
       const apiError = err as {
         response?: {
@@ -134,12 +158,12 @@ function MyActivityTable({
           apiError.response?.data?.message ||
           apiError.response?.data?.title ||
           apiError.message ||
-          'Failed to load activity.'
+          'Failed to load tickets.'
       );
     } finally {
       setIsLoading(false);
     }
-  }, [type, search, fromDate, toDate, page]);
+  }, [isApprover, type, search, fromDate, toDate, page]);
 
   useEffect(() => {
     void fetchActivity();
@@ -168,16 +192,18 @@ function MyActivityTable({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-slate-800">
-                My Activity
+                {isApprover ? 'My Activity' : 'My Recent Requests'}
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Tickets from others that you have acted on.
+                {isApprover
+                  ? 'Tickets from others that you have acted on.'
+                  : 'All procurement and maintenance tickets submitted by you.'}
               </p>
             </div>
 
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-              <History size={22} />
+              {isApprover ? <History size={22} /> : <ClipboardList size={22} />}
             </div>
           </div>
 
@@ -239,8 +265,14 @@ function MyActivityTable({
               <tr>
                 <th className="px-6 py-4 font-semibold">Ticket</th>
                 <th className="px-6 py-4 font-semibold">Request Details</th>
-                <th className="px-6 py-4 font-semibold">Requester</th>
-                <th className="px-6 py-4 font-semibold">My Last Action</th>
+                {isApprover ? (
+                  <>
+                    <th className="px-6 py-4 font-semibold">Requester</th>
+                    <th className="px-6 py-4 font-semibold">My Last Action</th>
+                  </>
+                ) : (
+                  <th className="px-6 py-4 font-semibold">Submitted Date</th>
+                )}
                 <th className="px-6 py-4 font-semibold">Current Step</th>
                 <th className="px-6 py-4 font-semibold">Action</th>
               </tr>
@@ -251,14 +283,14 @@ function MyActivityTable({
 
                 /* LOADING */
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center">
+                  <td colSpan={isApprover ? 6 : 5} className="px-6 py-16 text-center">
                     <RefreshCw
                       size={28}
                       className="mx-auto animate-spin text-blue-500"
                     />
 
                     <p className="mt-3 text-sm text-slate-500">
-                      Loading activity...
+                      {isApprover ? 'Loading activity...' : 'Loading your requests...'}
                     </p>
                   </td>
                 </tr>
@@ -267,11 +299,11 @@ function MyActivityTable({
 
                 /* ERROR */
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center">
+                  <td colSpan={isApprover ? 6 : 5} className="px-6 py-16 text-center">
                     <AlertCircle size={32} className="mx-auto text-red-400" />
 
                     <p className="mt-3 font-semibold text-red-600">
-                      Failed to load activity
+                      Failed to load tickets
                     </p>
 
                     <p className="mt-1 text-sm text-slate-500">{error}</p>
@@ -290,17 +322,23 @@ function MyActivityTable({
 
                 /* EMPTY */
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center">
+                  <td colSpan={isApprover ? 6 : 5} className="px-6 py-16 text-center">
                     <ClipboardList size={44} className="mx-auto text-slate-300" />
 
                     <h3 className="mt-4 text-sm font-semibold text-slate-700">
-                      {hasFilter ? 'No matching activity found' : 'No activity yet'}
+                      {hasFilter
+                        ? 'No matching tickets found'
+                        : isApprover
+                        ? 'No activity yet'
+                        : 'No requests submitted yet'}
                     </h3>
 
                     <p className="mt-1 text-sm text-slate-400">
                       {hasFilter
                         ? 'Try changing the filters.'
-                        : 'Tickets you approve or handle will appear here.'}
+                        : isApprover
+                        ? 'Tickets you approve or handle will appear here.'
+                        : 'Tickets you submit will appear here.'}
                     </p>
                   </td>
                 </tr>
@@ -337,21 +375,31 @@ function MyActivityTable({
                         </p>
                       </td>
 
-                      {/* REQUESTER */}
-                      <td className="px-6 py-4 text-slate-700">
-                        {ticket.requesterName || '-'}
-                      </td>
+                      {/* CONDITIONAL COLUMNS */}
+                      {isApprover ? (
+                        <>
+                          {/* REQUESTER */}
+                          <td className="px-6 py-4 text-slate-700">
+                            {ticket.requesterName || '-'}
+                          </td>
 
-                      {/* MY LAST ACTION */}
-                      <td className="px-6 py-4">
-                        <p className="font-medium text-slate-700">
-                          {ticket.myLastAction}
-                        </p>
+                          {/* MY LAST ACTION */}
+                          <td className="px-6 py-4">
+                            <p className="font-medium text-slate-700">
+                              {ticket.myLastAction}
+                            </p>
 
-                        <p className="mt-1 whitespace-nowrap text-xs text-slate-400">
-                          {formatDateTime(ticket.myLastActionAt)}
-                        </p>
-                      </td>
+                            <p className="mt-1 whitespace-nowrap text-xs text-slate-400">
+                              {ticket.myLastActionAt ? formatDateTime(ticket.myLastActionAt) : '-'}
+                            </p>
+                          </td>
+                        </>
+                      ) : (
+                        /* SUBMITTED DATE FOR REQUESTER */
+                        <td className="px-6 py-4 text-slate-500 whitespace-nowrap text-xs">
+                          {ticket.createdAt ? formatDateTime(ticket.createdAt) : '-'}
+                        </td>
+                      )}
 
                       {/* CURRENT STEP */}
                       <td className="px-6 py-4">

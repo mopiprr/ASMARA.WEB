@@ -36,6 +36,7 @@ function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/procurement" element={<ProcurementPage />} />
             <Route path="/assets" element={<AssetManagementPage />} />
+            <Route path="/finance" element={<FinancePage />} />
             <Route path="/maintenance" element={<MaintenanceDashboard />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/employees" element={<EmployeeManagementPage />} />

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Filter, RefreshCw } from 'lucide-react';
+import { Filter, RefreshCw, User, Users } from 'lucide-react';
 
 import type { TicketTypeFilter } from '../types/dashboard.types';
 
@@ -20,6 +20,10 @@ interface DashboardFilterBarProps {
 
   isRefreshing: boolean;
   onRefresh: () => void;
+
+  hasSubordinates?: boolean;
+  scope?: 'personal' | 'team';
+  onScopeChange?: (scope: 'personal' | 'team') => void;
 }
 
 function DashboardFilterBar({
@@ -31,6 +35,9 @@ function DashboardFilterBar({
   onEndDateChange,
   isRefreshing,
   onRefresh,
+  hasSubordinates = false,
+  scope = 'personal',
+  onScopeChange,
 }: DashboardFilterBarProps) {
   const [showDateFilter, setShowDateFilter] = useState(false);
 
@@ -64,8 +71,39 @@ function DashboardFilterBar({
           })}
         </nav>
 
-        {/* Right Controls: Date Filter & Refresh */}
-        <div className="flex items-center gap-2 pb-2 sm:ml-auto">
+        {/* Right Controls: Scope Switcher (Manager only), Date Filter & Refresh */}
+        <div className="flex flex-wrap items-center gap-2 pb-2 sm:ml-auto">
+          {hasSubordinates && (
+            <div className="flex items-center rounded-xl border border-slate-200 bg-slate-100/90 p-0.5 text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => onScopeChange?.('personal')}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-semibold transition ${
+                  scope === 'personal'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="Tampilkan hanya tiket pribadi saya"
+              >
+                <User size={13} />
+                <span>Pribadi</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onScopeChange?.('team')}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-semibold transition ${
+                  scope === 'team'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="Tampilkan tiket seluruh tim / bawahan departemen"
+              >
+                <Users size={13} />
+                <span>Tim / Bawahan</span>
+              </button>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => setShowDateFilter(!showDateFilter)}
