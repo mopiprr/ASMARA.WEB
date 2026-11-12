@@ -287,8 +287,17 @@ function ProcurementPage() {
           setPendingDetailError('');
 
           if (tabParam === 'pending') {
-            const detail = await fetchPendingTicketById(ticketIdParam);
-            setSelectedTicket(detail);
+            try {
+              const detail = await fetchPendingTicketById(ticketIdParam);
+              setSelectedTicket(detail);
+            } catch {
+              // Jika tiket ini bukan task pending untuk user ini (mis. tiket requester sendiri),
+              // fallback ambil detail tiket reguler agar modal tetap terbuka.
+              const response = await api.get<ProcurementTicket>(
+                `/tickets/${ticketIdParam}`
+              );
+              setSelectedTicket(response.data);
+            }
           } else {
             const response = await api.get<ProcurementTicket>(
               `/tickets/${ticketIdParam}`

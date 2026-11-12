@@ -1,5 +1,6 @@
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import {
   AlertCircle,
@@ -43,6 +44,8 @@ function MaintenanceDashboard() {
   const [detailError, setDetailError] = useState('');
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+  const handledTicketIdRef = useRef<string | null>(null);
 
   // ==========================================
   // MY MAINTENANCE REQUESTS
@@ -245,6 +248,38 @@ function MaintenanceDashboard() {
       setIsLoadingDetail(false);
     }
   };
+
+  // URL Deep-linking from Dashboard
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'pending') {
+      setActiveTab('pending');
+    } else if (tabParam === 'requests') {
+      setActiveTab('requests');
+    }
+
+    const ticketIdParam = searchParams.get('ticketId');
+    if (ticketIdParam) {
+      if (handledTicketIdRef.current === ticketIdParam) return;
+      handledTicketIdRef.current = ticketIdParam;
+
+      void (async () => {
+        try {
+          if (tabParam === 'pending') {
+            try {
+              await loadMaintenanceDetail(ticketIdParam, fetchPendingTicketById);
+            } catch {
+              await loadMaintenanceDetail(ticketIdParam, fetchTicketById);
+            }
+          } else {
+            await loadMaintenanceDetail(ticketIdParam, fetchTicketById);
+          }
+        } catch (err) {
+          console.error('Failed to open maintenance ticket from URL param:', err);
+        }
+      })();
+    }
+  }, [searchParams, fetchTicketById, fetchPendingTicketById]);
 
   // ==========================================
   // VIEW MY REQUEST DETAIL

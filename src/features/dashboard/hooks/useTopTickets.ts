@@ -6,46 +6,57 @@ import { toTopTicketItem } from '../utils/dashboard.utils';
 
 import type { StatCategory, TopTicketItem } from '../types/dashboard.types';
 
-// Endpoint + filter untuk tiap kartu statistik.
-const TOP_TICKET_SOURCES: Record<
-  StatCategory,
-  { url: string; params?: Record<string, boolean> }
-> = {
-  total: { url: '/tickets' },
-  pending: { url: '/tickets/pending' },
-  in_progress: { url: '/tickets', params: { isClosed: false } },
-  completed: { url: '/tickets', params: { isClosed: true } },
-};
-
-// Panel "Top 5" yang terbuka saat kartu statistik diklik.
-export function useTopTickets() {
+// Panel "Top 5" yang terbuka saat kategori pada diagram diklik.
+export function useTopTickets(includeSubordinates: boolean = false) {
   const [activeCategory, setActiveCategory] = useState<StatCategory | null>(null);
   const [tickets, setTickets] = useState<TopTicketItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchTopTickets = useCallback(async (category: StatCategory) => {
-    const source = TOP_TICKET_SOURCES[category];
+  const fetchTopTickets = useCallback(
+    async (category: StatCategory) => {
+      let url = '/tickets';
+      let params: Record<string, unknown> = { page: 1, pageSize: 5, desc: true };
 
-    try {
-      setIsLoading(true);
-      setError('');
+      switch (category) {
+        case 'procurement':
+          params = { ...params, type: 2, includeSubordinates };
+          break;
+        case 'maintenance':
+          params = { ...params, type: 1, includeSubordinates };
+          break;
+        case 'pending':
+          url = '/tickets/pending';
+          break;
+        case 'in_progress':
+          params = { ...params, isClosed: false, includeSubordinates };
+          break;
+        case 'completed':
+          params = { ...params, isClosed: true, includeSubordinates };
+          break;
+      }
 
-      const response = await api.get<{ items?: Record<string, unknown>[] }>(
-        source.url,
-        { params: { ...source.params, page: 1, pageSize: 5, desc: true } }
-      );
+      try {
+        setIsLoading(true);
+        setError('');
 
-      setTickets((response.data.items ?? []).map(toTopTicketItem));
-    } catch (err: unknown) {
-      console.error('Failed to load top tickets:', err);
-      setError('Gagal memuat daftar tiket top 5.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+        const response = await api.get<{ items?: Record<string, unknown>[] }>(
+          url,
+          { params }
+        );
 
-  // Klik kartu yang sama -> tutup; kartu lain -> buka + ambil data.
+        setTickets((response.data.items ?? []).map(toTopTicketItem));
+      } catch (err: unknown) {
+        console.error('Failed to load top tickets:', err);
+        setError('Gagal memuat daftar tiket top 5.');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [includeSubordinates]
+  );
+
+  // Klik item yang sama -> tutup; item lain -> buka + ambil data.
   const toggleCategory = useCallback(
     (category: StatCategory) => {
       if (activeCategory === category) {
