@@ -19,6 +19,7 @@ import type {
   MaintenanceReplacementPayload,
   MaintenanceTicket,
   OrderMaintenancePartPayload,
+  RepairPartFormItem,
   RepairResult,
   SendMaintenanceReplacementPayload,
   SubmitRepairResultPayload,
@@ -26,10 +27,7 @@ import type {
 
 import { useInventoryOptions } from '../../procurement/hooks/useInventoryOptions';
 
-import {
-  parseRequiredParts,
-  type RequiredPart,
-} from '../utils/maintenance-detail.utils';
+import { parseRequiredParts } from '../utils/maintenance-detail.utils';
 
 import MaintenanceTicketInfo from './detail/MaintenanceTicketInfo';
 import MaintenanceWorkflowHistory from './detail/MaintenanceWorkflowHistory';
@@ -51,6 +49,9 @@ interface ReplacementAssetOption {
   itemName: string;
   categoryName: string;
 }
+
+import { useSparePartOptions } from '../hooks/useSparePartOptions';
+import { evaluatePartRequirementAvailability } from './InventoryPartComparisonTable';
 
 interface MaintenanceDetailModalProps {
   ticket: MaintenanceTicket | null;
@@ -150,11 +151,32 @@ function MaintenanceDetailModal({
     fetchInventoryItems,
   } = useInventoryOptions();
 
+  const showSubmitRepairResultAction = Boolean(
+    ticket?.canSubmitRepairResult,
+  );
+  const showCheckPartAction = Boolean(ticket?.canCheckPart);
+
+  const {
+    spareParts,
+    categories: sparePartCategories,
+    isLoading: isLoadingSparePartOptions,
+    error: sparePartOptionsError,
+    refetch: refetchSparePartOptions,
+  } = useSparePartOptions(
+    showSubmitRepairResultAction || showCheckPartAction,
+  );
+
   // REPAIR RESULT
   const [repairResult, setRepairResult] = useState<RepairResult | ''>('');
 
-  const [repairParts, setRepairParts] = useState<RequiredPart[]>([
-    { itemName: '', note: '' },
+  const [repairParts, setRepairParts] = useState<RepairPartFormItem[]>([
+    {
+      isCustom: false,
+      itemId: null,
+      itemCategoryId: '',
+      itemName: '',
+      quantity: 1,
+    },
   ]);
 
   // INVENTORY PART INSPECTION
@@ -244,6 +266,17 @@ function MaintenanceDetailModal({
     [maintenancePartRequirement?.partRequirement],
   );
 
+  const canConfirmAvailable = useMemo(
+    () => evaluatePartRequirementAvailability(requiredParts, spareParts),
+    [requiredParts, spareParts],
+  );
+
+  useEffect(() => {
+    if (!canConfirmAvailable && partAvailability === true) {
+      setPartAvailability(false);
+    }
+  }, [canConfirmAvailable, partAvailability]);
+
   useEffect(() => {
     void loadCategories();
   }, [loadCategories]);
@@ -255,7 +288,15 @@ function MaintenanceDetailModal({
     setRepairResult('');
     setPartAvailability(null);
 
-    setRepairParts([{ itemName: '', note: '' }]);
+    setRepairParts([
+      {
+        isCustom: false,
+        itemId: null,
+        itemCategoryId: '',
+        itemName: '',
+        quantity: 1,
+      },
+    ]);
 
     setOrderPartSubject('');
     setOrderPartDescription('');
@@ -361,22 +402,14 @@ function MaintenanceDetailModal({
   const handleAddRepairPart = () => {
     setRepairParts((current) => [
       ...current,
-      { itemName: '', note: '' },
+      {
+        isCustom: false,
+        itemId: null,
+        itemCategoryId: '',
+        itemName: '',
+        quantity: 1,
+      },
     ]);
-  };
-
-  const handleUpdateRepairPart = (
-    index: number,
-    field: keyof RequiredPart,
-    value: string,
-  ) => {
-    setRepairParts((current) =>
-      current.map((part, partIndex) =>
-        partIndex === index
-          ? { ...part, [field]: value }
-          : part,
-      ),
-    );
   };
 
   const handleRemoveRepairPart = (index: number) => {
@@ -385,28 +418,102 @@ function MaintenanceDetailModal({
     );
   };
 
-  const validRepairParts = repairParts.filter(
-    (part) => part.itemName.trim() !== '',
-  );
+  const handleToggleCustomPart = (index: number) => {
+    setRepairParts((current) =>
+      current.map((part, partIndex) => {
+        if (partIndex !== index) return part;
+        const nextCustom = !part.isCustom;
+        return {
+          isCustom: nextCustom,
+          itemId: null,
+          itemCategoryId: '',
+          itemName: '',
+          quantity: part.quantity > 0 ? part.quantity : 1,
+          stock: undefined,
+          itemCode: undefined,
+          categoryName: undefined,
+        };
+      }),
+    );
+  };
+
+  const handleSelectInventoryPart = (index: number, selectedIdStr: string) => {
+    const selectedId = Number(selectedIdStr);
+    const foundPart = spareParts.find((sp) => sp.id === selectedId);
+
+    setRepairParts((current) =>
+      current.map((part, partIndex) => {
+        if (partIndex !== index) return part;
+        if (!foundPart) {
+          return {
+            ...part,
+            itemId: null,
+            itemCategoryId: '',
+            itemName: '',
+            stock: undefined,
+            itemCode: undefined,
+            categoryName: undefined,
+          };
+        }
+        return {
+          ...part,
+          itemId: foundPart.id,
+          itemCategoryId: foundPart.itemCategoryId,
+          itemName: foundPart.itemName,
+          stock: foundPart.stock,
+          itemCode: foundPart.itemCode,
+          categoryName: foundPart.categoryName,
+        };
+      }),
+    );
+  };
+
+  const handleUpdateRepairPartField = <K extends keyof RepairPartFormItem>(
+    index: number,
+    field: K,
+    value: RepairPartFormItem[K],
+  ) => {
+    setRepairParts((current) =>
+      current.map((part, partIndex) =>
+        partIndex === index ? { ...part, [field]: value } : part,
+      ),
+    );
+  };
+
+  const validRepairParts = repairParts.filter((part) => {
+    if (part.isCustom) {
+      return (
+        Boolean(part.itemCategoryId) &&
+        part.itemName.trim().length > 0 &&
+        part.itemName.trim().length <= 50 &&
+        part.quantity > 0
+      );
+    }
+    return part.itemId !== null && part.quantity > 0;
+  });
 
   const canSubmitRepair =
     Boolean(repairResult) &&
-    (repairResult !== 3 || validRepairParts.length > 0);
+    (repairResult !== 3 ||
+      (repairParts.length > 0 &&
+        validRepairParts.length === repairParts.length));
 
   const handleSubmitRepairResult = async () => {
     if (!repairResult || !canSubmitRepair) return;
 
     if (repairResult === 3) {
-      const partRequirement = validRepairParts.map((part) => ({
+      const payloadParts = validRepairParts.map((part) => ({
+        itemId: part.isCustom ? null : part.itemId,
+        itemCategoryId: Number(part.itemCategoryId),
         itemName: part.itemName.trim(),
-        note: part.note.trim(),
+        quantity: Number(part.quantity) || 1,
       }));
 
       await onSubmitRepairResult({
         result: repairResult,
         handlerNote: note.trim() || undefined,
-        partRequirement: JSON.stringify(partRequirement),
-        parts: [],
+        partRequirement: JSON.stringify(payloadParts),
+        parts: payloadParts,
       });
 
       return;
@@ -423,6 +530,7 @@ function MaintenanceDetailModal({
   // INVENTORY CHECK PART
   const handleCheckPart = async () => {
     if (partAvailability === null) return;
+    if (partAvailability === true && !canConfirmAvailable) return;
 
     await onCheckPart({
       available: partAvailability,
@@ -872,12 +980,7 @@ function MaintenanceDetailModal({
       ticket.currentTaskEmployeeId === ticket.employeeId,
   );
 
-  const showSubmitRepairResultAction = Boolean(
-    ticket?.canSubmitRepairResult,
-  );
-
   const showReceivePartAction = Boolean(ticket?.canReceivePart);
-  const showCheckPartAction = Boolean(ticket?.canCheckPart);
 
   // NOTE:
   // canOrderPart dari backend harus diberikan kepada assigned Maintenance Handler,
@@ -1047,11 +1150,18 @@ function MaintenanceDetailModal({
                       repairResult={repairResult}
                       setRepairResult={setRepairResult}
                       repairParts={repairParts}
+                      spareParts={spareParts}
+                      categories={sparePartCategories}
+                      isLoadingSpareParts={isLoadingSparePartOptions}
+                      sparePartsError={sparePartOptionsError}
+                      onRetrySpareParts={() => void refetchSparePartOptions()}
                       isProcessing={isProcessing}
                       canSubmitRepair={canSubmitRepair}
                       onAddRepairPart={handleAddRepairPart}
                       onRemoveRepairPart={handleRemoveRepairPart}
-                      onUpdateRepairPart={handleUpdateRepairPart}
+                      onToggleCustomPart={handleToggleCustomPart}
+                      onSelectInventoryPart={handleSelectInventoryPart}
+                      onUpdateRepairPartField={handleUpdateRepairPartField}
                       onSubmitRepairResult={handleSubmitRepairResult}
                     />
                   )}
@@ -1059,6 +1169,12 @@ function MaintenanceDetailModal({
                   {/* INVENTORY: CHECK PART */}
                   {showCheckPartAction && (
                     <CheckSparePartAvailability
+                      requiredParts={requiredParts}
+                      spareParts={spareParts}
+                      isLoadingSpareParts={isLoadingSparePartOptions}
+                      sparePartsError={sparePartOptionsError}
+                      onRetrySpareParts={() => void refetchSparePartOptions()}
+                      canConfirmAvailable={canConfirmAvailable}
                       partAvailability={partAvailability}
                       isProcessing={isProcessing}
                       onSetPartAvailability={setPartAvailability}
