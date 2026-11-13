@@ -4,13 +4,11 @@ import type {
   ResubmitProcurementPayload,
 } from '../types/procurement.types';
 
-import { isProcurementItemInvalid } from './procurementForm.utils';
 
 // Batas ukuran bukti pembelian
 export const MAX_PROOF_SIZE = 5 * 1024 * 1024; // 5 MB
 
-export const SUBJECT_MAX_LENGTH = 100;
-export const DESCRIPTION_MAX_LENGTH = 500;
+export { SUBJECT_MAX_LENGTH, DESCRIPTION_MAX_LENGTH } from './procurementForm.utils';
 export const NOTE_MAX_LENGTH = 200;
 
 // ==========================================
@@ -35,24 +33,6 @@ export function getItemCategoryIds(items: ProcurementItem[]): string[] {
   return [...new Set(items.map((item) => item.categoryId).filter(Boolean))];
 }
 
-// ==========================================
-// VALIDASI RESUBMIT (aturan item sama dengan create)
-// ==========================================
-
-export function isResubmitInvalid(
-  subject: string,
-  description: string,
-  items: ProcurementItem[]
-): boolean {
-  return (
-    !subject.trim() ||
-    subject.trim().length > SUBJECT_MAX_LENGTH ||
-    description.length > DESCRIPTION_MAX_LENGTH ||
-    items.length === 0 ||
-    items.some(isProcurementItemInvalid)
-  );
-}
-
 export function buildResubmitPayload(
   subject: string,
   description: string,
@@ -64,7 +44,7 @@ export function buildResubmitPayload(
     description: description.trim(),
     note: note.trim(),
     items: items.map((item) => ({
-      itemId: item.isManual ? null : Number(item.itemId),
+      itemId: item.isManual || !item.itemId ? null : Number(item.itemId),
       itemCategoryId: Number(item.categoryId),
       itemName: item.itemName.trim(),
       quantity: Number(item.quantity),

@@ -10,7 +10,7 @@ import {
 } from '../utils/procurement.utils';
 import {
   buildProcurementPayload,
-  isProcurementItemInvalid,
+  hasIncompleteItems,
 } from '../utils/procurementForm.utils';
 
 interface UseProcurementFormOptions {
@@ -118,23 +118,10 @@ export function useProcurementForm({
     setSubmitError('');
     setSubmitSuccess('');
 
-    if (!subject.trim()) {
-      setSubmitError('Subject is required.');
-      return false;
-    }
+    // Penjagaan: item kosong tidak dikirim (tombol juga sudah nonaktif).
+    if (hasIncompleteItems(items)) return false;
 
-    if (items.length === 0) {
-      setSubmitError('Please add at least one item.');
-      return false;
-    }
-
-    if (items.some(isProcurementItemInvalid)) {
-      setSubmitError(
-        'Please complete all item details with valid quantity and price.'
-      );
-      return false;
-    }
-
+    // Validasi detail dilakukan backend (FluentValidation); pesan error-nya ditampilkan apa adanya.
     const payload = buildProcurementPayload(
       subject,
       description,

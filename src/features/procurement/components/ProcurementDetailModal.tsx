@@ -16,9 +16,12 @@ import {
   buildResubmitPayload,
   getDetailVisibility,
   getItemCategoryIds,
-  isResubmitInvalid,
 } from '../utils/procurementDetail.utils';
-import { getFormItemsTotal } from '../utils/procurementForm.utils';
+import {
+  getFormItemsTotal,
+  hasIncompleteItems,
+  INCOMPLETE_ITEMS_HINT,
+} from '../utils/procurementForm.utils';
 import {
   getActionConfirm,
   getReceiveGoodsConfirm,
@@ -104,6 +107,7 @@ function ProcurementDetailModal({
   );
 
   const editableTotal = getFormItemsTotal(editableItems);
+  const isEditableItemsIncomplete = hasIncompleteItems(editableItems);
 
   // ==========================================
   // EDIT ITEM (sama dengan form create)
@@ -163,9 +167,7 @@ function ProcurementDetailModal({
   };
 
   const handleResubmit = async () => {
-    if (isProcessing) return;
-
-    if (isResubmitInvalid(subject, description, editableItems)) return;
+    if (isProcessing || isEditableItemsIncomplete) return;
 
     const success = await onResubmit(
       buildResubmitPayload(subject, description, note, editableItems),
@@ -280,6 +282,12 @@ function ProcurementDetailModal({
             onRemoveItem={form.removeItem}
           />
 
+          {isResubmitting && isEditableItemsIncomplete && (
+            <p className="-mt-2 text-xs text-amber-600">
+              {INCOMPLETE_ITEMS_HINT}
+            </p>
+          )}
+
           {isResubmitting && (
             <ResubmitSection
               lastRevision={lastRevision}
@@ -325,7 +333,7 @@ function ProcurementDetailModal({
             <div className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
               <AlertCircle size={19} className="mt-0.5 shrink-0 text-red-500" />
 
-              <p className="text-sm text-red-700">{actionError}</p>
+              <p className="whitespace-pre-line text-sm text-red-700">{actionError}</p>
             </div>
           )}
         </div>
@@ -335,11 +343,7 @@ function ProcurementDetailModal({
           isEditing={isEditing}
           onCloseOrCancel={isEditing ? form.cancelEditing : onClose}
           showResubmit={isResubmitting}
-          isResubmitDisabled={isResubmitInvalid(
-            subject,
-            description,
-            editableItems,
-          )}
+          isResubmitDisabled={isEditableItemsIncomplete}
           onResubmit={promptResubmit}
           showApproval={canShowApprovalActions}
           canApprove={ticket.canApprove}

@@ -12,7 +12,7 @@ function TableErrorAlert({ error, onRetry }: TableErrorAlertProps) {
     <div className="m-5 flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800">
       <div className="flex items-center gap-2">
         <AlertCircle size={16} className="text-rose-600" />
-        <span>{error}</span>
+        <span className="whitespace-pre-line">{error}</span>
       </div>
       <button
         type="button"

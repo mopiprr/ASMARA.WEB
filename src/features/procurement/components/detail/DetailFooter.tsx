@@ -8,6 +8,8 @@ import {
 
 import type { ProcurementAction } from '../../hooks/useProcurementActions';
 
+import { INCOMPLETE_ITEMS_HINT } from '../../utils/procurementForm.utils';
+
 interface DetailFooterProps {
   isProcessing: boolean;
   isEditing: boolean;
@@ -80,6 +82,7 @@ function DetailFooter({
           type="button"
           onClick={onResubmit}
           disabled={isProcessing || isResubmitDisabled}
+          title={isResubmitDisabled ? INCOMPLETE_ITEMS_HINT : undefined}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ButtonIcon isProcessing={isProcessing} icon={Send} />

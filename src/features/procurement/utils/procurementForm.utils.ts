@@ -3,22 +3,28 @@ import type {
   ProcurementPayload,
 } from '../types/procurement.types';
 
-// Item form create dianggap tidak lengkap jika salah satu syarat ini gagal.
-// Dipakai saat "Proceed to Review" dan saat submit.
-export const isProcurementItemInvalid = (item: ProcurementItem): boolean => {
-  const quantity = Number(item.quantity);
-  const price = Number(item.estimatedPrice || 0);
+// Batas panjang input (mengikuti kolom database). Hanya untuk maxLength & penghitung karakter.
+// Validasi isi form dilakukan backend (FluentValidation); pesannya ditampilkan apa adanya.
+export const SUBJECT_MAX_LENGTH = 50;
+export const DESCRIPTION_MAX_LENGTH = 500;
+export const ITEM_NAME_MAX_LENGTH = 50;
 
-  return (
-    !item.categoryId ||
-    !item.itemName.trim() ||
-    (!item.isManual && !item.itemId) ||
-    !Number.isInteger(quantity) ||
-    quantity <= 0 ||
-    !Number.isFinite(price) ||
-    price < 0
-  );
-};
+// Penjagaan ringan di UI: item yang masih kosong tidak bisa dikirim.
+// (Pesan validasi detail tetap dari backend.)
+export const isItemIncomplete = (item: ProcurementItem): boolean =>
+  !item.categoryId ||
+  !item.itemName.trim() ||
+  (!item.isManual && !item.itemId) ||
+  !item.quantity.trim() ||
+  Number(item.quantity) <= 0 ||
+  !item.estimatedPrice.trim() ||
+  Number(item.estimatedPrice) <= 0;
+
+export const hasIncompleteItems = (items: ProcurementItem[]): boolean =>
+  items.length === 0 || items.some(isItemIncomplete);
+
+export const INCOMPLETE_ITEMS_HINT =
+  'Complete all item fields (category, item, quantity, and price) to continue.';
 
 // Subtotal satu item form create.
 export const getFormItemSubtotal = (item: ProcurementItem): number =>
@@ -42,6 +48,7 @@ export const buildProcurementPayload = (
     itemName: item.itemName.trim(),
     quantity: Number(item.quantity),
     price: Number(item.estimatedPrice || 0),
-    itemId: item.isManual ? null : Number(item.itemId),
+    // Belum memilih item inventory -> null, supaya backend menampilkan pesan validasi yang jelas.
+    itemId: item.isManual || !item.itemId ? null : Number(item.itemId),
   })),
 });

@@ -10,7 +10,7 @@ import type {
 
 import {
   getFormItemsTotal,
-  isProcurementItemInvalid,
+  hasIncompleteItems,
 } from '../utils/procurementForm.utils';
 
 import { ConfirmDialog } from '../../../components/common/ConfirmDialog';
@@ -66,25 +66,6 @@ interface ProcurementModalProps {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
 }
 
-// Pesan validasi saat "Proceed to Review". '' = valid.
-function getReviewValidationError(subject: string, items: ProcurementItem[]) {
-  if (!subject.trim()) {
-    return 'Request Subject is required.';
-  }
-
-  if (items.length === 0) {
-    return 'Please add at least one procurement item.';
-  }
-
-  const invalidIndex = items.findIndex(isProcurementItemInvalid);
-
-  if (invalidIndex !== -1) {
-    return `Item #${invalidIndex + 1} is incomplete. Please ensure category, name, quantity (> 0), and price are valid.`;
-  }
-
-  return '';
-}
-
 // ==========================================
 // COMPONENT
 // ==========================================
@@ -115,14 +96,12 @@ function ProcurementModal({
   onSubmit,
 }: ProcurementModalProps) {
   const [isReviewing, setIsReviewing] = useState(false);
-  const [validationError, setValidationError] = useState('');
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
 
   // Reset review mode when modal opens or closes
   useEffect(() => {
     if (!isOpen) {
       setIsReviewing(false);
-      setValidationError('');
       setShowConfirmSubmit(false);
     }
   }, [isOpen]);
@@ -130,17 +109,17 @@ function ProcurementModal({
   if (!isOpen) return null;
 
   const estimatedTotal = getFormItemsTotal(items);
+  const isItemsIncomplete = hasIncompleteItems(items);
 
-  // Validate form and proceed to Review Step
+  // Lanjut ke Review. Validasi isi dilakukan backend saat Submit;
+  // jika ada yang salah, pesannya tampil di atas dan user bisa kembali ke Edit.
   const handleProceedToReview = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const error = getReviewValidationError(subject, items);
-    setValidationError(error);
+    // Enter di input juga memicu submit form -> tetap dijaga.
+    if (isItemsIncomplete) return;
 
-    if (!error) {
-      setIsReviewing(true);
-    }
+    setIsReviewing(true);
   };
 
   // Final submit handler via Confirmation Dialog
@@ -176,7 +155,7 @@ function ProcurementModal({
         >
           <div className="overflow-y-auto px-6 py-6">
             <CreateRequestAlerts
-              errorMessage={submitError || validationError}
+              errorMessage={submitError}
               successMessage={submitSuccess}
               parentTicketId={parentTicketId}
             />
@@ -216,6 +195,7 @@ function ProcurementModal({
             isReviewing={isReviewing}
             isSubmitting={isSubmitting}
             isSubmitted={Boolean(submitSuccess)}
+            hasIncompleteItems={isItemsIncomplete}
             onClose={onClose}
             onBackToEdit={() => setIsReviewing(false)}
             onSubmitClick={() => setShowConfirmSubmit(true)}

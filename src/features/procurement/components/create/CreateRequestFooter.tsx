@@ -1,9 +1,14 @@
 import { ArrowLeft, ArrowRight, LoaderCircle, Send } from 'lucide-react';
 
+import { INCOMPLETE_ITEMS_HINT } from '../../utils/procurementForm.utils';
+
 interface CreateRequestFooterProps {
   isReviewing: boolean;
   isSubmitting: boolean;
   isSubmitted: boolean;
+
+  // Ada item yang masih kosong -> tombol lanjut/submit nonaktif.
+  hasIncompleteItems: boolean;
   onClose: () => void;
   onBackToEdit: () => void;
   onSubmitClick: () => void;
@@ -15,6 +20,7 @@ function CreateRequestFooter({
   isReviewing,
   isSubmitting,
   isSubmitted,
+  hasIncompleteItems,
   onClose,
   onBackToEdit,
   onSubmitClick,
@@ -23,9 +29,15 @@ function CreateRequestFooter({
     <div className="flex flex-col-reverse justify-between gap-3 border-t border-slate-100 bg-white px-6 py-4 sm:flex-row sm:items-center">
       {!isReviewing ? (
         <>
-          <p className="text-xs text-slate-400">
-            Fields marked with <span className="text-red-500">*</span> are required.
-          </p>
+          {hasIncompleteItems ? (
+            <p className="text-xs text-amber-600">
+              {INCOMPLETE_ITEMS_HINT}
+            </p>
+          ) : (
+            <p className="text-xs text-slate-400">
+              Fields marked with <span className="text-red-500">*</span> are required.
+            </p>
+          )}
 
           <div className="flex flex-col-reverse gap-2 sm:flex-row">
             <button
@@ -39,7 +51,7 @@ function CreateRequestFooter({
 
             <button
               type="submit"
-              disabled={isSubmitting || isSubmitted}
+              disabled={isSubmitting || isSubmitted || hasIncompleteItems}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span>Proceed to Review</span>
@@ -72,7 +84,7 @@ function CreateRequestFooter({
             <button
               type="button"
               onClick={onSubmitClick}
-              disabled={isSubmitting || isSubmitted}
+              disabled={isSubmitting || isSubmitted || hasIncompleteItems}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? (

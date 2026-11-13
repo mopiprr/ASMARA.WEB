@@ -54,7 +54,7 @@ function PurchasingSection({
             className="mt-0.5 shrink-0 text-red-500"
           />
 
-          <p className="text-sm text-red-700">
+          <p className="whitespace-pre-line text-sm text-red-700">
             {proofError || actionError}
           </p>
         </div>

@@ -1,4 +1,3 @@
-
 import {
   Package,
   Trash2,
@@ -19,6 +18,7 @@ import type {
 } from '../types/procurement.types';
 
 import { formatIDR } from '../utils/procurement.utils';
+import { ITEM_NAME_MAX_LENGTH } from '../utils/procurementForm.utils';
 
 // ==========================================
 // PROPS
@@ -179,6 +179,7 @@ function ProcurementItemForm({
                 )
               }
               placeholder="Enter item name manually"
+              maxLength={ITEM_NAME_MAX_LENGTH}
               className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           ) : (
