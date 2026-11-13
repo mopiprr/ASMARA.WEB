@@ -185,6 +185,18 @@ export interface MaintenancePartItemPayload {
   quantity: number;
 }
 
+// State untuk satu baris input kebutuhan spare part di form Repair Result (NeedPart).
+export interface RepairPartFormItem {
+  isCustom: boolean;
+  itemId: number | null;
+  itemCategoryId: number | '';
+  itemName: string;
+  quantity: number;
+  stock?: number;
+  itemCode?: string;
+  categoryName?: string;
+}
+
 // Request submit hasil perbaikan.
 export interface SubmitRepairResultPayload {
   result: RepairResult;

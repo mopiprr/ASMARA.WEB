@@ -24,12 +24,19 @@ import type {
   MaintenanceReplacementPayload,
   MaintenanceTicket,
   OrderMaintenancePartPayload,
+  RepairPartFormItem,
   RepairResult,
   SendMaintenanceReplacementPayload,
   SubmitRepairResultPayload,
 } from '../types/maintenance.types';
 
 import { useInventoryOptions } from '../../procurement/hooks/useInventoryOptions';
+import { useSparePartOptions } from '../hooks/useSparePartOptions';
+import { MaintenanceRepairPartsForm } from './MaintenanceRepairPartsForm';
+import {
+  InventoryPartComparisonTable,
+  evaluatePartRequirementAvailability,
+} from './InventoryPartComparisonTable';
 
 interface MaintenanceDetailModalProps {
   ticket: MaintenanceTicket | null;
@@ -86,7 +93,10 @@ interface MaintenanceDetailModalProps {
 
 interface RequiredPart {
   itemName: string;
-  note: string;
+  note?: string;
+  quantity?: number;
+  itemCategoryId?: number;
+  itemId?: number | null;
 }
 
 interface MaintenanceDetailPartRequirement {
@@ -132,6 +142,12 @@ function parseRequiredParts(value?: string | null): RequiredPart[] {
       .map((part) => ({
         itemName: String(part.itemName),
         note: typeof part.note === 'string' ? part.note : '',
+        quantity: typeof part.quantity === 'number' ? part.quantity : undefined,
+        itemCategoryId:
+          typeof part.itemCategoryId === 'number'
+            ? part.itemCategoryId
+            : undefined,
+        itemId: typeof part.itemId === 'number' ? part.itemId : null,
       }));
   } catch {
     return [];
@@ -180,11 +196,32 @@ function MaintenanceDetailModal({
     fetchInventoryItems,
   } = useInventoryOptions();
 
+  const showSubmitRepairResultAction = Boolean(
+    ticket?.canSubmitRepairResult,
+  );
+  const showCheckPartAction = Boolean(ticket?.canCheckPart);
+
+  const {
+    spareParts,
+    categories: sparePartCategories,
+    isLoading: isLoadingSparePartOptions,
+    error: sparePartOptionsError,
+    refetch: refetchSparePartOptions,
+  } = useSparePartOptions(
+    showSubmitRepairResultAction || showCheckPartAction,
+  );
+
   // REPAIR RESULT
   const [repairResult, setRepairResult] = useState<RepairResult | ''>('');
 
-  const [repairParts, setRepairParts] = useState<RequiredPart[]>([
-    { itemName: '', note: '' },
+  const [repairParts, setRepairParts] = useState<RepairPartFormItem[]>([
+    {
+      isCustom: false,
+      itemId: null,
+      itemCategoryId: '',
+      itemName: '',
+      quantity: 1,
+    },
   ]);
 
   // INVENTORY PART INSPECTION
@@ -257,6 +294,17 @@ function MaintenanceDetailModal({
     [maintenancePartRequirement?.partRequirement],
   );
 
+  const canConfirmAvailable = useMemo(
+    () => evaluatePartRequirementAvailability(requiredParts, spareParts),
+    [requiredParts, spareParts],
+  );
+
+  useEffect(() => {
+    if (!canConfirmAvailable && partAvailability === true) {
+      setPartAvailability(false);
+    }
+  }, [canConfirmAvailable, partAvailability]);
+
   useEffect(() => {
     void loadCategories();
   }, [loadCategories]);
@@ -268,7 +316,15 @@ function MaintenanceDetailModal({
     setRepairResult('');
     setPartAvailability(null);
 
-    setRepairParts([{ itemName: '', note: '' }]);
+    setRepairParts([
+      {
+        isCustom: false,
+        itemId: null,
+        itemCategoryId: '',
+        itemName: '',
+        quantity: 1,
+      },
+    ]);
 
     setOrderPartSubject('');
     setOrderPartDescription('');
@@ -309,22 +365,14 @@ function MaintenanceDetailModal({
   const handleAddRepairPart = () => {
     setRepairParts((current) => [
       ...current,
-      { itemName: '', note: '' },
+      {
+        isCustom: false,
+        itemId: null,
+        itemCategoryId: '',
+        itemName: '',
+        quantity: 1,
+      },
     ]);
-  };
-
-  const handleUpdateRepairPart = (
-    index: number,
-    field: keyof RequiredPart,
-    value: string,
-  ) => {
-    setRepairParts((current) =>
-      current.map((part, partIndex) =>
-        partIndex === index
-          ? { ...part, [field]: value }
-          : part,
-      ),
-    );
   };
 
   const handleRemoveRepairPart = (index: number) => {
@@ -333,28 +381,102 @@ function MaintenanceDetailModal({
     );
   };
 
-  const validRepairParts = repairParts.filter(
-    (part) => part.itemName.trim() !== '',
-  );
+  const handleToggleCustomPart = (index: number) => {
+    setRepairParts((current) =>
+      current.map((part, partIndex) => {
+        if (partIndex !== index) return part;
+        const nextCustom = !part.isCustom;
+        return {
+          isCustom: nextCustom,
+          itemId: null,
+          itemCategoryId: '',
+          itemName: '',
+          quantity: part.quantity > 0 ? part.quantity : 1,
+          stock: undefined,
+          itemCode: undefined,
+          categoryName: undefined,
+        };
+      }),
+    );
+  };
+
+  const handleSelectInventoryPart = (index: number, selectedIdStr: string) => {
+    const selectedId = Number(selectedIdStr);
+    const foundPart = spareParts.find((sp) => sp.id === selectedId);
+
+    setRepairParts((current) =>
+      current.map((part, partIndex) => {
+        if (partIndex !== index) return part;
+        if (!foundPart) {
+          return {
+            ...part,
+            itemId: null,
+            itemCategoryId: '',
+            itemName: '',
+            stock: undefined,
+            itemCode: undefined,
+            categoryName: undefined,
+          };
+        }
+        return {
+          ...part,
+          itemId: foundPart.id,
+          itemCategoryId: foundPart.itemCategoryId,
+          itemName: foundPart.itemName,
+          stock: foundPart.stock,
+          itemCode: foundPart.itemCode,
+          categoryName: foundPart.categoryName,
+        };
+      }),
+    );
+  };
+
+  const handleUpdateRepairPartField = <K extends keyof RepairPartFormItem>(
+    index: number,
+    field: K,
+    value: RepairPartFormItem[K],
+  ) => {
+    setRepairParts((current) =>
+      current.map((part, partIndex) =>
+        partIndex === index ? { ...part, [field]: value } : part,
+      ),
+    );
+  };
+
+  const validRepairParts = repairParts.filter((part) => {
+    if (part.isCustom) {
+      return (
+        Boolean(part.itemCategoryId) &&
+        part.itemName.trim().length > 0 &&
+        part.itemName.trim().length <= 50 &&
+        part.quantity > 0
+      );
+    }
+    return part.itemId !== null && part.quantity > 0;
+  });
 
   const canSubmitRepair =
     Boolean(repairResult) &&
-    (repairResult !== 3 || validRepairParts.length > 0);
+    (repairResult !== 3 ||
+      (repairParts.length > 0 &&
+        validRepairParts.length === repairParts.length));
 
   const handleSubmitRepairResult = async () => {
     if (!repairResult || !canSubmitRepair) return;
 
     if (repairResult === 3) {
-      const partRequirement = validRepairParts.map((part) => ({
+      const payloadParts = validRepairParts.map((part) => ({
+        itemId: part.isCustom ? null : part.itemId,
+        itemCategoryId: Number(part.itemCategoryId),
         itemName: part.itemName.trim(),
-        note: part.note.trim(),
+        quantity: Number(part.quantity) || 1,
       }));
 
       await onSubmitRepairResult({
         result: repairResult,
         handlerNote: note.trim() || undefined,
-        partRequirement: JSON.stringify(partRequirement),
-        parts: [],
+        partRequirement: JSON.stringify(payloadParts),
+        parts: payloadParts,
       });
 
       return;
@@ -372,8 +494,16 @@ function MaintenanceDetailModal({
   const handleCheckPart = async () => {
     if (partAvailability === null) return;
 
+    if (partAvailability === true) {
+      if (!canConfirmAvailable) return;
+      await onSendPart({
+        note: note.trim() || undefined,
+      });
+      return;
+    }
+
     await onCheckPart({
-      available: partAvailability,
+      available: false,
       note: note.trim() || undefined,
     });
   };
@@ -824,12 +954,7 @@ function MaintenanceDetailModal({
       ticket.currentTaskEmployeeId === ticket.employeeId,
   );
 
-  const showSubmitRepairResultAction = Boolean(
-    ticket?.canSubmitRepairResult,
-  );
-
   const showReceivePartAction = Boolean(ticket?.canReceivePart);
-  const showCheckPartAction = Boolean(ticket?.canCheckPart);
 
   // NOTE:
   // canOrderPart dari backend harus diberikan kepada assigned Maintenance Handler,
@@ -1295,103 +1420,20 @@ function MaintenanceDetailModal({
                     </div>
 
                     {repairResult === 3 && (
-                      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <h5 className="text-sm font-semibold text-slate-800">
-                              Required Spare Parts
-                            </h5>
-                            <p className="mt-1 text-xs text-slate-500">
-                              Enter the spare part name and specifications.
-                            </p>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={handleAddRepairPart}
-                            disabled={isProcessing}
-                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-                          >
-                            <Plus size={14} />
-                            Add Part
-                          </button>
-                        </div>
-
-                        {repairParts.map((part, index) => (
-                          <div
-                            key={index}
-                            className="space-y-3 rounded-lg border border-slate-200 p-3"
-                          >
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs font-semibold text-slate-600">
-                                Spare Part #{index + 1}
-                              </p>
-
-                              {repairParts.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveRepairPart(index)}
-                                  disabled={isProcessing}
-                                  className="inline-flex items-center gap-1 text-xs font-medium text-red-600"
-                                >
-                                  <Trash2 size={13} />
-                                  Remove
-                                </button>
-                              )}
-                            </div>
-
-                            <div>
-                              <label
-                                htmlFor={`partName-${index}`}
-                                className="mb-1 block text-xs font-medium text-slate-600"
-                              >
-                                Part Name
-                              </label>
-
-                              <input
-                                id={`partName-${index}`}
-                                type="text"
-                                value={part.itemName}
-                                onChange={(event) =>
-                                  handleUpdateRepairPart(
-                                    index,
-                                    'itemName',
-                                    event.target.value,
-                                  )
-                                }
-                                placeholder="Example: RAM DDR4"
-                                disabled={isProcessing}
-                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500"
-                              />
-                            </div>
-
-                            <div>
-                              <label
-                                htmlFor={`partNote-${index}`}
-                                className="mb-1 block text-xs font-medium text-slate-600"
-                              >
-                                Part Note
-                              </label>
-
-                              <textarea
-                                id={`partNote-${index}`}
-                                value={part.note}
-                                onChange={(event) =>
-                                  handleUpdateRepairPart(
-                                    index,
-                                    'note',
-                                    event.target.value,
-                                  )
-                                }
-                                rows={2}
-                                placeholder="Enter spare part specifications or additional notes..."
-                                disabled={isProcessing}
-                                className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500"
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <MaintenanceRepairPartsForm
+                        parts={repairParts}
+                        spareParts={spareParts}
+                        categories={sparePartCategories}
+                        isLoadingOptions={isLoadingSparePartOptions}
+                        optionsError={sparePartOptionsError}
+                        isProcessing={isProcessing}
+                        onAddPart={handleAddRepairPart}
+                        onRemovePart={handleRemoveRepairPart}
+                        onToggleCustom={handleToggleCustomPart}
+                        onSelectInventoryPart={handleSelectInventoryPart}
+                        onUpdateField={handleUpdateRepairPartField}
+                        onRetry={() => void refetchSparePartOptions()}
+                      />
                     )}
 
                     <div className="flex justify-end">
@@ -1424,15 +1466,55 @@ function MaintenanceDetailModal({
                       </p>
                     </div>
 
+                    <InventoryPartComparisonTable
+                      requiredParts={requiredParts}
+                      spareParts={spareParts}
+                      isLoading={isLoadingSparePartOptions}
+                      error={sparePartOptionsError}
+                      onRetry={() => void refetchSparePartOptions()}
+                    />
+
+                    {!canConfirmAvailable && (
+                      <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-xs text-amber-900">
+                        <AlertCircle
+                          size={16}
+                          className="mt-0.5 shrink-0 text-amber-600"
+                        />
+                        <div className="leading-relaxed">
+                          <p className="font-semibold text-amber-900">
+                            Available Option Locked
+                          </p>
+                          <p className="mt-0.5 text-amber-800">
+                            You cannot mark parts as <strong>Available</strong>{' '}
+                            because one or more requested items are not registered
+                            in warehouse inventory or have insufficient stock.
+                            You must select <strong>Not Available</strong> to proceed
+                            to spare part procurement.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => setPartAvailability(true)}
-                        disabled={isProcessing}
-                        className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
-                          partAvailability === true
-                            ? 'border-green-500 bg-green-100 text-green-700'
-                            : 'border-slate-200 bg-white text-slate-600'
+                        onClick={() => {
+                          if (canConfirmAvailable) {
+                            setPartAvailability(true);
+                          }
+                        }}
+                        disabled={isProcessing || !canConfirmAvailable}
+                        title={
+                          !canConfirmAvailable
+                            ? 'Cannot select Available: items are missing from inventory or out of stock'
+                            : undefined
+                        }
+                        className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                          !canConfirmAvailable
+                            ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-60'
+                            : partAvailability === true
+                              ? 'border-green-500 bg-green-100 text-green-700'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                         }`}
                       >
                         <CheckCircle size={17} className="mx-auto mb-1" />
@@ -1443,10 +1525,10 @@ function MaintenanceDetailModal({
                         type="button"
                         onClick={() => setPartAvailability(false)}
                         disabled={isProcessing}
-                        className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
+                        className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
                           partAvailability === false
                             ? 'border-red-500 bg-red-100 text-red-700'
-                            : 'border-slate-200 bg-white text-slate-600'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                         }`}
                       >
                         <XCircle size={17} className="mx-auto mb-1" />
@@ -1458,7 +1540,11 @@ function MaintenanceDetailModal({
                       <button
                         type="button"
                         onClick={handleCheckPart}
-                        disabled={isProcessing || partAvailability === null}
+                        disabled={
+                          isProcessing ||
+                          partAvailability === null ||
+                          (partAvailability === true && !canConfirmAvailable)
+                        }
                         className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                       >
                         {isProcessing ? (
@@ -1492,14 +1578,24 @@ function MaintenanceDetailModal({
 
                         <div className="space-y-2">
                           {requiredParts.map((part, index) => (
-                            <div key={`${part.itemName}-${index}`}>
-                              <p className="text-sm font-medium text-slate-800">
-                                {index + 1}. {part.itemName}
-                              </p>
-                              {part.note && (
-                                <p className="mt-1 whitespace-pre-wrap text-xs text-slate-500">
-                                  {part.note}
-                                </p>
+                            <div
+                              key={`${part.itemName}-${index}`}
+                              className="flex items-center justify-between text-sm"
+                            >
+                              <div>
+                                <span className="font-medium text-slate-800">
+                                  {index + 1}. {part.itemName}
+                                </span>
+                                {part.note && (
+                                  <p className="mt-1 whitespace-pre-wrap text-xs text-slate-500">
+                                    {part.note}
+                                  </p>
+                                )}
+                              </div>
+                              {part.quantity && (
+                                <span className="rounded-md bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
+                                  Qty: {part.quantity}
+                                </span>
                               )}
                             </div>
                           ))}
