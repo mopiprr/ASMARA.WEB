@@ -49,3 +49,14 @@ export interface UpdateInventoryItemPayload {
   isActive?: boolean;
 }
 
+export interface SparePartItem {
+  id: number;
+  itemCategoryId: number;
+  categoryName: string;
+  itemCode: string;
+  itemName: string;
+  stock: number;
+  isActive: boolean;
+}
+
+

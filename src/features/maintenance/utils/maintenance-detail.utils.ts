@@ -1,7 +1,10 @@
 
 export interface RequiredPart {
   itemName: string;
-  note: string;
+  note?: string;
+  quantity?: number;
+  itemCategoryId?: number;
+  itemId?: number | null;
 }
 
 export function formatDate(value: string | null) {
@@ -45,6 +48,12 @@ export function parseRequiredParts(
       .map((part) => ({
         itemName: String(part.itemName),
         note: typeof part.note === 'string' ? part.note : '',
+        quantity: typeof part.quantity === 'number' ? part.quantity : undefined,
+        itemCategoryId:
+          typeof part.itemCategoryId === 'number'
+            ? part.itemCategoryId
+            : undefined,
+        itemId: typeof part.itemId === 'number' ? part.itemId : null,
       }));
   } catch {
     return [];
