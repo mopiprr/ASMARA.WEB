@@ -27,10 +27,7 @@ import type {
 
 import { useInventoryOptions } from '../../procurement/hooks/useInventoryOptions';
 
-import {
-  parseRequiredParts,
-  type RequiredPart,
-} from '../utils/maintenance-detail.utils';
+import { parseRequiredParts } from '../utils/maintenance-detail.utils';
 
 import MaintenanceTicketInfo from './detail/MaintenanceTicketInfo';
 import MaintenanceWorkflowHistory from './detail/MaintenanceWorkflowHistory';
@@ -52,12 +49,9 @@ interface ReplacementAssetOption {
   itemName: string;
   categoryName: string;
 }
+
 import { useSparePartOptions } from '../hooks/useSparePartOptions';
-import { MaintenanceRepairPartsForm } from './MaintenanceRepairPartsForm';
-import {
-  InventoryPartComparisonTable,
-  evaluatePartRequirementAvailability,
-} from './InventoryPartComparisonTable';
+import { evaluatePartRequirementAvailability } from './InventoryPartComparisonTable';
 
 interface MaintenanceDetailModalProps {
   ticket: MaintenanceTicket | null;
@@ -112,67 +106,8 @@ interface MaintenanceDetailModalProps {
   onRefreshHandlers: () => void;
 }
 
-interface RequiredPart {
-  itemName: string;
-  note?: string;
-  quantity?: number;
-  itemCategoryId?: number;
-  itemId?: number | null;
-}
-
 interface MaintenanceDetailPartRequirement {
   partRequirement?: string | null;
-}
-
-function formatDate(value: string | null) {
-  if (!value) return '-';
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return '-';
-
-  return date.toLocaleString('id-ID', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-}
-
-function formatIDR(value: number) {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function parseRequiredParts(value?: string | null): RequiredPart[] {
-  if (!value) return [];
-
-  try {
-    const parsed: unknown = JSON.parse(value);
-
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .filter(
-        (part): part is Record<string, unknown> =>
-          typeof part === 'object' &&
-          part !== null &&
-          typeof (part as Record<string, unknown>).itemName === 'string',
-      )
-      .map((part) => ({
-        itemName: String(part.itemName),
-        note: typeof part.note === 'string' ? part.note : '',
-        quantity: typeof part.quantity === 'number' ? part.quantity : undefined,
-        itemCategoryId:
-          typeof part.itemCategoryId === 'number'
-            ? part.itemCategoryId
-            : undefined,
-        itemId: typeof part.itemId === 'number' ? part.itemId : null,
-      }));
-  } catch {
-    return [];
-  }
 }
 
 function MaintenanceDetailModal({
@@ -595,17 +530,10 @@ function MaintenanceDetailModal({
   // INVENTORY CHECK PART
   const handleCheckPart = async () => {
     if (partAvailability === null) return;
-
-    if (partAvailability === true) {
-      if (!canConfirmAvailable) return;
-      await onSendPart({
-        note: note.trim() || undefined,
-      });
-      return;
-    }
+    if (partAvailability === true && !canConfirmAvailable) return;
 
     await onCheckPart({
-      available: false,
+      available: partAvailability,
       note: note.trim() || undefined,
     });
   };
@@ -1222,11 +1150,18 @@ function MaintenanceDetailModal({
                       repairResult={repairResult}
                       setRepairResult={setRepairResult}
                       repairParts={repairParts}
+                      spareParts={spareParts}
+                      categories={sparePartCategories}
+                      isLoadingSpareParts={isLoadingSparePartOptions}
+                      sparePartsError={sparePartOptionsError}
+                      onRetrySpareParts={() => void refetchSparePartOptions()}
                       isProcessing={isProcessing}
                       canSubmitRepair={canSubmitRepair}
                       onAddRepairPart={handleAddRepairPart}
                       onRemoveRepairPart={handleRemoveRepairPart}
-                      onUpdateRepairPart={handleUpdateRepairPart}
+                      onToggleCustomPart={handleToggleCustomPart}
+                      onSelectInventoryPart={handleSelectInventoryPart}
+                      onUpdateRepairPartField={handleUpdateRepairPartField}
                       onSubmitRepairResult={handleSubmitRepairResult}
                     />
                   )}
@@ -1234,6 +1169,12 @@ function MaintenanceDetailModal({
                   {/* INVENTORY: CHECK PART */}
                   {showCheckPartAction && (
                     <CheckSparePartAvailability
+                      requiredParts={requiredParts}
+                      spareParts={spareParts}
+                      isLoadingSpareParts={isLoadingSparePartOptions}
+                      sparePartsError={sparePartOptionsError}
+                      onRetrySpareParts={() => void refetchSparePartOptions()}
+                      canConfirmAvailable={canConfirmAvailable}
                       partAvailability={partAvailability}
                       isProcessing={isProcessing}
                       onSetPartAvailability={setPartAvailability}

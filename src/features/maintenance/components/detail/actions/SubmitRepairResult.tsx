@@ -1,21 +1,34 @@
+import { CheckCircle, LoaderCircle } from 'lucide-react';
 
-import { CheckCircle, LoaderCircle, Plus, Trash2 } from 'lucide-react';
-
-import type { RepairResult } from '../../../types/maintenance.types';
-import type { RequiredPart } from '../../../utils/maintenance-detail.utils';
+import type {
+  InventoryCategory,
+  SparePartItem,
+} from '../../../../inventory/types/inventory.types';
+import type {
+  RepairPartFormItem,
+  RepairResult,
+} from '../../../types/maintenance.types';
+import { MaintenanceRepairPartsForm } from '../../MaintenanceRepairPartsForm';
 
 interface SubmitRepairResultProps {
   repairResult: RepairResult | '';
   setRepairResult: (value: RepairResult | '') => void;
-  repairParts: RequiredPart[];
+  repairParts: RepairPartFormItem[];
+  spareParts: SparePartItem[];
+  categories: InventoryCategory[];
+  isLoadingSpareParts: boolean;
+  sparePartsError: string | null;
+  onRetrySpareParts: () => void;
   isProcessing: boolean;
   canSubmitRepair: boolean;
   onAddRepairPart: () => void;
   onRemoveRepairPart: (index: number) => void;
-  onUpdateRepairPart: (
+  onToggleCustomPart: (index: number) => void;
+  onSelectInventoryPart: (index: number, selectedIdStr: string) => void;
+  onUpdateRepairPartField: <K extends keyof RepairPartFormItem>(
     index: number,
-    field: keyof RequiredPart,
-    value: string,
+    field: K,
+    value: RepairPartFormItem[K],
   ) => void;
   onSubmitRepairResult: () => void;
 }
@@ -24,11 +37,18 @@ function SubmitRepairResult({
   repairResult,
   setRepairResult,
   repairParts,
+  spareParts,
+  categories,
+  isLoadingSpareParts,
+  sparePartsError,
+  onRetrySpareParts,
   isProcessing,
   canSubmitRepair,
   onAddRepairPart,
   onRemoveRepairPart,
-  onUpdateRepairPart,
+  onToggleCustomPart,
+  onSelectInventoryPart,
+  onUpdateRepairPartField,
   onSubmitRepairResult,
 }: SubmitRepairResultProps) {
   return (
@@ -68,95 +88,20 @@ function SubmitRepairResult({
       </div>
 
       {repairResult === 3 && (
-        <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h5 className="text-sm font-semibold text-slate-800">
-                Required Spare Parts
-              </h5>
-              <p className="mt-1 text-xs text-slate-500">
-                Enter the spare part name and specifications.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={onAddRepairPart}
-              disabled={isProcessing}
-              className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-            >
-              <Plus size={14} />
-              Add Part
-            </button>
-          </div>
-
-          {repairParts.map((part, index) => (
-            <div
-              key={index}
-              className="space-y-3 rounded-lg border border-slate-200 p-3"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-slate-600">
-                  Spare Part #{index + 1}
-                </p>
-
-                {repairParts.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => onRemoveRepairPart(index)}
-                    disabled={isProcessing}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-red-600"
-                  >
-                    <Trash2 size={13} />
-                    Remove
-                  </button>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor={`partName-${index}`}
-                  className="mb-1 block text-xs font-medium text-slate-600"
-                >
-                  Part Name
-                </label>
-
-                <input
-                  id={`partName-${index}`}
-                  type="text"
-                  value={part.itemName}
-                  onChange={(event) =>
-                    onUpdateRepairPart(index, 'itemName', event.target.value)
-                  }
-                  placeholder="Example: RAM DDR4"
-                  disabled={isProcessing}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor={`partNote-${index}`}
-                  className="mb-1 block text-xs font-medium text-slate-600"
-                >
-                  Part Note
-                </label>
-
-                <textarea
-                  id={`partNote-${index}`}
-                  value={part.note}
-                  onChange={(event) =>
-                    onUpdateRepairPart(index, 'note', event.target.value)
-                  }
-                  rows={2}
-                  placeholder="Enter spare part specifications or additional notes..."
-                  disabled={isProcessing}
-                  className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500"
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+        <MaintenanceRepairPartsForm
+          parts={repairParts}
+          spareParts={spareParts}
+          categories={categories}
+          isLoadingOptions={isLoadingSpareParts}
+          optionsError={sparePartsError}
+          isProcessing={isProcessing}
+          onAddPart={onAddRepairPart}
+          onRemovePart={onRemoveRepairPart}
+          onToggleCustom={onToggleCustomPart}
+          onSelectInventoryPart={onSelectInventoryPart}
+          onUpdateField={onUpdateRepairPartField}
+          onRetry={onRetrySpareParts}
+        />
       )}
 
       <div className="flex justify-end">
@@ -171,7 +116,7 @@ function SubmitRepairResult({
           ) : (
             <CheckCircle size={17} />
           )}
-          Submit Repair Result
+          Submit Result
         </button>
       </div>
     </div>

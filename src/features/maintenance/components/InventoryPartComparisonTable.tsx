@@ -9,14 +9,9 @@ import {
 } from 'lucide-react';
 
 import type { SparePartItem } from '../../inventory/types/inventory.types';
+import type { RequiredPart } from '../utils/maintenance-detail.utils';
 
-export interface RequiredPart {
-  itemName: string;
-  note?: string;
-  quantity?: number;
-  itemCategoryId?: number;
-  itemId?: number | null;
-}
+export type { RequiredPart };
 
 export function evaluatePartRequirementAvailability(
   requiredParts: RequiredPart[],

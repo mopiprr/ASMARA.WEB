@@ -105,14 +105,24 @@ function CreateSparePartProcurement({
 
           <div className="space-y-2">
             {requiredParts.map((part, index) => (
-              <div key={`${part.itemName}-${index}`}>
-                <p className="text-sm font-medium text-slate-800">
-                  {index + 1}. {part.itemName}
-                </p>
-                {part.note && (
-                  <p className="mt-1 whitespace-pre-wrap text-xs text-slate-500">
-                    {part.note}
-                  </p>
+              <div
+                key={`${part.itemName}-${index}`}
+                className="flex items-center justify-between text-sm"
+              >
+                <div>
+                  <span className="font-medium text-slate-800">
+                    {index + 1}. {part.itemName}
+                  </span>
+                  {part.note && (
+                    <p className="mt-1 whitespace-pre-wrap text-xs text-slate-500">
+                      {part.note}
+                    </p>
+                  )}
+                </div>
+                {part.quantity && (
+                  <span className="rounded-md bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
+                    Qty: {part.quantity}
+                  </span>
                 )}
               </div>
             ))}
