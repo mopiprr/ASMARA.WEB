@@ -2,17 +2,12 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import {
-  AlertCircle,
-  CheckCircle,
-  ClipboardCheck,
   LoaderCircle,
-  Plus,
   Send,
-  Trash2,
-  UserRoundCog,
   X,
-  XCircle,
 } from 'lucide-react';
+
+import api from '../../../services/api';
 
 import type {
   AssignMaintenanceHandlerPayload,
@@ -31,6 +26,32 @@ import type {
 } from '../types/maintenance.types';
 
 import { useInventoryOptions } from '../../procurement/hooks/useInventoryOptions';
+
+import {
+  parseRequiredParts,
+  type RequiredPart,
+} from '../utils/maintenance-detail.utils';
+
+import MaintenanceTicketInfo from './detail/MaintenanceTicketInfo';
+import MaintenanceWorkflowHistory from './detail/MaintenanceWorkflowHistory';
+import MaintenanceActionSection from './detail/MaintenanceActionSection';
+
+import AssignMaintenanceHandler from './detail/actions/AssignMaintenanceHandler';
+import SubmitRepairResult from './detail/actions/SubmitRepairResult';
+import CheckSparePartAvailability from './detail/actions/CheckSparePartAvailability';
+import CreateSparePartProcurement from './detail/actions/CreateSparePartProcurement';
+import MaintenanceDecisionActions from './detail/actions/MaintenanceDecisionActions';
+import MaintenanceDispositionActions from './detail/actions/MaintenanceDispositionActions';
+import InventoryReplacementDecision from './detail/actions/InventoryReplacementDecision';
+import SendMaintenanceReplacement from './detail/actions/SendMaintenanceReplacement';
+import MaintenanceTransferActions from './detail/actions/MaintenanceTransferActions';
+
+interface ReplacementAssetOption {
+  assetId: number;
+  assetTag: string;
+  itemName: string;
+  categoryName: string;
+}
 import { useSparePartOptions } from '../hooks/useSparePartOptions';
 import { MaintenanceRepairPartsForm } from './MaintenanceRepairPartsForm';
 import {
@@ -161,7 +182,6 @@ function MaintenanceDetailModal({
   error,
   actionError,
   handlers,
-  assets,
   isLoadingHandlers,
   handlerError,
   onClose,
@@ -257,6 +277,15 @@ function MaintenanceDetailModal({
   const [selectedReplacementAssetId, setSelectedReplacementAssetId] =
     useState<number | ''>('');
 
+  const [replacementAssets, setReplacementAssets] = useState<
+    ReplacementAssetOption[]
+  >([]);
+
+  const [isLoadingReplacementAssets, setIsLoadingReplacementAssets] =
+    useState(false);
+
+  const [replacementAssetError, setReplacementAssetError] = useState('');
+
   const [selectedSendReplacementAssetId, setSelectedSendReplacementAssetId] =
     useState<number | ''>('');
 
@@ -279,6 +308,14 @@ function MaintenanceDetailModal({
   const [replacementManualItems, setReplacementManualItems] = useState<
     boolean[]
   >([false]);
+
+  // INVENTORY: RESET SELECTED ASSET WHEN AVAILABILITY CHANGES
+  const handleReplacementAvailabilityChange = (
+    value: boolean | null,
+  ) => {
+    setReplacementAvailability(value);
+    setSelectedReplacementAssetId('');
+  };
 
   const maintenancePartRequirement =
     ticket?.maintenanceDetail as
@@ -343,6 +380,10 @@ function MaintenanceDetailModal({
 
     setReplacementAvailability(null);
     setSelectedReplacementAssetId('');
+    setReplacementAssets([]);
+    setReplacementAssetError('');
+    setIsLoadingReplacementAssets(false);
+
     setSelectedSendReplacementAssetId('');
 
     setReplacementSubject('');
@@ -359,6 +400,67 @@ function MaintenanceDetailModal({
     ]);
 
     setReplacementManualItems([false]);
+  }, [ticket?.id]);
+
+  // FETCH AVAILABLE REPLACEMENT ASSETS
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchReplacementAssets = async () => {
+      if (!ticket?.id) {
+        setReplacementAssets([]);
+        return;
+      }
+
+      try {
+        setIsLoadingReplacementAssets(true);
+        setReplacementAssetError('');
+
+        const response = await api.get<ReplacementAssetOption[]>(
+          '/assets/available-for-replacement',
+          {
+            params: {
+              ticketId: ticket.id,
+            },
+          },
+        );
+
+        if (isMounted) {
+          setReplacementAssets(response.data ?? []);
+        }
+      } catch (err: unknown) {
+        if (!isMounted) return;
+
+        setReplacementAssets([]);
+
+        const fetchError = err as {
+          response?: {
+            data?: {
+              detail?: string;
+              message?: string;
+            };
+          };
+          message?: string;
+        };
+
+        setReplacementAssetError(
+          fetchError.response?.data?.detail ||
+            fetchError.response?.data?.message ||
+            fetchError.message ||
+            'Failed to load replacement assets.',
+        );
+      } finally {
+        if (isMounted) {
+          setIsLoadingReplacementAssets(false);
+        }
+      }
+    };
+
+    void fetchReplacementAssets();
+
+    return () => {
+      isMounted = false;
+    };
   }, [ticket?.id]);
 
   // REPAIR RESULT
@@ -814,10 +916,6 @@ function MaintenanceDetailModal({
     );
   };
 
-  const availableReplacementAssets = assets.filter(
-    (asset) => asset.assetId !== ticket?.maintenanceDetail?.assetId,
-  );
-
   const validReplacementItems = replacementItems.filter(
     (item) =>
       item.itemCategoryId > 0 &&
@@ -835,7 +933,11 @@ function MaintenanceDetailModal({
   const canSubmitReplacement =
     replacementAvailability !== null &&
     (replacementAvailability
-      ? selectedReplacementAssetId !== ''
+      ? selectedReplacementAssetId !== '' &&
+        replacementAssets.some(
+          (asset) => asset.assetId === selectedReplacementAssetId,
+        ) &&
+        !isLoadingReplacementAssets
       : replacementSubject.trim() !== '' &&
         validReplacementItems.length === replacementItems.length &&
         replacementItems.length > 0);
@@ -869,10 +971,6 @@ function MaintenanceDetailModal({
   };
 
   // SEND REPLACEMENT
-  const availableSendReplacementAssets = assets.filter(
-    (asset) => asset.isShared,
-  );
-
   const handleSendReplacement = async () => {
     if (selectedSendReplacementAssetId === '') return;
 
@@ -1031,1479 +1129,264 @@ function MaintenanceDetailModal({
         ) : ticket ? (
           <div className="space-y-6 p-6">
             {/* TICKET INFORMATION */}
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                Ticket Number
-              </p>
-              <p className="mt-1 font-semibold text-blue-600">
-                {ticket.ticketNumber}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <div>
-                <p className="text-xs text-slate-400">Subject</p>
-                <p className="mt-1 text-sm font-medium text-slate-800">
-                  {ticket.subject}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-slate-400">Requester</p>
-                <p className="mt-1 text-sm font-medium text-slate-800">
-                  {ticket.employeeName || '-'}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-slate-400">Assigned Handler</p>
-                <p className="mt-1 text-sm font-medium text-slate-800">
-                  {ticket.assignedTo || '-'}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-slate-400">Created Date</p>
-                <p className="mt-1 text-sm font-medium text-slate-800">
-                  {formatDate(ticket.createdAt)}
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs text-slate-400">Current Step</p>
-              <p className="mt-1 text-sm font-semibold text-slate-800">
-                {ticket.currentStep}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-xs text-slate-400">Description</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
-                {ticket.description || '-'}
-              </p>
-            </div>
-
-            {/* ASSET INFORMATION */}
-            <div className="rounded-xl border border-slate-200 p-4">
-              <h3 className="text-sm font-semibold text-slate-800">
-                Asset Information
-              </h3>
-
-              {ticket.maintenanceDetail ? (
-                <div className="mt-3 space-y-2 text-sm">
-                  <p>
-                    <span className="text-slate-400">Asset Tag: </span>
-                    <span className="font-medium text-slate-700">
-                      {ticket.maintenanceDetail.assetTag || '-'}
-                    </span>
-                  </p>
-
-                  <p>
-                    <span className="text-slate-400">
-                      Problem Description:{' '}
-                    </span>
-                    <span className="text-slate-700">
-                      {ticket.maintenanceDetail.description || '-'}
-                    </span>
-                  </p>
-
-                  <p>
-                    <span className="text-slate-400">Handler Note: </span>
-                    <span className="text-slate-700">
-                      {ticket.maintenanceDetail.handlerNote || '-'}
-                    </span>
-                  </p>
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-slate-400">
-                  No maintenance detail available.
-                </p>
-              )}
-            </div>
+            <MaintenanceTicketInfo ticket={ticket} />
 
             {/* WORKFLOW HISTORY */}
-            <div>
-              <h3 className="text-sm font-semibold text-slate-800">
-                Workflow History
-              </h3>
+            <MaintenanceWorkflowHistory ticket={ticket} />
 
-              <div className="mt-3 space-y-3">
-                {ticket.history?.length ? (
-                  ticket.history.map((item, index) => (
-                    <div
-                      key={`${item.createdAt}-${index}`}
-                      className="rounded-xl border border-slate-100 p-4"
-                    >
-                      <p className="text-sm font-semibold text-slate-800">
-                        {item.actionLabel}
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-500">
-                        {item.fromStep} → {item.toStep}
-                      </p>
-
-                      <p className="mt-2 text-xs text-slate-500">
-                        {item.employeeName || 'System'} ·{' '}
-                        {formatDate(item.createdAt)}
-                      </p>
-
-                      {item.note && (
-                        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
-                          {item.note}
-                        </p>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-slate-400">
-                    No workflow history available.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* ERROR */}
-            {(error || actionError) && (
-              <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-                <AlertCircle
-                  size={18}
-                  className="mt-0.5 shrink-0 text-red-500"
-                />
-                <p className="text-sm text-red-700">
-                  {error || actionError}
-                </p>
-              </div>
-            )}
-
-            {hasActions ? (
-              <div className="space-y-4 border-t border-slate-100 pt-5">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-800">
-                    Maintenance Actions
-                  </h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Available actions depend on your role and the current workflow step.
-                  </p>
-                </div>
-
-                {/* ASSIGN HANDLER */}
-                {showAssignmentAction && (
-                  <div className="space-y-3 rounded-xl border border-slate-200 p-4">
-                    <div className="flex items-center gap-2">
-                      <UserRoundCog size={18} className="text-blue-600" />
-                      <h4 className="text-sm font-semibold text-slate-800">
-                        Assign Maintenance Handler
-                      </h4>
-                    </div>
-
-                    <div>
-                      <div className="mb-2 flex items-center justify-between">
-                        <label
-                          htmlFor="maintenanceHandler"
-                          className="text-sm font-medium text-slate-700"
-                        >
-                          Select Handler
-                        </label>
-
-                        <button
-                          type="button"
-                          onClick={onRefreshHandlers}
-                          disabled={isLoadingHandlers || isProcessing}
-                          className="text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
-                        >
-                          {isLoadingHandlers ? 'Refreshing...' : 'Refresh'}
-                        </button>
-                      </div>
-
-                      <select
-                        id="maintenanceHandler"
-                        value={selectedHandlerId}
-                        onChange={(event) =>
-                          setSelectedHandlerId(event.target.value)
-                        }
-                        disabled={
-                          isLoadingHandlers ||
-                          isProcessing ||
-                          handlers.length === 0
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 disabled:bg-slate-100"
-                      >
-                        <option value="">
-                          {isLoadingHandlers
-                            ? 'Loading maintenance handlers...'
-                            : handlers.length === 0
-                              ? 'No handlers available'
-                              : 'Select a maintenance handler'}
-                        </option>
-
-                        {handlers.map((handler) => (
-                          <option
-                            key={handler.employeeId}
-                            value={handler.employeeId}
-                          >
-                            {handler.fullName} ({handler.employeeNumber})
-                          </option>
-                        ))}
-                      </select>
-
-                      {handlerError && (
-                        <p className="mt-2 text-xs text-red-600">
-                          {handlerError}
-                        </p>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleAssignHandler}
-                      disabled={
-                        isProcessing ||
-                        isLoadingHandlers ||
-                        !selectedHandlerId
-                      }
-                      className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      {isProcessing ? (
-                        <LoaderCircle size={17} className="animate-spin" />
-                      ) : (
-                        <UserRoundCog size={17} />
-                      )}
-                      Assign Handler
-                    </button>
-                  </div>
-                )}
-
-                {/* SHARED ACTION NOTE */}
-                <div>
-                  <label
-                    htmlFor="maintenanceActionNote"
-                    className="mb-2 block text-sm font-medium text-slate-700"
-                  >
-                    Action Note
-                    {ticket.canReject && (
-                      <span className="ml-1 text-red-500">*</span>
-                    )}
-                  </label>
-
-                  <textarea
-                    id="maintenanceActionNote"
-                    value={note}
-                    onChange={(event) => setNote(event.target.value)}
-                    rows={3}
-                    placeholder="Write a note or additional information..."
-                    disabled={isProcessing}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 disabled:bg-slate-50"
-                  />
-
-                  {ticket.canReject && (
-                    <p className="mt-1 text-xs text-slate-400">
-                      A rejection reason is required.
+            {/* ERROR & MAINTENANCE ACTIONS */}
+            <MaintenanceActionSection
+              error={error}
+              actionError={actionError}
+            >
+              {hasActions ? (
+                <div className="space-y-4 border-t border-slate-100 pt-5">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800">
+                      Maintenance Actions
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Available actions depend on your role and the current workflow step.
                     </p>
+                  </div>
+
+                  {/* ASSIGN HANDLER */}
+                  {showAssignmentAction && (
+                    <AssignMaintenanceHandler
+                      handlers={handlers}
+                      selectedHandlerId={selectedHandlerId}
+                      setSelectedHandlerId={setSelectedHandlerId}
+                      isLoadingHandlers={isLoadingHandlers}
+                      isProcessing={isProcessing}
+                      handlerError={handlerError}
+                      onRefreshHandlers={onRefreshHandlers}
+                      onAssignHandler={handleAssignHandler}
+                    />
                   )}
-                </div>
 
-                {/* APPROVE / REJECT */}
-                {showDecisionActions && (
-                  <div className="flex flex-wrap justify-end gap-3">
-                    {ticket.canReject && (
-                      <button
-                        type="button"
-                        onClick={handleReject}
-                        disabled={isProcessing || !note.trim()}
-                        className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                      >
-                        {isProcessing ? (
-                          <LoaderCircle size={17} className="animate-spin" />
-                        ) : (
-                          <XCircle size={17} />
-                        )}
-                        Reject
-                      </button>
-                    )}
-
-                    {ticket.canApprove && (
-                      <button
-                        type="button"
-                        onClick={handleApprove}
-                        disabled={isProcessing}
-                        className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                      >
-                        {isProcessing ? (
-                          <LoaderCircle size={17} className="animate-spin" />
-                        ) : (
-                          <CheckCircle size={17} />
-                        )}
-                        Approve
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* DIVISION MANAGER: ARCHIVE / DISPOSE */}
-                {showDispositionActions && (
-                  <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-                    <div>
-                      <h4 className="text-sm font-semibold text-slate-800">
-                        Asset Disposition Decision
-                      </h4>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Decide whether the unrepairable asset should be archived or disposed.
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap justify-end gap-3">
-                      {ticket.canArchive && (
-                        <button
-                          type="button"
-                          onClick={handleArchive}
-                          disabled={isProcessing}
-                          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                        >
-                          <ClipboardCheck size={17} />
-                          Archive
-                        </button>
+                  {/* SHARED ACTION NOTE */}
+                  <div>
+                    <label
+                      htmlFor="maintenanceActionNote"
+                      className="mb-2 block text-sm font-medium text-slate-700"
+                    >
+                      Action Note
+                      {ticket.canReject && (
+                        <span className="ml-1 text-red-500">*</span>
                       )}
+                    </label>
 
-                      {ticket.canDispose && (
-                        <button
-                          type="button"
-                          onClick={handleDispose}
-                          disabled={isProcessing}
-                          className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                        >
-                          <Trash2 size={17} />
-                          Dispose
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* HANDLER: SUBMIT REPAIR RESULT */}
-                {showSubmitRepairResultAction && (
-                  <div className="space-y-4 rounded-xl border border-blue-200 bg-blue-50/50 p-4">
-                    <div>
-                      <h4 className="text-sm font-semibold text-slate-800">
-                        Submit Repair Result
-                      </h4>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Select the result of the maintenance inspection or repair.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="repairResult"
-                        className="mb-2 block text-sm font-medium text-slate-700"
-                      >
-                        Repair Decision
-                      </label>
-
-                      <select
-                        id="repairResult"
-                        value={repairResult}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setRepairResult(
-                            value ? (Number(value) as RepairResult) : '',
-                          );
-                        }}
-                        disabled={isProcessing}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100"
-                      >
-                        <option value="">Select repair result</option>
-                        <option value={1}>Repaired</option>
-                        <option value={2}>Unrepairable</option>
-                        <option value={3}>Need Part</option>
-                      </select>
-                    </div>
-
-                    {repairResult === 3 && (
-                      <MaintenanceRepairPartsForm
-                        parts={repairParts}
-                        spareParts={spareParts}
-                        categories={sparePartCategories}
-                        isLoadingOptions={isLoadingSparePartOptions}
-                        optionsError={sparePartOptionsError}
-                        isProcessing={isProcessing}
-                        onAddPart={handleAddRepairPart}
-                        onRemovePart={handleRemoveRepairPart}
-                        onToggleCustom={handleToggleCustomPart}
-                        onSelectInventoryPart={handleSelectInventoryPart}
-                        onUpdateField={handleUpdateRepairPartField}
-                        onRetry={() => void refetchSparePartOptions()}
-                      />
-                    )}
-
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={handleSubmitRepairResult}
-                        disabled={isProcessing || !canSubmitRepair}
-                        className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                      >
-                        {isProcessing ? (
-                          <LoaderCircle size={17} className="animate-spin" />
-                        ) : (
-                          <CheckCircle size={17} />
-                        )}
-                        Submit Repair Result
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* INVENTORY: CHECK PART */}
-                {showCheckPartAction && (
-                  <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-                    <div>
-                      <h4 className="text-sm font-semibold text-slate-800">
-                        Spare Part Availability Check
-                      </h4>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Check the requested spare parts in Inventory before recording the availability decision.
-                      </p>
-                    </div>
-
-                    <InventoryPartComparisonTable
-                      requiredParts={requiredParts}
-                      spareParts={spareParts}
-                      isLoading={isLoadingSparePartOptions}
-                      error={sparePartOptionsError}
-                      onRetry={() => void refetchSparePartOptions()}
+                    <textarea
+                      id="maintenanceActionNote"
+                      value={note}
+                      onChange={(event) => setNote(event.target.value)}
+                      rows={3}
+                      placeholder="Write a note or additional information..."
+                      disabled={isProcessing}
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 disabled:bg-slate-50"
                     />
 
-                    {!canConfirmAvailable && (
-                      <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-xs text-amber-900">
-                        <AlertCircle
-                          size={16}
-                          className="mt-0.5 shrink-0 text-amber-600"
-                        />
-                        <div className="leading-relaxed">
-                          <p className="font-semibold text-amber-900">
-                            Available Option Locked
-                          </p>
-                          <p className="mt-0.5 text-amber-800">
-                            You cannot mark parts as <strong>Available</strong>{' '}
-                            because one or more requested items are not registered
-                            in warehouse inventory or have insufficient stock.
-                            You must select <strong>Not Available</strong> to proceed
-                            to spare part procurement.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (canConfirmAvailable) {
-                            setPartAvailability(true);
-                          }
-                        }}
-                        disabled={isProcessing || !canConfirmAvailable}
-                        title={
-                          !canConfirmAvailable
-                            ? 'Cannot select Available: items are missing from inventory or out of stock'
-                            : undefined
-                        }
-                        className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-                          !canConfirmAvailable
-                            ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-60'
-                            : partAvailability === true
-                              ? 'border-green-500 bg-green-100 text-green-700'
-                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                        }`}
-                      >
-                        <CheckCircle size={17} className="mx-auto mb-1" />
-                        Available
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPartAvailability(false)}
-                        disabled={isProcessing}
-                        className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-                          partAvailability === false
-                            ? 'border-red-500 bg-red-100 text-red-700'
-                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                        }`}
-                      >
-                        <XCircle size={17} className="mx-auto mb-1" />
-                        Not Available
-                      </button>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={handleCheckPart}
-                        disabled={
-                          isProcessing ||
-                          partAvailability === null ||
-                          (partAvailability === true && !canConfirmAvailable)
-                        }
-                        className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                      >
-                        {isProcessing ? (
-                          <LoaderCircle size={17} className="animate-spin" />
-                        ) : (
-                          <ClipboardCheck size={17} />
-                        )}
-                        Submit Availability
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* HANDLER: CREATE SPARE PART PROCUREMENT */}
-                {showOrderPartAction && (
-                  <div className="space-y-4 rounded-xl border border-orange-200 bg-orange-50/50 p-4">
-                    <div>
-                      <h4 className="text-sm font-semibold text-slate-800">
-                        Create Spare Part Procurement
-                      </h4>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Create a standard Procurement request for the spare parts required by this maintenance ticket.
+                    {ticket.canReject && (
+                      <p className="mt-1 text-xs text-slate-400">
+                        A rejection reason is required.
                       </p>
-                    </div>
-
-                    {requiredParts.length > 0 && (
-                      <div className="rounded-lg border border-orange-100 bg-white p-3">
-                        <p className="mb-2 text-xs font-semibold text-slate-600">
-                          Handler Spare Part Requirements
-                        </p>
-
-                        <div className="space-y-2">
-                          {requiredParts.map((part, index) => (
-                            <div
-                              key={`${part.itemName}-${index}`}
-                              className="flex items-center justify-between text-sm"
-                            >
-                              <div>
-                                <span className="font-medium text-slate-800">
-                                  {index + 1}. {part.itemName}
-                                </span>
-                                {part.note && (
-                                  <p className="mt-1 whitespace-pre-wrap text-xs text-slate-500">
-                                    {part.note}
-                                  </p>
-                                )}
-                              </div>
-                              {part.quantity && (
-                                <span className="rounded-md bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">
-                                  Qty: {part.quantity}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
                     )}
+                  </div>
 
-                    <div>
-                      <label
-                        htmlFor="orderPartSubject"
-                        className="mb-1 block text-xs font-medium text-slate-600"
-                      >
-                        Subject
-                      </label>
+                  {/* APPROVE / REJECT */}
+                  {showDecisionActions && (
+                    <MaintenanceDecisionActions
+                      canReject={ticket.canReject}
+                      canApprove={ticket.canApprove}
+                      isProcessing={isProcessing}
+                      note={note}
+                      onReject={handleReject}
+                      onApprove={handleApprove}
+                    />
+                  )}
 
-                      <input
-                        id="orderPartSubject"
-                        type="text"
-                        value={orderPartSubject}
-                        onChange={(event) =>
-                          setOrderPartSubject(event.target.value)
-                        }
-                        placeholder={`Spare Part Procurement - ${ticket.ticketNumber}`}
-                        disabled={isProcessing}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-500"
-                      />
-                    </div>
+                  {/* DIVISION MANAGER: ARCHIVE / DISPOSE */}
+                  {showDispositionActions && (
+                    <MaintenanceDispositionActions
+                      canArchive={ticket.canArchive}
+                      canDispose={ticket.canDispose}
+                      isProcessing={isProcessing}
+                      onArchive={handleArchive}
+                      onDispose={handleDispose}
+                    />
+                  )}
 
-                    <div>
-                      <label
-                        htmlFor="orderPartDescription"
-                        className="mb-1 block text-xs font-medium text-slate-600"
-                      >
-                        Description
-                      </label>
+                  {/* HANDLER: SUBMIT REPAIR RESULT */}
+                  {showSubmitRepairResultAction && (
+                    <SubmitRepairResult
+                      repairResult={repairResult}
+                      setRepairResult={setRepairResult}
+                      repairParts={repairParts}
+                      isProcessing={isProcessing}
+                      canSubmitRepair={canSubmitRepair}
+                      onAddRepairPart={handleAddRepairPart}
+                      onRemoveRepairPart={handleRemoveRepairPart}
+                      onUpdateRepairPart={handleUpdateRepairPart}
+                      onSubmitRepairResult={handleSubmitRepairResult}
+                    />
+                  )}
 
-                      <textarea
-                        id="orderPartDescription"
-                        value={orderPartDescription}
-                        onChange={(event) =>
-                          setOrderPartDescription(event.target.value)
-                        }
-                        rows={2}
-                        placeholder={`Procurement for maintenance ticket ${ticket.ticketNumber}.`}
-                        disabled={isProcessing}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-500"
-                      />
-                    </div>
+                  {/* INVENTORY: CHECK PART */}
+                  {showCheckPartAction && (
+                    <CheckSparePartAvailability
+                      partAvailability={partAvailability}
+                      isProcessing={isProcessing}
+                      onSetPartAvailability={setPartAvailability}
+                      onCheckPart={handleCheckPart}
+                    />
+                  )}
 
-                    {orderPartItems.map((item, index) => {
-                      const categoryId = String(item.itemCategoryId || '');
-                      const availableItems =
-                        inventoryItemsByCategory[categoryId] ?? [];
-                      const isLoadingItems =
-                        loadingItems[categoryId] ?? false;
-                      const itemError = itemErrors[categoryId] ?? '';
-                      const isManual = orderPartManualItems[index] ?? false;
+                  {/* HANDLER: CREATE SPARE PART PROCUREMENT */}
+                  {showOrderPartAction && (
+                    <CreateSparePartProcurement
+                      ticketNumber={ticket.ticketNumber}
+                      requiredParts={requiredParts}
+                      orderPartSubject={orderPartSubject}
+                      setOrderPartSubject={setOrderPartSubject}
+                      orderPartDescription={orderPartDescription}
+                      setOrderPartDescription={setOrderPartDescription}
+                      orderPartItems={orderPartItems}
+                      orderPartManualItems={orderPartManualItems}
+                      categories={categories}
+                      isLoadingCategories={isLoadingCategories}
+                      categoryError={categoryError}
+                      inventoryItemsByCategory={inventoryItemsByCategory}
+                      loadingItems={loadingItems}
+                      itemErrors={itemErrors}
+                      isProcessing={isProcessing}
+                      canSubmitOrderPart={canSubmitOrderPart}
+                      totalOrderPartPrice={totalOrderPartPrice}
+                      onCategoryChange={handleOrderPartCategoryChange}
+                      onItemChange={handleOrderPartItemChange}
+                      onToggleManualItem={handleToggleOrderPartManualItem}
+                      onManualNameChange={handleOrderPartManualNameChange}
+                      onFieldChange={handleOrderPartFieldChange}
+                      onAddItem={handleAddOrderPartItem}
+                      onRemoveItem={handleRemoveOrderPartItem}
+                      onSubmit={handleOrderPart}
+                    />
+                  )}
 
-                      return (
-                        <div
-                          key={index}
-                          className="space-y-3 rounded-lg border border-slate-200 bg-white p-3"
-                        >
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold text-slate-600">
-                              Procurement Item #{index + 1}
-                            </p>
-
-                            {orderPartItems.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveOrderPartItem(index)}
-                                disabled={isProcessing}
-                                className="inline-flex items-center gap-1 text-xs font-medium text-red-600"
-                              >
-                                <Trash2 size={13} />
-                                Remove
-                              </button>
-                            )}
-                          </div>
-
-                          <div>
-                            <label
-                              htmlFor={`orderPartCategory-${index}`}
-                              className="mb-1 block text-xs font-medium text-slate-600"
-                            >
-                              Category
-                            </label>
-
-                            <select
-                              id={`orderPartCategory-${index}`}
-                              value={categoryId}
-                              onChange={(event) =>
-                                handleOrderPartCategoryChange(
-                                  index,
-                                  event.target.value,
-                                )
-                              }
-                              disabled={isProcessing || isLoadingCategories}
-                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-500"
-                            >
-                              <option value="">
-                                {isLoadingCategories
-                                  ? 'Loading categories...'
-                                  : 'Select category'}
-                              </option>
-
-                              {categories.map((category) => (
-                                <option
-                                  key={category.id}
-                                  value={String(category.id)}
-                                >
-                                  {category.categoryName}
-                                </option>
-                              ))}
-                            </select>
-
-                            {categoryError && (
-                              <p className="mt-1 text-xs text-red-600">
-                                {categoryError}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleToggleOrderPartManualItem(index)
-                              }
-                              disabled={isProcessing || !item.itemCategoryId}
-                              className="text-xs font-semibold text-orange-600 disabled:opacity-50"
-                            >
-                              {isManual
-                                ? 'Switch to Inventory Item'
-                                : 'Enter Item Manually'}
-                            </button>
-                          </div>
-
-                          <div>
-                            <label
-                              htmlFor={`orderPartItem-${index}`}
-                              className="mb-1 block text-xs font-medium text-slate-600"
-                            >
-                              Item
-                            </label>
-
-                            {isManual ? (
-                              <input
-                                id={`orderPartItem-${index}`}
-                                type="text"
-                                value={item.itemName}
-                                onChange={(event) =>
-                                  handleOrderPartManualNameChange(
-                                    index,
-                                    event.target.value,
-                                  )
-                                }
-                                placeholder="Enter item name manually"
-                                disabled={isProcessing || !item.itemCategoryId}
-                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-500"
-                              />
-                            ) : (
-                              <select
-                                id={`orderPartItem-${index}`}
-                                value={item.itemId ? String(item.itemId) : ''}
-                                onChange={(event) =>
-                                  handleOrderPartItemChange(
-                                    index,
-                                    event.target.value,
-                                  )
-                                }
-                                disabled={
-                                  isProcessing ||
-                                  !item.itemCategoryId ||
-                                  isLoadingItems
-                                }
-                                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-500"
-                              >
-                                <option value="">
-                                  {!item.itemCategoryId
-                                    ? 'Select category first'
-                                    : isLoadingItems
-                                      ? 'Loading items...'
-                                      : availableItems.length === 0
-                                        ? 'No items available'
-                                        : 'Select inventory item'}
-                                </option>
-
-                                {availableItems.map((inventoryItem) => (
-                                  <option
-                                    key={inventoryItem.id}
-                                    value={String(inventoryItem.id)}
-                                  >
-                                    {inventoryItem.itemName}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-
-                            {itemError && (
-                              <p className="mt-1 text-xs text-red-600">
-                                {itemError}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label
-                                htmlFor={`orderPartQuantity-${index}`}
-                                className="mb-1 block text-xs font-medium text-slate-600"
-                              >
-                                Quantity
-                              </label>
-
-                              <input
-                                id={`orderPartQuantity-${index}`}
-                                type="number"
-                                min="1"
-                                step="1"
-                                value={item.quantity}
-                                onChange={(event) =>
-                                  handleOrderPartFieldChange(
-                                    index,
-                                    'quantity',
-                                    event.target.value === ''
-                                      ? 0
-                                      : Math.max(0, Number(event.target.value)),
-                                  )
-                                }
-                                disabled={isProcessing}
-                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-500"
-                              />
-                            </div>
-
-                            <div>
-                              <label
-                                htmlFor={`orderPartPrice-${index}`}
-                                className="mb-1 block text-xs font-medium text-slate-600"
-                              >
-                                Estimated Price
-                              </label>
-
-                              <input
-                                id={`orderPartPrice-${index}`}
-                                type="number"
-                                min="0"
-                                step="1"
-                                value={item.price}
-                                onChange={(event) =>
-                                  handleOrderPartFieldChange(
-                                    index,
-                                    'price',
-                                    event.target.value === ''
-                                      ? 0
-                                      : Math.max(0, Number(event.target.value)),
-                                  )
-                                }
-                                disabled={isProcessing}
-                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-500"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                            <span className="text-xs text-slate-500">
-                              Estimated Subtotal
-                            </span>
-                            <span className="text-sm font-semibold text-slate-800">
-                              {formatIDR(item.quantity * item.price)}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    <button
-                      type="button"
-                      onClick={handleAddOrderPartItem}
-                      disabled={isProcessing}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-orange-600"
-                    >
-                      <Plus size={14} />
-                      Add Procurement Item
-                    </button>
-
-                    <div className="flex items-center justify-between border-t border-orange-200 pt-3">
-                      <span className="text-sm font-semibold text-slate-700">
-                        Total Estimated Price
-                      </span>
-                      <span className="text-base font-bold text-orange-700">
-                        {formatIDR(totalOrderPartPrice)}
-                      </span>
-                    </div>
-
+                  {/* INVENTORY: SEND SPARE PARTS */}
+                  {showSendPartAction && (
                     <div className="flex justify-end">
                       <button
                         type="button"
-                        onClick={handleOrderPart}
-                        disabled={isProcessing || !canSubmitOrderPart}
-                        className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {isProcessing ? (
-                          <LoaderCircle size={17} className="animate-spin" />
-                        ) : (
-                          <Plus size={17} />
-                        )}
-                        Create Procurement Request
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* INVENTORY: SEND SPARE PARTS */}
-                {showSendPartAction && (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={handleSendPart}
-                      disabled={isProcessing}
-                      className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      {isProcessing ? (
-                        <LoaderCircle size={17} className="animate-spin" />
-                      ) : (
-                        <Send size={17} />
-                      )}
-                      Send Spare Parts
-                    </button>
-                  </div>
-                )}
-
-                {/* INVENTORY: REPLACEMENT DECISION */}
-                {showReplacementDecisionAction && (
-                  <div className="space-y-4 rounded-xl border border-purple-200 bg-purple-50/50 p-4">
-                    <div>
-                      <h4 className="text-sm font-semibold text-slate-800">
-                        Replacement Asset Decision
-                      </h4>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Check whether a replacement asset is available in Inventory.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="replacementAvailability"
-                        className="mb-2 block text-sm font-medium text-slate-700"
-                      >
-                        Inventory Decision
-                      </label>
-
-                      <select
-                        id="replacementAvailability"
-                        value={
-                          replacementAvailability === null
-                            ? ''
-                            : replacementAvailability
-                              ? 'available'
-                              : 'unavailable'
-                        }
-                        onChange={(event) => {
-                          const value = event.target.value;
-
-                          setReplacementAvailability(
-                            value === '' ? null : value === 'available',
-                          );
-
-                          setSelectedReplacementAssetId('');
-                        }}
+                        onClick={handleSendPart}
                         disabled={isProcessing}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-purple-500"
-                      >
-                        <option value="">Select inventory decision</option>
-                        <option value="available">Replacement Available</option>
-                        <option value="unavailable">Not Available</option>
-                      </select>
-                    </div>
-
-                    {replacementAvailability === true && (
-                      <div>
-                        <label
-                          htmlFor="replacementAsset"
-                          className="mb-2 block text-sm font-medium text-slate-700"
-                        >
-                          Select Replacement Asset
-                        </label>
-
-                        <select
-                          id="replacementAsset"
-                          value={selectedReplacementAssetId}
-                          onChange={(event) =>
-                            setSelectedReplacementAssetId(
-                              event.target.value
-                                ? Number(event.target.value)
-                                : '',
-                            )
-                          }
-                          disabled={
-                            isProcessing ||
-                            availableReplacementAssets.length === 0
-                          }
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-purple-500"
-                        >
-                          <option value="">Select available asset</option>
-                          {availableReplacementAssets.map((asset) => (
-                            <option
-                              key={asset.assetId}
-                              value={asset.assetId}
-                            >
-                              {asset.assetTag} - {asset.itemName}
-                            </option>
-                          ))}
-                        </select>
-
-                        {availableReplacementAssets.length === 0 && (
-                          <p className="mt-2 text-xs text-red-600">
-                            No replacement assets are available.
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {replacementAvailability === false && (
-                      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-                        <h5 className="text-sm font-semibold text-slate-800">
-                          Create Replacement Procurement
-                        </h5>
-
-                        <div>
-                          <label
-                            htmlFor="replacementSubject"
-                            className="mb-1 block text-xs font-medium text-slate-600"
-                          >
-                            Subject
-                          </label>
-                          <input
-                            id="replacementSubject"
-                            type="text"
-                            value={replacementSubject}
-                            onChange={(event) =>
-                              setReplacementSubject(event.target.value)
-                            }
-                            placeholder="Replacement Asset Procurement"
-                            disabled={isProcessing}
-                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-purple-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label
-                            htmlFor="replacementDescription"
-                            className="mb-1 block text-xs font-medium text-slate-600"
-                          >
-                            Description
-                          </label>
-                          <textarea
-                            id="replacementDescription"
-                            value={replacementDescription}
-                            onChange={(event) =>
-                              setReplacementDescription(event.target.value)
-                            }
-                            rows={2}
-                            placeholder="Procurement description..."
-                            disabled={isProcessing}
-                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-purple-500"
-                          />
-                        </div>
-
-                        {replacementItems.map((item, index) => {
-                          const categoryId = String(
-                            item.itemCategoryId || '',
-                          );
-
-                          const availableItems =
-                            inventoryItemsByCategory[categoryId] ?? [];
-
-                          const isLoadingItems =
-                            loadingItems[categoryId] ?? false;
-
-                          const itemError = itemErrors[categoryId] ?? '';
-                          const isManual =
-                            replacementManualItems[index] ?? false;
-
-                          return (
-                            <div
-                              key={index}
-                              className="space-y-3 rounded-lg border border-slate-200 p-3"
-                            >
-                              <div className="flex items-center justify-between">
-                                <p className="text-xs font-semibold text-slate-600">
-                                  Procurement Item #{index + 1}
-                                </p>
-
-                                {replacementItems.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleRemoveReplacementItem(index)
-                                    }
-                                    disabled={isProcessing}
-                                    className="inline-flex items-center gap-1 text-xs font-medium text-red-600"
-                                  >
-                                    <Trash2 size={13} />
-                                    Remove Item
-                                  </button>
-                                )}
-                              </div>
-
-                              <div>
-                                <label
-                                  htmlFor={`replacementCategory-${index}`}
-                                  className="mb-1 block text-xs font-medium text-slate-600"
-                                >
-                                  Category
-                                </label>
-
-                                <select
-                                  id={`replacementCategory-${index}`}
-                                  value={categoryId}
-                                  onChange={(event) =>
-                                    handleReplacementCategoryChange(
-                                      index,
-                                      event.target.value,
-                                    )
-                                  }
-                                  disabled={
-                                    isProcessing || isLoadingCategories
-                                  }
-                                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-500"
-                                >
-                                  <option value="">
-                                    {isLoadingCategories
-                                      ? 'Loading categories...'
-                                      : 'Select category'}
-                                  </option>
-
-                                  {categories.map((category) => (
-                                    <option
-                                      key={category.id}
-                                      value={String(category.id)}
-                                    >
-                                      {category.categoryName}
-                                    </option>
-                                  ))}
-                                </select>
-
-                                {categoryError && (
-                                  <p className="mt-1 text-xs text-red-600">
-                                    {categoryError}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div className="flex justify-end">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleToggleReplacementManualItem(index)
-                                  }
-                                  disabled={
-                                    isProcessing || !item.itemCategoryId
-                                  }
-                                  className="text-xs font-semibold text-purple-600"
-                                >
-                                  {isManual
-                                    ? 'Switch to Inventory Item'
-                                    : 'Enter Item Manually'}
-                                </button>
-                              </div>
-
-                              <div>
-                                <label
-                                  htmlFor={`replacementItem-${index}`}
-                                  className="mb-1 block text-xs font-medium text-slate-600"
-                                >
-                                  Item
-                                </label>
-
-                                {isManual ? (
-                                  <input
-                                    id={`replacementItem-${index}`}
-                                    type="text"
-                                    value={item.itemName}
-                                    onChange={(event) =>
-                                      handleReplacementManualNameChange(
-                                        index,
-                                        event.target.value,
-                                      )
-                                    }
-                                    placeholder="Enter item name manually"
-                                    disabled={
-                                      isProcessing || !item.itemCategoryId
-                                    }
-                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-purple-500"
-                                  />
-                                ) : (
-                                  <select
-                                    id={`replacementItem-${index}`}
-                                    value={
-                                      item.itemId ? String(item.itemId) : ''
-                                    }
-                                    onChange={(event) =>
-                                      handleReplacementItemChange(
-                                        index,
-                                        event.target.value,
-                                      )
-                                    }
-                                    disabled={
-                                      isProcessing ||
-                                      !item.itemCategoryId ||
-                                      isLoadingItems
-                                    }
-                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-500"
-                                  >
-                                    <option value="">
-                                      {!item.itemCategoryId
-                                        ? 'Select category first'
-                                        : isLoadingItems
-                                          ? 'Loading items...'
-                                          : availableItems.length === 0
-                                            ? 'No items available'
-                                            : 'Select inventory item'}
-                                    </option>
-
-                                    {availableItems.map((inventoryItem) => (
-                                      <option
-                                        key={inventoryItem.id}
-                                        value={String(inventoryItem.id)}
-                                      >
-                                        {inventoryItem.itemName}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
-
-                                {itemError && (
-                                  <p className="mt-1 text-xs text-red-600">
-                                    {itemError}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <label
-                                    htmlFor={`replacementQuantity-${index}`}
-                                    className="mb-1 block text-xs font-medium text-slate-600"
-                                  >
-                                    Quantity
-                                  </label>
-                                  <input
-                                    id={`replacementQuantity-${index}`}
-                                    type="number"
-                                    value={1}
-                                    readOnly
-                                    disabled={isProcessing}
-                                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                                  />
-                                  <p className="mt-1 text-[11px] text-slate-400">
-                                    Maximum quantity is 1.
-                                  </p>
-                                </div>
-
-                                <div>
-                                  <label
-                                    htmlFor={`replacementPrice-${index}`}
-                                    className="mb-1 block text-xs font-medium text-slate-600"
-                                  >
-                                    Estimated Price
-                                  </label>
-                                  <input
-                                    id={`replacementPrice-${index}`}
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={item.price}
-                                    onChange={(event) =>
-                                      handleReplacementPriceChange(
-                                        index,
-                                        event.target.value === ''
-                                          ? 0
-                                          : Math.max(
-                                              0,
-                                              Number(event.target.value),
-                                            ),
-                                      )
-                                    }
-                                    disabled={isProcessing}
-                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-purple-500"
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                                <span className="text-xs text-slate-500">
-                                  Estimated Subtotal
-                                </span>
-                                <span className="text-sm font-semibold text-slate-800">
-                                  {formatIDR(item.price)}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        <button
-                          type="button"
-                          onClick={handleAddReplacementItem}
-                          disabled={isProcessing}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600"
-                        >
-                          <Plus size={14} />
-                          Add Procurement Item
-                        </button>
-
-                        <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-                          <span className="text-sm font-semibold text-slate-700">
-                            Total Estimated Price
-                          </span>
-                          <span className="text-base font-bold text-purple-700">
-                            {formatIDR(totalReplacementEstimatedPrice)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={handleProcessReplacement}
-                        disabled={isProcessing || !canSubmitReplacement}
-                        className="inline-flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                      >
-                        {isProcessing ? (
-                          <LoaderCircle size={17} className="animate-spin" />
-                        ) : (
-                          <ClipboardCheck size={17} />
-                        )}
-                        Submit Replacement Decision
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* INVENTORY: SEND REPLACEMENT */}
-                {showSendReplacementAction && (
-                  <div className="space-y-3 rounded-xl border border-green-200 bg-green-50/50 p-4">
-                    <div>
-                      <h4 className="text-sm font-semibold text-slate-800">
-                        Send Replacement Asset
-                      </h4>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Select an available asset from Inventory to replace the requester's damaged asset.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="sendReplacementAsset"
-                        className="mb-2 block text-sm font-medium text-slate-700"
-                      >
-                        Select Available Asset
-                      </label>
-
-                      <select
-                        id="sendReplacementAsset"
-                        value={selectedSendReplacementAssetId}
-                        onChange={(event) =>
-                          setSelectedSendReplacementAssetId(
-                            event.target.value
-                              ? Number(event.target.value)
-                              : '',
-                          )
-                        }
-                        disabled={
-                          isProcessing ||
-                          availableSendReplacementAssets.length === 0
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-green-500"
-                      >
-                        <option value="">
-                          {availableSendReplacementAssets.length === 0
-                            ? 'No available assets in Inventory'
-                            : 'Select an available asset'}
-                        </option>
-
-                        {availableSendReplacementAssets.map((asset) => (
-                          <option
-                            key={asset.assetId}
-                            value={asset.assetId}
-                          >
-                            {asset.assetTag} - {asset.itemName}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={handleSendReplacement}
-                        disabled={
-                          isProcessing ||
-                          selectedSendReplacementAssetId === ''
-                        }
-                        className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                        className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                       >
                         {isProcessing ? (
                           <LoaderCircle size={17} className="animate-spin" />
                         ) : (
                           <Send size={17} />
                         )}
-                        Send Replacement to Requester
+                        Send Spare Parts
                       </button>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* HANDLER: RECEIVE SPARE PARTS */}
-                {showReceivePartAction && (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
+                  {/* INVENTORY: REPLACEMENT DECISION */}
+                  {showReplacementDecisionAction && (
+                    <InventoryReplacementDecision
+                      replacementAvailability={replacementAvailability}
+                      selectedReplacementAssetId={selectedReplacementAssetId}
+                      replacementAssets={replacementAssets}
+                      isLoadingReplacementAssets={isLoadingReplacementAssets}
+                      replacementAssetError={replacementAssetError}
+                      replacementSubject={replacementSubject}
+                      setReplacementSubject={setReplacementSubject}
+                      replacementDescription={replacementDescription}
+                      setReplacementDescription={setReplacementDescription}
+                      replacementItems={replacementItems}
+                      replacementManualItems={replacementManualItems}
+                      categories={categories}
+                      isLoadingCategories={isLoadingCategories}
+                      categoryError={categoryError}
+                      inventoryItemsByCategory={inventoryItemsByCategory}
+                      loadingItems={loadingItems}
+                      itemErrors={itemErrors}
+                      isProcessing={isProcessing}
+                      canSubmitReplacement={canSubmitReplacement}
+                      totalReplacementEstimatedPrice={totalReplacementEstimatedPrice}
+                      onAvailabilityChange={handleReplacementAvailabilityChange}
+                      onReplacementAssetChange={setSelectedReplacementAssetId}
+                      onCategoryChange={handleReplacementCategoryChange}
+                      onToggleManualItem={handleToggleReplacementManualItem}
+                      onManualNameChange={handleReplacementManualNameChange}
+                      onItemChange={handleReplacementItemChange}
+                      onPriceChange={handleReplacementPriceChange}
+                      onRemoveItem={handleRemoveReplacementItem}
+                      onAddItem={handleAddReplacementItem}
+                      onProcessReplacement={handleProcessReplacement}
+                    />
+                  )}
+
+                  {/* INVENTORY: SEND REPLACEMENT */}
+                  {showSendReplacementAction && (
+                    <SendMaintenanceReplacement
+                      assets={replacementAssets}
+                      selectedAssetId={selectedSendReplacementAssetId}
+                      isProcessing={isProcessing}
+                      onAssetChange={setSelectedSendReplacementAssetId}
+                      onSendReplacement={handleSendReplacement}
+                    />
+                  )}
+
+                  {/* HANDLER: RECEIVE SPARE PARTS */}
+                  {showReceivePartAction && (
+                    <MaintenanceTransferActions
+                      type="receive-parts"
+                      isProcessing={isProcessing}
                       onClick={handleReceivePart}
-                      disabled={isProcessing}
-                      className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      {isProcessing ? (
-                        <LoaderCircle size={17} className="animate-spin" />
-                      ) : (
-                        <CheckCircle size={17} />
-                      )}
-                      Receive Spare Parts
-                    </button>
-                  </div>
-                )}
+                    />
+                  )}
 
-                {/* REQUESTER: SEND ITEM */}
-                {showSendItemAction && (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
+                  {/* REQUESTER: SEND ITEM */}
+                  {showSendItemAction && (
+                    <MaintenanceTransferActions
+                      type="send-item"
+                      isProcessing={isProcessing}
                       onClick={handleSendItem}
-                      disabled={isProcessing}
-                      className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      {isProcessing ? (
-                        <LoaderCircle size={17} className="animate-spin" />
-                      ) : (
-                        <Send size={17} />
-                      )}
-                      Send Item
-                    </button>
-                  </div>
-                )}
+                    />
+                  )}
 
-                {/* HANDLER: RECEIVE ITEM */}
-                {showReceiveItemAction && (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
+                  {/* HANDLER: RECEIVE ITEM */}
+                  {showReceiveItemAction && (
+                    <MaintenanceTransferActions
+                      type="receive-item"
+                      isProcessing={isProcessing}
                       onClick={handleReceiveItem}
-                      disabled={isProcessing}
-                      className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      {isProcessing ? (
-                        <LoaderCircle size={17} className="animate-spin" />
-                      ) : (
-                        <CheckCircle size={17} />
-                      )}
-                      Receive Item
-                    </button>
-                  </div>
-                )}
+                    />
+                  )}
 
-                {/* REQUESTER: CLOSE TICKET */}
-                {showCloseTicketAction && (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
+                  {/* REQUESTER: CLOSE TICKET */}
+                  {showCloseTicketAction && (
+                    <MaintenanceTransferActions
+                      type="close-ticket"
+                      isProcessing={isProcessing}
                       onClick={handleCloseTicket}
-                      disabled={isProcessing}
-                      className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      {isProcessing ? (
-                        <LoaderCircle size={17} className="animate-spin" />
-                      ) : (
-                        <CheckCircle size={17} />
-                      )}
-                      Close Ticket
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex justify-end border-t border-slate-100 pt-4">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  disabled={isProcessing}
-                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 disabled:opacity-50"
-                >
-                  Close
-                </button>
-              </div>
-            )}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="flex justify-end border-t border-slate-100 pt-4">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    disabled={isProcessing}
+                    className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 disabled:opacity-50"
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
+            </MaintenanceActionSection>
           </div>
         ) : null}
       </div>
