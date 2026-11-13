@@ -87,12 +87,12 @@ export function AssetDistributionChart() {
       </div>
 
       {isLoading && !statistics ? (
-        <div className="mt-8 flex animate-pulse flex-col items-center gap-8 sm:flex-row">
-          <div className="h-44 w-44 rounded-full bg-slate-200" />
+        <div className="mt-8 flex flex-col items-center gap-8 sm:flex-row">
+          <div className="h-44 w-44 rounded-full bg-slate-100" />
           <div className="w-full space-y-4">
-            <div className="h-14 rounded-xl bg-slate-200" />
-            <div className="h-14 rounded-xl bg-slate-200" />
-            <div className="h-14 rounded-xl bg-slate-200" />
+            <div className="h-14 rounded-xl bg-slate-100" />
+            <div className="h-14 rounded-xl bg-slate-100" />
+            <div className="h-14 rounded-xl bg-slate-100" />
           </div>
         </div>
       ) : (
@@ -101,7 +101,7 @@ export function AssetDistributionChart() {
           <div className="flex flex-col items-center gap-8 lg:flex-row">
             {/* DONUT CHART */}
             <div
-              className="relative flex h-48 w-48 shrink-0 items-center justify-center rounded-full shadow-xs transition-all duration-700"
+              className="relative flex h-48 w-48 shrink-0 items-center justify-center rounded-full"
               style={{
                 background:
                   total > 0
@@ -109,7 +109,7 @@ export function AssetDistributionChart() {
                     : '#f1f5f9',
               }}
             >
-              <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full bg-white shadow-inner">
+              <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full bg-white text-center">
                 <span className="text-2xl font-bold text-slate-800">
                   {total.toLocaleString()}
                 </span>
@@ -127,7 +127,7 @@ export function AssetDistributionChart() {
             {/* BREAKDOWN CARDS */}
             <div className="w-full space-y-3.5">
               {/* ASSETS IN USE (BLUE) */}
-              <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 transition hover:bg-slate-50">
+              <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 hover:bg-slate-50">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
@@ -155,14 +155,14 @@ export function AssetDistributionChart() {
 
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
                   <div
-                    className="h-full rounded-full bg-blue-600 transition-all duration-700"
+                    className="h-full rounded-full bg-blue-600"
                     style={{ width: `${inUsePct}%` }}
                   />
                 </div>
               </div>
 
               {/* AVAILABLE ASSETS (EMERALD GREEN) */}
-              <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 transition hover:bg-slate-50">
+              <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 hover:bg-slate-50">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
@@ -190,14 +190,14 @@ export function AssetDistributionChart() {
 
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
                   <div
-                    className="h-full rounded-full bg-emerald-500 transition-all duration-700"
+                    className="h-full rounded-full bg-emerald-500"
                     style={{ width: `${availablePct}%` }}
                   />
                 </div>
               </div>
 
               {/* UNDER MAINTENANCE (AMBER) */}
-              <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 transition hover:bg-slate-50">
+              <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 hover:bg-slate-50">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
@@ -225,7 +225,7 @@ export function AssetDistributionChart() {
 
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
                   <div
-                    className="h-full rounded-full bg-amber-500 transition-all duration-700"
+                    className="h-full rounded-full bg-amber-500"
                     style={{ width: `${maintPct}%` }}
                   />
                 </div>

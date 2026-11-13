@@ -47,7 +47,7 @@ export function TicketTypeDistributionChart({
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300">
+    <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
       {/* HEADER */}
       <div className="flex items-center justify-between border-b border-slate-100 pb-4">
         <div className="flex items-center gap-3">
@@ -69,38 +69,39 @@ export function TicketTypeDistributionChart({
         </span>
       </div>
 
-      {isLoading ? (
-        <div className="mt-8 flex animate-pulse flex-col items-center gap-8 sm:flex-row">
-          <div className="h-44 w-44 rounded-full bg-slate-200" />
-          <div className="w-full space-y-4">
-            <div className="h-10 rounded-xl bg-slate-200" />
-            <div className="h-10 rounded-xl bg-slate-200" />
-          </div>
-        </div>
-      ) : (
-        <div className="mt-6 flex flex-col items-center gap-8 sm:flex-row">
-          {/* DONUT CHART (Procurement: Blue, Maintenance: Emerald Green) */}
-          <div
-            className="relative flex h-44 w-44 shrink-0 items-center justify-center rounded-full transition-all duration-700 shadow-xs"
-            style={{
-              background:
-                total > 0
-                  ? `conic-gradient(#2563eb 0% ${procurementPct}%, #10b981 ${procurementPct}% 100%)`
-                  : '#f1f5f9',
-            }}
-          >
-            <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-white shadow-inner">
-              <span className="text-2xl font-bold text-slate-800">
-                {total.toLocaleString()}
-              </span>
-              <span className="text-[11px] font-medium text-slate-400">
-                All Tickets
-              </span>
+      <div className="flex flex-1 flex-col justify-center py-4">
+        {isLoading ? (
+          <div className="flex flex-col items-center gap-8 sm:flex-row">
+            <div className="h-44 w-44 shrink-0 rounded-full bg-slate-100" />
+            <div className="w-full flex-1 space-y-4">
+              <div className="h-14 rounded-xl bg-slate-100" />
+              <div className="h-14 rounded-xl bg-slate-100" />
             </div>
           </div>
+        ) : (
+          <div className="flex flex-col items-center gap-8 sm:flex-row">
+            {/* DONUT CHART (Procurement: Blue, Maintenance: Emerald Green) */}
+            <div
+              className="relative flex h-44 w-44 shrink-0 items-center justify-center rounded-full"
+              style={{
+                background:
+                  total > 0
+                    ? `conic-gradient(#2563eb 0% ${procurementPct}%, #10b981 ${procurementPct}% 100%)`
+                    : '#f1f5f9',
+              }}
+            >
+              <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-white text-center">
+                <span className="text-2xl font-bold text-slate-800">
+                  {total.toLocaleString()}
+                </span>
+                <span className="text-[11px] font-medium text-slate-400">
+                  All Tickets
+                </span>
+              </div>
+            </div>
 
-          {/* BREAKDOWN LIST */}
-          <div className="w-full space-y-4">
+            {/* BREAKDOWN LIST */}
+            <div className="w-full flex-1 space-y-4">
             {/* PROCUREMENT (BLUE) */}
             <div
               onClick={() => onToggle('procurement')}
@@ -111,9 +112,9 @@ export function TicketTypeDistributionChart({
                   onToggle('procurement');
                 }
               }}
-              className={`group cursor-pointer rounded-xl border p-3.5 transition-all duration-200 hover:border-slate-300 ${
+              className={`group cursor-pointer rounded-xl border p-3.5 transition-colors duration-100 hover:border-slate-300 ${
                 activeKey === 'procurement'
-                  ? 'border-blue-400 ring-2 ring-blue-400/20 bg-blue-50/30'
+                  ? 'border-blue-500 bg-blue-50/40'
                   : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50'
               }`}
             >
@@ -132,7 +133,7 @@ export function TicketTypeDistributionChart({
                       ) : (
                         <ChevronDown
                           size={14}
-                          className="text-slate-400 group-hover:text-slate-600 transition"
+                          className="text-slate-400 group-hover:text-slate-600"
                         />
                       )}
                     </div>
@@ -154,7 +155,7 @@ export function TicketTypeDistributionChart({
 
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                 <div
-                  className="h-full rounded-full bg-blue-600 transition-all duration-700"
+                  className="h-full rounded-full bg-blue-600"
                   style={{ width: `${procurementPct}%` }}
                 />
               </div>
@@ -170,9 +171,9 @@ export function TicketTypeDistributionChart({
                   onToggle('maintenance');
                 }
               }}
-              className={`group cursor-pointer rounded-xl border p-3.5 transition-all duration-200 hover:border-slate-300 ${
+              className={`group cursor-pointer rounded-xl border p-3.5 transition-colors duration-100 hover:border-slate-300 ${
                 activeKey === 'maintenance'
-                  ? 'border-emerald-400 ring-2 ring-emerald-400/20 bg-emerald-50/30'
+                  ? 'border-emerald-500 bg-emerald-50/40'
                   : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50'
               }`}
             >
@@ -191,7 +192,7 @@ export function TicketTypeDistributionChart({
                       ) : (
                         <ChevronDown
                           size={14}
-                          className="text-slate-400 group-hover:text-slate-600 transition"
+                          className="text-slate-400 group-hover:text-slate-600"
                         />
                       )}
                     </div>
@@ -213,7 +214,7 @@ export function TicketTypeDistributionChart({
 
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                 <div
-                  className="h-full rounded-full bg-emerald-500 transition-all duration-700"
+                  className="h-full rounded-full bg-emerald-500"
                   style={{ width: `${maintenancePct}%` }}
                 />
               </div>
@@ -221,10 +222,11 @@ export function TicketTypeDistributionChart({
           </div>
         </div>
       )}
+      </div>
 
       {/* INLINE ACCORDION: TOP 5 TICKETS BY TYPE */}
       {isAccordionOpen && (
-        <div className="mt-6 border-t border-slate-100 pt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="mt-4 border-t border-slate-100 pt-4">
           <div className="mb-3 flex items-center justify-between">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
               {getAccordionTitle()}
@@ -232,7 +234,7 @@ export function TicketTypeDistributionChart({
             <button
               type="button"
               onClick={() => onToggle(activeKey)}
-              className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+              className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               title="Tutup list tiket"
             >
               <X size={15} />
@@ -241,7 +243,7 @@ export function TicketTypeDistributionChart({
 
           {/* SKELETON */}
           {isTicketsLoading ? (
-            <div className="space-y-2 py-1 animate-pulse">
+            <div className="space-y-2 py-1">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="h-14 rounded-xl bg-slate-100" />
               ))}

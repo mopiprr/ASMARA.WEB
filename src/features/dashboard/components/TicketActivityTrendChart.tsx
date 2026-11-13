@@ -342,14 +342,14 @@ export function TicketActivityTrendChart({ isApprover = false }: TicketActivityT
 
           {/* LOADING SKELETON */}
           {isLoading ? (
-            <div className="flex h-52 items-end justify-between gap-4 pt-6 animate-pulse">
+            <div className="flex h-52 items-end justify-between gap-4 pt-6">
               {Array.from({ length: 7 }).map((_, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-2">
                   <div className="w-full flex items-end justify-center gap-1.5 h-36">
-                    <div className="w-1/2 h-16 bg-slate-200 rounded-t" />
-                    <div className="w-1/2 h-24 bg-slate-200 rounded-t" />
+                    <div className="w-1/2 h-16 bg-slate-100 rounded-t" />
+                    <div className="w-1/2 h-24 bg-slate-100 rounded-t" />
                   </div>
-                  <div className="h-3 w-10 bg-slate-200 rounded" />
+                  <div className="h-3 w-10 bg-slate-100 rounded" />
                 </div>
               ))}
             </div>
@@ -385,11 +385,11 @@ export function TicketActivityTrendChart({ isApprover = false }: TicketActivityT
                       <div className="flex items-end justify-center gap-1 w-full h-36">
                         {/* PROCUREMENT BAR (BLUE) */}
                         <div
-                          className="relative w-full max-w-[22px] rounded-t-md bg-blue-600 transition-all duration-500 group-hover:bg-blue-700"
+                          className="relative w-full max-w-[22px] rounded-t-md bg-blue-600 group-hover:bg-blue-700"
                           style={{ height: `${procHeight}%` }}
                         >
                           {item.procurement > 0 && (
-                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-blue-700 opacity-0 group-hover:opacity-100 transition whitespace-nowrap bg-white px-1 rounded shadow-2xs border border-blue-100">
+                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-blue-700 opacity-0 group-hover:opacity-100 whitespace-nowrap bg-white px-1 rounded border border-blue-100">
                               {item.procurement}
                             </span>
                           )}
@@ -397,11 +397,11 @@ export function TicketActivityTrendChart({ isApprover = false }: TicketActivityT
 
                         {/* MAINTENANCE BAR (EMERALD GREEN) */}
                         <div
-                          className="relative w-full max-w-[22px] rounded-t-md bg-emerald-500 transition-all duration-500 group-hover:bg-emerald-600"
+                          className="relative w-full max-w-[22px] rounded-t-md bg-emerald-500 group-hover:bg-emerald-600"
                           style={{ height: `${maintHeight}%` }}
                         >
                           {item.maintenance > 0 && (
-                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-emerald-700 opacity-0 group-hover:opacity-100 transition whitespace-nowrap bg-white px-1 rounded shadow-2xs border border-emerald-100">
+                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-emerald-700 opacity-0 group-hover:opacity-100 whitespace-nowrap bg-white px-1 rounded border border-emerald-100">
                               {item.maintenance}
                             </span>
                           )}
