@@ -1,10 +1,9 @@
 import { useCallback, useState } from 'react';
 
-import api from '../../../services/api';
+import { procurementApi } from '../services/procurementApi';
 
 import type {
   CategoryOption,
-  ItemOption,
   CategoryItemsState,
   LoadingState,
   ErrorState,
@@ -29,11 +28,7 @@ export function useInventoryOptions() {
       setIsLoadingCategories(true);
       setCategoryError('');
 
-      const response = await api.get<CategoryOption[]>(
-        '/inventory/categories'
-      );
-
-      setCategories(response.data);
+      setCategories(await procurementApi.getCategories());
     } catch (error) {
       console.error('Failed to fetch item categories:', error);
       setCategoryError('Failed to load item categories.');
@@ -66,13 +61,11 @@ export function useInventoryOptions() {
         [categoryId]: '',
       }));
 
-      const response = await api.get<ItemOption[]>('/inventory/items', {
-        params: { categoryId },
-      });
+      const items = await procurementApi.getItemsByCategory(categoryId);
 
       setInventoryItemsByCategory((current) => ({
         ...current,
-        [categoryId]: response.data,
+        [categoryId]: items,
       }));
     } catch (error) {
       console.error(

@@ -1,4 +1,3 @@
-
 import type {
   ProcurementItem,
   ProcurementTicket,
@@ -56,6 +55,14 @@ export const formatDate = (value: string): string => {
     year: 'numeric',
   });
 };
+
+// Format tanggal di tabel Pending Approval (contoh: 13 Nov 2026).
+export const formatShortDateEn = (value: string): string =>
+  new Date(value).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 
 // ==========================================
 // STATUS LABEL
@@ -162,4 +169,35 @@ export const isPendingTicket = (
     !step.includes('rejected') &&
     !step.includes('cancelled')
   );
+};
+
+// ==========================================
+// API ERROR MESSAGE
+// ==========================================
+
+type ApiErrorField = 'detail' | 'message' | 'title';
+
+interface ApiErrorLike {
+  response?: {
+    data?: Partial<Record<ApiErrorField, string>>;
+  };
+  message?: string;
+}
+
+// Ambil pesan error dari response API.
+// Urutan field bisa diatur karena tiap pemanggil sebelumnya memakai urutan yang berbeda.
+export const getApiErrorMessage = (
+  error: unknown,
+  fallback: string,
+  fields: ApiErrorField[] = ['detail', 'message', 'title']
+): string => {
+  const apiError = error as ApiErrorLike;
+  const data = apiError.response?.data;
+
+  for (const field of fields) {
+    const value = data?.[field];
+    if (value) return value;
+  }
+
+  return apiError.message || fallback;
 };

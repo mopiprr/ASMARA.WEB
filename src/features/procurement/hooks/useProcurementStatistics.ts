@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from 'react';
 
-import api from "../../../services/api";
+import { procurementApi } from '../services/procurementApi';
 
-import type { MyTicketStatistics } from "../types/procurement.types";
+import type { MyTicketStatistics } from '../types/procurement.types';
 
 export function useProcurementStatistics() {
   const [statistics, setStatistics] = useState<MyTicketStatistics | null>(null);
@@ -12,15 +12,10 @@ export function useProcurementStatistics() {
     try {
       setIsLoading(true);
 
-      const response = await api.get<MyTicketStatistics>(
-        "/tickets/my-statistics",
-        { params: { type: 2 } }, // 2 = Procurement
-      );
-
-      setStatistics(response.data);
+      setStatistics(await procurementApi.getMyStatistics());
     } catch (err: unknown) {
       // Card cukup menampilkan "-" kalau gagal, tabel tetap jalan.
-      console.error("Failed to fetch procurement statistics:", err);
+      console.error('Failed to fetch procurement statistics:', err);
       setStatistics(null);
     } finally {
       setIsLoading(false);

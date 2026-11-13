@@ -7,7 +7,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-import api from '../../../services/api';
+import { procurementApi } from '../services/procurementApi';
 
 interface PurchaseProofSectionProps {
   ticketId: string;
@@ -31,14 +31,14 @@ function PurchaseProofSection({ ticketId, fileName }: PurchaseProofSectionProps)
         setIsLoading(true);
         setError('');
 
-        const response = await api.get<Blob>(
-          `/tickets/${ticketId}/purchase-proof`,
-          { responseType: 'blob', signal: controller.signal }
+        const blob = await procurementApi.getPurchaseProof(
+          ticketId,
+          controller.signal
         );
 
-        objectUrl = URL.createObjectURL(response.data);
+        objectUrl = URL.createObjectURL(blob);
 
-        const type = response.data.type;
+        const type = blob.type;
         setIsImage(type.startsWith('image/') && type !== 'image/svg+xml');
         setFileUrl(objectUrl);
       } catch (err: unknown) {

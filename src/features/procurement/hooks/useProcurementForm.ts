@@ -1,14 +1,17 @@
-
 import { useState, type FormEvent } from 'react';
 
-import api from '../../../services/api';
+import { procurementApi } from '../services/procurementApi';
 
-import type {
-  ProcurementItem,
-  ProcurementPayload,
-} from '../types/procurement.types';
+import type { ProcurementItem } from '../types/procurement.types';
 
-import { createEmptyItem } from '../utils/procurement.utils';
+import {
+  createEmptyItem,
+  getApiErrorMessage,
+} from '../utils/procurement.utils';
+import {
+  buildProcurementPayload,
+  isProcurementItemInvalid,
+} from '../utils/procurementForm.utils';
 
 interface UseProcurementFormOptions {
   parentTicketId: string | null;
@@ -125,45 +128,24 @@ export function useProcurementForm({
       return false;
     }
 
-    const hasInvalidItem = items.some((item) => {
-      const quantity = Number(item.quantity);
-      const price = Number(item.estimatedPrice || 0);
-
-      return (
-        !item.categoryId ||
-        !item.itemName.trim() ||
-        (!item.isManual && !item.itemId) ||
-        !Number.isInteger(quantity) ||
-        quantity <= 0 ||
-        !Number.isFinite(price) ||
-        price < 0
-      );
-    });
-
-    if (hasInvalidItem) {
+    if (items.some(isProcurementItemInvalid)) {
       setSubmitError(
         'Please complete all item details with valid quantity and price.'
       );
       return false;
     }
 
-    const payload: ProcurementPayload = {
-      subject: subject.trim(),
-      description: description.trim(),
+    const payload = buildProcurementPayload(
+      subject,
+      description,
       parentTicketId,
-      items: items.map((item) => ({
-        itemCategoryId: Number(item.categoryId),
-        itemName: item.itemName.trim(),
-        quantity: Number(item.quantity),
-        price: Number(item.estimatedPrice || 0),
-        itemId: item.isManual ? null : Number(item.itemId),
-      })),
-    };
+      items
+    );
 
     try {
       setIsSubmitting(true);
 
-      await api.post('/procurements', payload);
+      await procurementApi.create(payload);
 
       setSubmitSuccess(
         'Procurement request has been submitted successfully.'
@@ -177,23 +159,12 @@ export function useProcurementForm({
     } catch (error: unknown) {
       console.error('Failed to submit procurement:', error);
 
-      const apiError = error as {
-        response?: {
-          data?: {
-            message?: string;
-            detail?: string;
-            title?: string;
-          };
-        };
-        message?: string;
-      };
-
       setSubmitError(
-        apiError.response?.data?.message ||
-        apiError.response?.data?.detail ||
-        apiError.response?.data?.title ||
-        apiError.message ||
-        'Failed to submit procurement request. Please try again.'
+        getApiErrorMessage(
+          error,
+          'Failed to submit procurement request. Please try again.',
+          ['message', 'detail', 'title']
+        )
       );
 
       return false;

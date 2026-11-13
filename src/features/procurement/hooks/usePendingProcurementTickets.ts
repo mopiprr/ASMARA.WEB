@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import api from '../../../services/api';
+import { procurementApi } from '../services/procurementApi';
+import { getApiErrorMessage } from '../utils/procurement.utils';
 
 import type {
-  PagedResult,
   PendingProcurementTicket,
   ProcurementTicket,
 } from '../types/procurement.types';
@@ -11,6 +11,8 @@ import type {
 export type PendingSortField = 'ticketNumber' | 'subject' | 'requester' | 'date';
 
 const PAGE_SIZE = 10;
+
+const PENDING_ERROR = 'Failed to load pending procurement tickets.';
 
 export function usePendingProcurementTickets() {
   const [tickets, setTickets] = useState<PendingProcurementTicket[]>([]);
@@ -27,47 +29,18 @@ export function usePendingProcurementTickets() {
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  const getErrorMessage = (error: unknown): string => {
-    const apiError = error as {
-      response?: {
-        data?: {
-          message?: string;
-          detail?: string;
-          title?: string;
-        };
-      };
-      message?: string;
-    };
-
-    return (
-      apiError.response?.data?.detail ||
-      apiError.response?.data?.message ||
-      apiError.response?.data?.title ||
-      apiError.message ||
-      'Failed to load pending procurement tickets.'
-    );
-  };
-
   const fetchPendingTickets = useCallback(async () => {
     try {
       setIsLoading(true);
       setError('');
 
-      const response = await api.get<PagedResult<PendingProcurementTicket>>(
-        '/tickets/pending',
-        {
-          params: {
-            Type: 'Procurement',
-            Search: search.trim() || undefined,
-            Page: page,
-            PageSize: PAGE_SIZE,
-            SortBy: sortBy,
-            Desc: desc,
-          },
-        }
-      );
-
-      const result = response.data;
+      const result = await procurementApi.getPendingTickets({
+        search: search.trim() || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+        sortBy,
+        desc,
+      });
 
       setTickets(result.items ?? []);
       setTotalCount(result.totalCount ?? 0);
@@ -78,7 +51,7 @@ export function usePendingProcurementTickets() {
       setTickets([]);
       setTotalCount(0);
       setTotalPages(0);
-      setError(getErrorMessage(error));
+      setError(getApiErrorMessage(error, PENDING_ERROR));
     } finally {
       setIsLoading(false);
     }
@@ -88,15 +61,11 @@ export function usePendingProcurementTickets() {
     id: string
   ): Promise<ProcurementTicket> => {
     try {
-      const response = await api.get<ProcurementTicket>(
-        `/tickets/pending/${id}`
-      );
-
-      return response.data;
+      return await procurementApi.getPendingTicketById(id);
     } catch (error: unknown) {
       console.error('Failed to fetch pending procurement detail:', error);
 
-      throw new Error(getErrorMessage(error));
+      throw new Error(getApiErrorMessage(error, PENDING_ERROR));
     }
   }, []);
 

@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import api from '../../../services/api';
+import { procurementApi } from '../services/procurementApi';
+import { getApiErrorMessage } from '../utils/procurement.utils';
 
-import type {
-  ProcurementTicketListItem,
-  PagedResult,
-} from '../types/procurement.types';
+import type { ProcurementTicketListItem } from '../types/procurement.types';
 
 // Field sorting yang didukung backend (GET /api/tickets -> sortBy).
 export type TicketSortField = 'ticketNumber' | 'subject' | 'date' | 'status';
 
+const PAGE_SIZE = 10;
+
 export function useProcurementTickets() {
-  const PAGE_SIZE = 10;
   const [sortBy, setSortBy] = useState<TicketSortField>('date');
   const [desc, setDesc] = useState(true);
 
@@ -28,41 +27,21 @@ export function useProcurementTickets() {
       setIsLoadingTickets(true);
       setTicketError('');
 
-      const response = await api.get<
-        PagedResult<ProcurementTicketListItem>
-      >('/tickets', {
-        params: {
-          type: 2,
-          page,
-          pageSize: PAGE_SIZE,
-          sortBy,
-          desc,
-        },
+      const result = await procurementApi.getMyTickets({
+        page,
+        pageSize: PAGE_SIZE,
+        sortBy,
+        desc,
       });
 
-      setTickets(response.data.items ?? []);
-      setTotalCount(response.data.totalCount ?? 0);
-      setTotalPages(response.data.totalPages ?? 0);
+      setTickets(result.items ?? []);
+      setTotalCount(result.totalCount ?? 0);
+      setTotalPages(result.totalPages ?? 0);
     } catch (error: unknown) {
       console.error('Failed to fetch procurement tickets:', error);
 
-      const apiError = error as {
-        response?: {
-          data?: {
-            message?: string;
-            detail?: string;
-            title?: string;
-          };
-        };
-        message?: string;
-      };
-
       setTicketError(
-        apiError.response?.data?.detail ||
-          apiError.response?.data?.message ||
-          apiError.response?.data?.title ||
-          apiError.message ||
-          'Failed to load procurement requests.'
+        getApiErrorMessage(error, 'Failed to load procurement requests.')
       );
     } finally {
       setIsLoadingTickets(false);
