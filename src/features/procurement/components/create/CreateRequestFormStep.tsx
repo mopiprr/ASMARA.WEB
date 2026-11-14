@@ -93,11 +93,15 @@ function CreateRequestFormStep({
                 onSubjectChange(event.target.value)
               }
               placeholder="Example: Developer Laptop & Monitor Procurement"
-              maxLength={200}
+              maxLength={50}
               required
               disabled={isSubmitting}
               className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
             />
+
+            <p className="mt-1 text-right text-xs text-slate-400">
+              {subject.length}/50
+            </p>
           </div>
 
           {/* DESCRIPTION */}
@@ -117,13 +121,13 @@ function CreateRequestFormStep({
               }
               placeholder="Explain the purpose or details of this procurement request..."
               rows={3}
-              maxLength={2000}
+              maxLength={500}
               disabled={isSubmitting}
               className="w-full resize-y rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
             />
 
             <p className="mt-1 text-right text-xs text-slate-400">
-              {description.length}/2000 characters
+              {description.length}/500
             </p>
           </div>
         </div>

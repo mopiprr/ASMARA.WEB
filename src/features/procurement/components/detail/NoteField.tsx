@@ -46,7 +46,7 @@ function NoteField({
       />
 
       <p className="mt-1 text-right text-xs text-slate-400">
-        {value.length}/{NOTE_MAX_LENGTH} characters
+        {value.length}/{NOTE_MAX_LENGTH}
       </p>
     </>
   );

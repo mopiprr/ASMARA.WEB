@@ -10,7 +10,10 @@ interface UseProcurementActionsProps {
 }
 
 // Export agar dapat digunakan oleh ProcurementDetailModal.
-export type ProcurementAction = 'approve' | 'revise' | 'reject';
+export type ProcurementAction = 'approve' | 'revise' | 'reject' | 'cancel';
+
+// Aksi yang wajib disertai catatan.
+export const NOTE_REQUIRED_ACTIONS: ProcurementAction[] = ['revise', 'reject'];
 
 const ACTION_ERROR =
   'An error occurred while processing the procurement request.';

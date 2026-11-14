@@ -14,7 +14,7 @@ import { useProcurementTickets } from '../hooks/useProcurementTickets';
 import { usePendingProcurementTickets } from '../hooks/usePendingProcurementTickets';
 import { useProcurementStatistics } from '../hooks/useProcurementStatistics';
 import { useProcurementForm } from '../hooks/useProcurementForm';
-import { useProcurementActions } from '../hooks/useProcurementActions';
+import { useProcurementActions, type ProcurementAction } from '../hooks/useProcurementActions';
 import { useInventoryOptions } from '../hooks/useInventoryOptions';
 import { useProcurementDetail } from '../hooks/useProcurementDetail';
 import { useProcurementDeepLink } from '../hooks/useProcurementDeepLink';
@@ -96,7 +96,7 @@ function ProcurementPage() {
   };
 
   const handleProcurementAction = async (
-    action: 'approve' | 'revise' | 'reject',
+    action: ProcurementAction,
     note: string
   ): Promise<boolean> => {
     if (!selectedTicket) return false;

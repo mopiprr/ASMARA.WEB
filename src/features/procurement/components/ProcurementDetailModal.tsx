@@ -7,7 +7,7 @@ import type {
   ResubmitProcurementPayload,
 } from '../types/procurement.types';
 
-import type { ProcurementAction } from '../hooks/useProcurementActions';
+import { NOTE_REQUIRED_ACTIONS, type ProcurementAction } from '../hooks/useProcurementActions';
 import { useProcurementDetailForm } from '../hooks/useProcurementDetailForm';
 import { useInventoryOptions } from '../hooks/useInventoryOptions';
 import { usePurchaseProofUpload } from '../hooks/usePurchaseProofUpload';
@@ -139,7 +139,7 @@ function ProcurementDetailModal({
   const handleAction = async (action: ProcurementAction) => {
     if (isProcessing) return;
 
-    if (action !== 'approve' && !note.trim()) return;
+    if (NOTE_REQUIRED_ACTIONS.includes(action) && !note.trim()) return;
 
     const success = await onAction(action, note);
 
@@ -190,8 +190,8 @@ function ProcurementDetailModal({
   ) => {
     setConfirmConfig({
       isOpen: true,
-      ...content,
       cancelText: 'Cancel',
+      ...content,
       onConfirm: async () => {
         try {
           await handler();
@@ -204,7 +204,7 @@ function ProcurementDetailModal({
 
   const promptAction = (action: ProcurementAction) => {
     if (isProcessing) return;
-    if (action !== 'approve' && !note.trim()) return;
+    if (NOTE_REQUIRED_ACTIONS.includes(action) && !note.trim()) return;
 
     openConfirm(
       getActionConfirm(action, ticket.ticketNumber, estimatedTotal),
@@ -245,16 +245,17 @@ function ProcurementDetailModal({
           ticketNumber={ticket.ticketNumber}
           isProcessing={isProcessing}
           onClose={onClose}
+          canEdit={canShowResubmit}
+          isEditing={isEditing}
+          onStartEditing={handleStartEditing}
         />
 
         {/* BODY */}
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
           <RequestInfoSection
             ticket={ticket}
-            canEdit={canShowResubmit}
             isEditing={isEditing}
             isProcessing={isProcessing}
-            onStartEditing={handleStartEditing}
             subject={subject}
             description={description}
             onSubjectChange={form.setSubject}
@@ -343,6 +344,8 @@ function ProcurementDetailModal({
           isEditing={isEditing}
           onCloseOrCancel={isEditing ? form.cancelEditing : onClose}
           showResubmit={isResubmitting}
+          showCancelRequest={canShowResubmit && !isEditing}
+          onCancelRequest={() => promptAction('cancel')}
           isResubmitDisabled={isEditableItemsIncomplete}
           onResubmit={promptResubmit}
           showApproval={canShowApprovalActions}

@@ -168,20 +168,27 @@ function ProcurementItemForm({
           </label>
 
           {item.isManual ? (
-            <input
-              type="text"
-              value={item.itemName}
-              onChange={(event) =>
-                onFieldChange(
-                  index,
-                  'itemName',
-                  event.target.value
-                )
-              }
-              placeholder="Enter item name manually"
-              maxLength={ITEM_NAME_MAX_LENGTH}
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
+            <div>
+              <input
+                type="text"
+                value={item.itemName}
+                onChange={(event) =>
+                  onFieldChange(
+                    index,
+                    'itemName',
+                    event.target.value
+                  )
+                }
+                placeholder="Enter item name manually"
+                maxLength={ITEM_NAME_MAX_LENGTH}
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+
+              <p className="mt-1 text-right text-xs text-slate-400">
+                {item.itemName.length}/{ITEM_NAME_MAX_LENGTH}
+              </p>
+            </div>
+
           ) : (
             <div>
               <select

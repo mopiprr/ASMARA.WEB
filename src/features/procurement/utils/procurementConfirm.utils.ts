@@ -11,6 +11,7 @@ export interface ConfirmContent {
   description: string;
   type: ConfirmDialogType;
   confirmText: string;
+  cancelText?: string;
 }
 
 export function getActionConfirm(
@@ -46,6 +47,17 @@ export function getActionConfirm(
           'The requester will receive this request back with your notes to make required corrections.',
         type: 'warning',
         confirmText: 'Yes, Request Revision',
+      };
+      
+    case 'cancel':
+      return {
+        title: 'Cancel Procurement Request',
+        message: `Are you sure you want to cancel procurement request ${ticketNumber}?`,
+        description:
+          'The request will be closed as Cancelled and can no longer be edited or resubmitted. This action cannot be undone.',
+        type: 'danger',
+        confirmText: 'Yes, Cancel Request',
+        cancelText: 'Keep Request',
       };
   }
 }

@@ -1,4 +1,5 @@
 import {
+  Ban,
   CheckCircle2,
   LoaderCircle,
   RotateCcw,
@@ -15,8 +16,10 @@ interface DetailFooterProps {
   isEditing: boolean;
   onCloseOrCancel: () => void;
 
-  // Resubmit (requester)
+  // Resubmit / Cancel (requester, step EMPLOYEE_REVISION)
   showResubmit: boolean;
+  showCancelRequest: boolean;
+  onCancelRequest: () => void;
   isResubmitDisabled: boolean;
   onResubmit: () => void;
 
@@ -53,6 +56,8 @@ function DetailFooter({
   isEditing,
   onCloseOrCancel,
   showResubmit,
+  showCancelRequest,
+  onCancelRequest,
   isResubmitDisabled,
   onResubmit,
   showApproval,
@@ -75,6 +80,19 @@ function DetailFooter({
       >
         {isEditing ? 'Cancel Editing' : 'Close'}
       </button>
+
+      {/* CANCEL REQUEST BUTTON (requester tidak jadi mengajukan) */}
+      {showCancelRequest && (
+        <button
+          type="button"
+          onClick={onCancelRequest}
+          disabled={isProcessing}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <ButtonIcon isProcessing={isProcessing} icon={Ban} />
+          Cancel Request
+        </button>
+      )}
 
       {/* RESUBMIT BUTTON */}
       {showResubmit && (

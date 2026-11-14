@@ -1,5 +1,3 @@
-import { Pencil } from 'lucide-react';
-
 import type { ProcurementTicket } from '../../types/procurement.types';
 
 import {
@@ -12,11 +10,8 @@ import { detailInputClass } from './detailStyles';
 interface RequestInfoSectionProps {
   ticket: ProcurementTicket;
 
-  // Tombol "Edit Request" (hanya saat EMPLOYEE_REVISION untuk requester).
-  canEdit: boolean;
   isEditing: boolean;
   isProcessing: boolean;
-  onStartEditing: () => void;
 
   subject: string;
   description: string;
@@ -26,10 +21,8 @@ interface RequestInfoSectionProps {
 
 function RequestInfoSection({
   ticket,
-  canEdit,
   isEditing,
   isProcessing,
-  onStartEditing,
   subject,
   description,
   onSubjectChange,
@@ -41,18 +34,6 @@ function RequestInfoSection({
         <h3 className="text-sm font-bold text-slate-800">
           Request Information
         </h3>
-
-        {canEdit && !isEditing && (
-          <button
-            type="button"
-            onClick={onStartEditing}
-            disabled={isProcessing}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 transition hover:bg-blue-100"
-          >
-            <Pencil size={14} />
-            Edit Request
-          </button>
-        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 p-4 sm:grid-cols-2">
