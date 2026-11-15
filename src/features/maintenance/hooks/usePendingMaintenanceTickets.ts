@@ -1,27 +1,28 @@
-
 import { useCallback, useEffect, useState } from 'react';
 
-import api from '../../../services/api';
+import { maintenanceApi } from '../services/maintenanceApi';
+import { getApiErrorMessage } from '../utils/maintenance.utils';
 
 import type {
   MaintenanceTicket,
   PendingMaintenanceTicket,
-  PagedResult,
 } from '../types/maintenance.types';
 
-import { getMaintenanceApiError } from './useMaintenanceTickets';
+export type PendingMaintenanceSortField = 'ticketNumber' | 'subject' | 'requester' | 'date';
 
 const PAGE_SIZE = 10;
 
-export function usePendingMaintenanceTickets() {
-  const [tickets, setTickets] = useState<
-    PendingMaintenanceTicket[]
-  >([]);
+const PENDING_ERROR = 'Failed to load pending maintenance tasks.';
 
+// Tab Pending Tasks.
+export function usePendingMaintenanceTickets() {
+  const [tickets, setTickets] = useState<PendingMaintenanceTicket[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<PendingMaintenanceSortField>('date');
+  const [desc, setDesc] = useState(true);
   const [page, setPage] = useState(1);
 
   const [totalCount, setTotalCount] = useState(0);
@@ -32,69 +33,39 @@ export function usePendingMaintenanceTickets() {
       setIsLoading(true);
       setError('');
 
-      const response = await api.get<
-        PagedResult<PendingMaintenanceTicket>
-      >('/tickets/pending', {
-        params: {
-          Type: 'Maintenance',
-          Search: search.trim() || undefined,
-          Page: page,
-          PageSize: PAGE_SIZE,
-          SortBy: 'date',
-          Desc: true,
-        },
+      const result = await maintenanceApi.getPendingTickets({
+        search: search.trim() || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+        sortBy,
+        desc,
       });
-
-      const result = response.data;
 
       setTickets(result.items ?? []);
       setTotalCount(result.totalCount ?? 0);
       setTotalPages(result.totalPages ?? 0);
-    } catch (error: unknown) {
-      console.error(
-        'Failed to fetch pending maintenance tickets:',
-        error
-      );
+    } catch (err: unknown) {
+      console.error('Failed to fetch pending maintenance tickets:', err);
 
       setTickets([]);
       setTotalCount(0);
       setTotalPages(0);
-
-      setError(
-        getMaintenanceApiError(
-          error,
-          'Failed to load pending maintenance tickets.'
-        )
-      );
+      setError(getApiErrorMessage(err, PENDING_ERROR));
     } finally {
       setIsLoading(false);
     }
-  }, [search, page]);
+  }, [search, page, sortBy, desc]);
 
-  const fetchPendingTicketById = useCallback(
-    async (id: string): Promise<MaintenanceTicket> => {
-      try {
-        const response = await api.get<MaintenanceTicket>(
-          `/tickets/pending/${id}`
-        );
+  // Detail tiket yang menunggu aksi user ini (dengan permission tombol).
+  const fetchPendingTicketById = useCallback(async (id: string): Promise<MaintenanceTicket> => {
+    try {
+      return await maintenanceApi.getPendingTicketById(id);
+    } catch (err: unknown) {
+      console.error('Failed to fetch pending maintenance detail:', err);
 
-        return response.data;
-      } catch (error: unknown) {
-        console.error(
-          'Failed to fetch pending maintenance detail:',
-          error
-        );
-
-        throw new Error(
-          getMaintenanceApiError(
-            error,
-            'Failed to load pending maintenance detail.'
-          )
-        );
-      }
-    },
-    []
-  );
+      throw new Error(getApiErrorMessage(err, PENDING_ERROR));
+    }
+  }, []);
 
   useEffect(() => {
     void fetchPendingTickets();
@@ -102,6 +73,17 @@ export function usePendingMaintenanceTickets() {
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
+    setPage(1);
+  };
+
+  const toggleSort = (field: PendingMaintenanceSortField) => {
+    if (field === sortBy) {
+      setDesc((previous) => !previous);
+    } else {
+      setSortBy(field);
+      setDesc(false);
+    }
+
     setPage(1);
   };
 
@@ -115,17 +97,16 @@ export function usePendingMaintenanceTickets() {
     tickets,
     isLoading,
     error,
-
     search,
     setSearch: handleSearchChange,
-
+    sortBy,
+    desc,
+    toggleSort,
     page,
-    pageSize: PAGE_SIZE,
     totalCount,
     totalPages,
-
+    goToPage,
     fetchPendingTickets,
     fetchPendingTicketById,
-    goToPage,
   };
 }

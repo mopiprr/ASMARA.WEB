@@ -1,19 +1,16 @@
+import type { ConfirmDialogType } from '../../../components/common/ConfirmDialog';
+import type { TicketHistoryItem } from '../../procurement/types/procurement.types';
 
-export interface PagedResult<T> {
-  items: T[];
-  page: number;
-  pageSize: number;
-  totalCount: number;
-  totalPages: number;
-  hasPrevious: boolean;
-  hasNext: boolean;
-}
+export type { PagedResult, TicketHistoryItem } from '../../procurement/types/procurement.types';
+
+// Tab di halaman Maintenance.
+export type MaintenanceTab = 'requests' | 'pending';
 
 // ==========================================
-// MAINTENANCE TICKET LIST
+// LIST
 // ==========================================
 
-// Maintenance ticket untuk daftar My Requests.
+// GET /api/tickets?Type=Maintenance (tab My Requests)
 export interface MaintenanceTicketListItem {
   id: string;
   ticketNumber: string;
@@ -24,7 +21,7 @@ export interface MaintenanceTicketListItem {
   currentStepName: string;
 }
 
-// Maintenance ticket untuk Pending Tasks.
+// GET /api/tickets/pending?Type=Maintenance (tab Pending Tasks)
 export interface PendingMaintenanceTicket {
   id: string;
   ticketNumber: string;
@@ -33,54 +30,46 @@ export interface PendingMaintenanceTicket {
   subject: string;
   requesterId: string;
   requesterName: string;
+  requesterDepartment?: string | null;
   createdAt: string;
   currentStep: string;
   currentStepName: string;
 }
 
+export interface MaintenanceStatisticsData {
+  totalRequests: number;
+  activeRequests: number;
+  closedRequests: number;
+  rejectedRequests: number;
+}
+
 // ==========================================
-// MAINTENANCE DETAIL
+// DETAIL
 // ==========================================
 
-// Detail aset pada maintenance.
 export interface MaintenanceDetail {
   ticketId: string;
   assetId: number;
   assetTag: string | null;
   description: string;
-  repairResult: number | null;
+  repairResult: number | null; // 1 Repaired, 2 Unrepairable, 3 NeedPart
   handlerNote: string | null;
-  partRequirement: string | null;
+  partRequirement: string | null; // teks lama atau JSON daftar part
   replacementAssetId: number | null;
   replacementAssetTag: string | null;
   createdAt: string;
+  assetItemName?: string | null;
+  assetCategoryName?: string | null;
+  replacementAssetItemName?: string | null;
 }
 
-// Struktur kebutuhan spare part dari Maintenance Handler.
-// Data ini disimpan dalam JSON pada partRequirement.
-export interface MaintenancePartRequirementItem {
-  itemName: string;
-  note: string;
-}
-
-// Riwayat workflow.
-export interface MaintenanceHistoryItem {
-  action: string | null;
-  actionLabel: string;
-  fromStep: string;
-  toStep: string;
-  employeeId: string;
-  employeeName: string | null;
-  note: string | null;
-  createdAt: string;
-}
-
-// Detail tiket Maintenance.
-export interface MaintenanceTicket {
+// Isi tiket (sama untuk GET /tickets/{id} dan GET /tickets/pending/{id}).
+export interface MaintenanceTicketDetail {
   id: string;
   parentTicketId: string | null;
   employeeId: string;
   employeeName: string | null;
+  requesterDepartment?: string | null;
   ticketNumber: string;
   ticketType: number;
   subject: string;
@@ -92,43 +81,77 @@ export interface MaintenanceTicket {
   updatedAt: string | null;
   currentTaskEmployeeId: string | null;
   currentStep: string;
-
   maintenanceDetail: MaintenanceDetail | null;
-  procurementDetails: unknown[] | null;
-  history: MaintenanceHistoryItem[] | null;
+  history?: TicketHistoryItem[] | null;
+}
 
-  // Existing workflow permissions.
+// Tombol yang boleh dipakai user ini (dihitung backend: MaintenanceActionFlags).
+export interface MaintenanceTicketPermissions {
   canApprove: boolean;
-  canRevise: boolean;
   canReject: boolean;
-  canReceiveGoods: boolean;
-  canResubmit: boolean;
   canAssignHandler: boolean;
   canSendItem: boolean;
   canReceiveItem: boolean;
+  canSubmitRepairResult: boolean;
+  canCheckPart: boolean;
+  canReceivePart: boolean;
+  canOrderPart: boolean;
   canArchive: boolean;
   canDispose: boolean;
-
-  // Maintenance Handler permissions.
-  canSubmitRepairResult: boolean;
-  canReceivePart: boolean;
-
-  // Inventory permissions.
-  canCheckPart: boolean;
-  canOrderPart: boolean;
-  canSendPart: boolean;
   canProcessReplacement: boolean;
   canSendReplacement: boolean;
+}
 
-  // IT Support permission.
-  canReviewRepairResult: boolean;
+export type MaintenanceTicket = MaintenanceTicketDetail & MaintenanceTicketPermissions;
+
+// Aksi yang sedang tersedia di modal detail (satu per step workflow).
+export type MaintenanceActionMode =
+  | 'approval'
+  | 'assign'
+  | 'send-item'
+  | 'receive-item'
+  | 'repair-result'
+  | 'part-check'
+  | 'receive-part'
+  | 'order-part'
+  | 'disposition'
+  | 'replacement'
+  | 'send-replacement'
+  | 'close';
+
+// Tombol yang ditekan (dipakai untuk dialog konfirmasi).
+export type MaintenanceAction =
+  | 'approve'
+  | 'reject'
+  | 'assign'
+  | 'send-item'
+  | 'receive-item'
+  | 'repair-result'
+  | 'part-check'
+  | 'receive-part'
+  | 'order-part'
+  | 'archive'
+  | 'dispose'
+  | 'replacement'
+  | 'send-replacement'
+  | 'close';
+
+export interface ConfirmModalConfig {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  description?: string;
+  type: ConfirmDialogType;
+  confirmText: string;
+  cancelText?: string;
+  onConfirm: () => Promise<void>;
 }
 
 // ==========================================
-// MAINTENANCE OPTIONS
+// OPTIONS
 // ==========================================
 
-// Aset yang dapat dipilih untuk Maintenance.
+// GET /api/assets/available-for-maintenance
 export interface MaintenanceAssetOption {
   assetId: number;
   assetTag: string;
@@ -137,55 +160,46 @@ export interface MaintenanceAssetOption {
   isShared: boolean;
 }
 
-// Handler yang dapat ditugaskan oleh IT Support.
+// GET /api/assets/available-for-replacement?ticketId=...
+export interface ReplacementAssetOption {
+  assetId: number;
+  assetTag: string;
+  itemName: string;
+  categoryName: string;
+}
+
+// GET /api/employees/handlers
 export interface MaintenanceHandlerOption {
   employeeId: string;
   employeeNumber: string;
   fullName: string;
 }
 
-// ==========================================
-// CREATE MAINTENANCE
-// ==========================================
-
-// Request membuat tiket.
-export interface CreateMaintenancePayload {
-  subject: string;
-  description: string | null;
-  assetId: number;
-  problemDescription: string;
+// GET /api/inventory/spare-parts
+export interface SparePartOption {
+  id: number;
+  itemCategoryId: number;
+  categoryName: string;
+  itemCode: string;
+  itemName: string;
+  stock: number;
+  isActive: boolean;
 }
 
-// Request dengan note.
-export interface MaintenanceNotePayload {
-  note?: string | null;
-}
-
-// Request assign handler.
-export interface AssignMaintenanceHandlerPayload {
-  technicianId: string;
-  instructionNote?: string;
+// GET /api/inventory/categories?trackingType=1
+export interface SparePartCategoryOption {
+  id: number;
+  categoryName: string;
 }
 
 // ==========================================
-// REPAIR RESULT
+// FORM STATE
 // ==========================================
 
-// Backend RepairResultEnum:
-// Repaired = 1, Unrepairable = 2, NeedPart = 3.
+// Backend RepairResultEnum: Repaired = 1, Unrepairable = 2, NeedPart = 3.
 export type RepairResult = 1 | 2 | 3;
 
-// Spare part yang diminta oleh Maintenance Handler.
-// Tetap dipertahankan untuk kompatibilitas dengan kontrak
-// parts pada endpoint repair-result jika masih digunakan.
-export interface MaintenancePartItemPayload {
-  itemId: number | null;
-  itemCategoryId: number;
-  itemName: string;
-  quantity: number;
-}
-
-// State untuk satu baris input kebutuhan spare part di form Repair Result (NeedPart).
+// Satu baris spare part di form Repair Result (Need Part).
 export interface RepairPartFormItem {
   isCustom: boolean;
   itemId: number | null;
@@ -197,7 +211,42 @@ export interface RepairPartFormItem {
   categoryName?: string;
 }
 
-// Request submit hasil perbaikan.
+// Kebutuhan part yang tersimpan di MaintenanceDetail.PartRequirement (JSON).
+export interface RequiredPart {
+  itemName: string;
+  note?: string;
+  quantity?: number;
+  itemCategoryId?: number;
+  itemId?: number | null;
+}
+
+// ==========================================
+// PAYLOAD
+// ==========================================
+
+export interface CreateMaintenancePayload {
+  subject: string;
+  description: string | null;
+  assetId: number;
+  problemDescription: string;
+}
+
+export interface MaintenanceNotePayload {
+  note?: string | null;
+}
+
+export interface AssignMaintenanceHandlerPayload {
+  technicianId: string;
+  instructionNote?: string;
+}
+
+export interface MaintenancePartItemPayload {
+  itemId: number | null;
+  itemCategoryId: number;
+  itemName: string;
+  quantity: number;
+}
+
 export interface SubmitRepairResultPayload {
   result: RepairResult;
   handlerNote?: string | null;
@@ -205,26 +254,21 @@ export interface SubmitRepairResultPayload {
   parts?: MaintenancePartItemPayload[] | null;
 }
 
-// ==========================================
-// SPARE PART WORKFLOW
-// ==========================================
-
-// Request pengecekan ketersediaan part.
+// available: true -> backend mengurangi stok + kirim part ke handler.
 export interface MaintenancePartCheckPayload {
   available: boolean;
   note?: string | null;
 }
 
-// Satu hasil pemeriksaan stok spare part dari Inventory.
-// partIndex mengacu pada indeks kebutuhan spare part
-// yang dikirim oleh Maintenance Handler.
-export interface OrderMaintenancePartItemPayload {
-  partIndex: number;
-  availableQuantity: number;
-  estimatedPrice: number;
+// Item Procurement child (beli part / beli pengganti).
+export interface MaintenanceProcurementItemPayload {
+  itemCategoryId: number;
+  itemName: string;
+  quantity: number;
+  price: number;
+  itemId: number | null;
 }
 
-// Request Inventory membuat Procurement untuk spare part.
 export interface OrderMaintenancePartPayload {
   subject: string;
   description: string | null;
@@ -232,11 +276,6 @@ export interface OrderMaintenancePartPayload {
   note?: string | null;
 }
 
-// ==========================================
-// REPLACEMENT ASSET WORKFLOW
-// ==========================================
-
-// Request pengecekan replacement.
 export interface MaintenanceReplacementPayload {
   available: boolean;
   replacementAssetId?: number | null;
@@ -246,38 +285,7 @@ export interface MaintenanceReplacementPayload {
   items?: MaintenanceProcurementItemPayload[] | null;
 }
 
-// Item untuk child Procurement atau replacement.
-export interface MaintenanceProcurementItemPayload {
-  itemCategoryId: number;
-  itemName: string;
-  quantity: number;
-  price: number;
-  itemId: number | null;
-}
-
-// Request send replacement.
 export interface SendMaintenanceReplacementPayload {
   replacementAssetId: number;
   note?: string | null;
-}
-
-// ==========================================
-// WORKFLOW RESPONSE
-// ==========================================
-
-// Response transisi workflow.
-export interface MaintenanceTransitionResult {
-  ticketId?: string;
-  fromStep?: string;
-  toStep?: string;
-  nextTaskEmployeeId?: string | null;
-  [key: string]: unknown;
-}
-
-// Response create child Procurement.
-export interface MaintenanceChildTicketResult {
-  parent?: MaintenanceTransitionResult;
-  childTicketId?: string;
-  childTicketNumber?: string;
-  [key: string]: unknown;
 }

@@ -1,47 +1,31 @@
-
 import {
+  CheckCircle2,
   ClipboardList,
-  Clock,
-  Wrench,
+  RefreshCw,
+  XCircle,
 } from 'lucide-react';
 
+import type { MaintenanceStatisticsData } from '../types/maintenance.types';
+
 interface MaintenanceStatisticsProps {
-  totalRequests: number;
-  pendingTasks: number;
-  isLoading?: boolean;
+  statistics: MaintenanceStatisticsData | null;
+  isLoading: boolean;
 }
 
-function MaintenanceStatistics({
-  totalRequests,
-  pendingTasks,
-  isLoading = false,
-}: MaintenanceStatisticsProps) {
+// Sama dengan kartu statistik Procurement (GET /tickets/my-statistics?type=1).
+function MaintenanceStatistics({ statistics: data, isLoading }: MaintenanceStatisticsProps) {
+  // Angka dari backend; '...' saat loading, '-' kalau gagal.
+  const show = (value: number | undefined) => (isLoading && !data ? '...' : value ?? '-');
+
   const statistics = [
-    {
-      title: 'Total Requests',
-      value: totalRequests,
-      icon: ClipboardList,
-      iconColor: 'text-blue-600',
-      description: 'Your maintenance requests',
-    },
-    {
-      title: 'Pending Tasks',
-      value: pendingTasks,
-      icon: Clock,
-      iconColor: 'text-amber-500',
-      description: 'Tasks requiring your action',
-    },
-    {
-      title: 'Maintenance Workspace',
-      value: 'Active',
-      icon: Wrench,
-      iconColor: 'text-green-600',
-      description: 'Maintenance management',
-    },
+    { title: 'Total Requests', value: show(data?.totalRequests), icon: ClipboardList, iconColor: 'text-blue-600' },
+    { title: 'Active Requests', value: show(data?.activeRequests), icon: RefreshCw, iconColor: 'text-amber-500' },
+    { title: 'Closed Requests', value: show(data?.closedRequests), icon: CheckCircle2, iconColor: 'text-green-600' },
+    { title: 'Rejected Requests', value: show(data?.rejectedRequests), icon: XCircle, iconColor: 'text-red-600' },
   ];
 
   return (
-    <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+    <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
       {statistics.map((stat) => {
         const Icon = stat.icon;
 
@@ -55,20 +39,11 @@ function MaintenanceStatistics({
                 {stat.title}
               </p>
 
-              <Icon
-                className={stat.iconColor}
-                size={21}
-              />
+              <Icon className={stat.iconColor} size={21} />
             </div>
 
             <p className="mt-3 text-2xl font-bold text-slate-800">
-              {isLoading && typeof stat.value === 'number'
-                ? '...'
-                : stat.value}
-            </p>
-
-            <p className="mt-1 text-xs text-slate-400">
-              {stat.description}
+              {stat.value}
             </p>
           </div>
         );

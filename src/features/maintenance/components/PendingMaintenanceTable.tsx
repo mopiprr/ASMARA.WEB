@@ -1,50 +1,34 @@
+import { Clock, Eye } from 'lucide-react';
 
-import {
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Eye,
-  RefreshCw,
-  Search,
-} from 'lucide-react';
+import type { PendingMaintenanceTicket } from '../types/maintenance.types';
+import type { PendingMaintenanceSortField } from '../hooks/usePendingMaintenanceTickets';
 
-import type {
-  PendingMaintenanceTicket,
-} from '../types/maintenance.types';
+import { formatShortDateEn } from '../utils/maintenance.utils';
 
-import MaintenanceStatusBadge from './MaintenanceStatusBadge';
+// Komponen tabel yang sama dengan Procurement.
+import SortableHeader from '../../procurement/components/table/SortableHeader';
+import TableToolbar from '../../procurement/components/table/TableToolbar';
+import TableErrorAlert from '../../procurement/components/table/TableErrorAlert';
+import TableSkeletonRows from '../../procurement/components/table/TableSkeletonRows';
+import TableEmptyState from '../../procurement/components/table/TableEmptyState';
+import TablePagination from '../../procurement/components/table/TablePagination';
 
 interface PendingMaintenanceTableProps {
   tickets: PendingMaintenanceTicket[];
   isLoading: boolean;
   error: string;
-
   search: string;
   onSearchChange: (value: string) => void;
-
+  sortBy: PendingMaintenanceSortField;
+  desc: boolean;
+  onSort: (field: PendingMaintenanceSortField) => void;
   page: number;
   totalPages: number;
   totalCount: number;
   onPageChange: (page: number) => void;
-
   onRefresh: () => void;
   onView: (ticket: PendingMaintenanceTicket) => void;
   isLoadingDetail?: boolean;
-}
-
-function formatDate(value: string) {
-  if (!value) return '-';
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return '-';
-
-  return date.toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 }
 
 function PendingMaintenanceTable({
@@ -53,6 +37,9 @@ function PendingMaintenanceTable({
   error,
   search,
   onSearchChange,
+  sortBy,
+  desc,
+  onSort,
   page,
   totalPages,
   totalCount,
@@ -61,192 +48,96 @@ function PendingMaintenanceTable({
   onView,
   isLoadingDetail = false,
 }: PendingMaintenanceTableProps) {
+  const sortProps = { sortBy, desc, onSort };
+
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      {/* HEADER */}
-      <div className="border-b border-slate-100 p-6">
-        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">
-              Pending Maintenance Tasks
-            </h2>
+      <TableToolbar
+        title="Pending Tasks"
+        description="Maintenance tickets that require your action."
+        search={search}
+        onSearchChange={onSearchChange}
+        isLoading={isLoading}
+        onRefresh={onRefresh}
+      />
 
-            <p className="mt-1 text-sm text-slate-500">
-              Maintenance tickets that require your action.
-            </p>
-          </div>
+      <TableErrorAlert error={error} onRetry={onRefresh} />
 
-          <div className="flex flex-col gap-2 sm:flex-row">
-            {/* SEARCH */}
-            <div className="relative w-full lg:w-72">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-
-              <input
-                type="text"
-                value={search}
-                onChange={(event) =>
-                  onSearchChange(event.target.value)
-                }
-                placeholder="Search pending tasks..."
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-
-            {/* REFRESH */}
-            <button
-              type="button"
-              onClick={onRefresh}
-              disabled={isLoading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-            >
-              <RefreshCw
-                size={16}
-                className={isLoading ? 'animate-spin' : ''}
-              />
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ERROR */}
-      {error && (
-        <div className="m-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-          <AlertCircle
-            size={18}
-            className="mt-0.5 shrink-0 text-red-500"
-          />
-
-          <div>
-            <p className="text-sm font-semibold text-red-700">
-              Failed to load pending maintenance tasks
-            </p>
-
-            <p className="mt-1 text-xs text-red-600">
-              {error}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* TABLE */}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
+        <table className="w-full min-w-[850px] text-left text-xs">
+          <thead className="border-b border-slate-100 bg-slate-50 font-semibold uppercase tracking-wider text-slate-500">
             <tr>
-              <th className="px-6 py-4 font-semibold">
-                Ticket Number
-              </th>
-
-              <th className="px-6 py-4 font-semibold">
-                Subject
-              </th>
-
-              <th className="px-6 py-4 font-semibold">
-                Requester
-              </th>
-
-              <th className="px-6 py-4 font-semibold">
-                Created Date
-              </th>
-
-              <th className="px-6 py-4 font-semibold">
-                Current Step
-              </th>
-
-              <th className="px-6 py-4 text-center font-semibold">
-                Action
-              </th>
+              <SortableHeader field="ticketNumber" label="Ticket #" title="Click to sort by Ticket Number" {...sortProps} />
+              <SortableHeader field="subject" label="Subject" title="Click to sort by Subject" {...sortProps} />
+              <SortableHeader field="requester" label="Requester" title="Click to sort by Requester" {...sortProps} />
+              <SortableHeader field="date" label="Created Date" title="Click to sort by Date" {...sortProps} />
+              <th className="px-6 py-3.5 font-semibold">Current Step</th>
+              <th className="px-6 py-3.5 text-right font-semibold">Action</th>
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 text-slate-700">
             {isLoading ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-16 text-center">
-                  <RefreshCw
-                    size={28}
-                    className="mx-auto animate-spin text-blue-500"
-                  />
-
-                  <p className="mt-3 text-sm text-slate-500">
-                    Loading pending maintenance tasks...
-                  </p>
-                </td>
-              </tr>
+              <TableSkeletonRows cells={['h-4 w-28', 'h-4 w-44', 'h-4 w-28', 'h-4 w-24', 'h-5 w-24']} />
             ) : tickets.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-16 text-center">
-                  {error ? (
-                    <AlertCircle
-                      size={40}
-                      className="mx-auto text-red-300"
-                    />
-                  ) : (
-                    <Clock
-                      size={44}
-                      className="mx-auto text-slate-300"
-                    />
-                  )}
-
-                  <h3 className="mt-4 text-sm font-semibold text-slate-700">
-                    {search
-                      ? 'No matching tasks found'
-                      : 'No pending maintenance tasks'}
-                  </h3>
-
-                  <p className="mt-1 text-sm text-slate-400">
-                    {search
-                      ? 'Try using another search keyword.'
-                      : 'There are currently no maintenance tasks requiring your action.'}
-                  </p>
-                </td>
-              </tr>
+              <TableEmptyState
+                colSpan={6}
+                icon={Clock}
+                isSearching={Boolean(search)}
+                searchTitle="No matching tasks found"
+                emptyTitle="No pending maintenance tasks"
+                emptyDescription="There are currently no maintenance tickets requiring your action."
+                onClearSearch={() => onSearchChange('')}
+              />
             ) : (
               tickets.map((ticket) => (
                 <tr
                   key={ticket.id}
-                  className="transition hover:bg-slate-50/70"
+                  onClick={() => onView(ticket)}
+                  className="cursor-pointer transition hover:bg-slate-50/80"
                 >
                   <td className="whitespace-nowrap px-6 py-4">
-                    <span className="font-semibold text-blue-600">
+                    <span className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 font-mono text-xs font-semibold text-slate-800">
                       {ticket.ticketNumber}
                     </span>
                   </td>
 
-                  <td className="max-w-[250px] px-6 py-4">
-                    <p className="truncate font-medium text-slate-800">
+                  <td className="px-6 py-4">
+                    <p className="line-clamp-1 font-semibold text-slate-900">
                       {ticket.subject}
                     </p>
                   </td>
 
-                  <td className="whitespace-nowrap px-6 py-4 text-slate-600">
-                    {ticket.requesterName}
+                  <td className="whitespace-nowrap px-6 py-4 text-xs font-medium text-slate-700">
+                    <p className="font-semibold text-slate-800">{ticket.requesterName}</p>
+                    {ticket.requesterDepartment && (
+                      <p className="text-[11px] text-slate-400">{ticket.requesterDepartment}</p>
+                    )}
                   </td>
 
-                  <td className="whitespace-nowrap px-6 py-4 text-slate-600">
-                    {formatDate(ticket.createdAt)}
+                  <td className="whitespace-nowrap px-6 py-4 text-xs text-slate-500">
+                    {formatShortDateEn(ticket.createdAt)}
                   </td>
 
-                  <td className="px-6 py-4">
-                    <MaintenanceStatusBadge
-                      step={ticket.currentStep}
-                      label={ticket.currentStepName}
-                    />
+                  <td className="whitespace-nowrap px-6 py-4">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      {ticket.currentStepName}
+                    </span>
                   </td>
 
-                  <td className="px-6 py-4 text-center">
+                  <td className="whitespace-nowrap px-6 py-4 text-right">
                     <button
                       type="button"
-                      onClick={() => onView(ticket)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onView(ticket);
+                      }}
                       disabled={isLoadingDetail}
-                      className="inline-flex items-center gap-2 rounded-lg border border-blue-200 px-3 py-2 text-xs font-medium text-blue-600 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <Eye size={15} />
-                      View
+                      <Eye size={13} />
+                      <span>View</span>
                     </button>
                   </td>
                 </tr>
@@ -256,38 +147,13 @@ function PendingMaintenanceTable({
         </table>
       </div>
 
-      {/* PAGINATION */}
-      <div className="flex flex-col gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-slate-500">
-          Total {totalCount} pending task(s)
-        </p>
-
-        <div className="flex items-center justify-end gap-3">
-          <span className="text-xs text-slate-500">
-            Page {page} of {Math.max(totalPages, 1)}
-          </span>
-
-          <button
-            type="button"
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1 || isLoading}
-            aria-label="Previous page"
-            className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <ChevronLeft size={17} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onPageChange(page + 1)}
-            disabled={page >= totalPages || isLoading}
-            aria-label="Next page"
-            className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <ChevronRight size={17} />
-          </button>
-        </div>
-      </div>
+      <TablePagination
+        summary={`Total ${totalCount} pending task(s)`}
+        page={page}
+        totalPages={totalPages}
+        isLoading={isLoading}
+        onPageChange={onPageChange}
+      />
     </section>
   );
 }

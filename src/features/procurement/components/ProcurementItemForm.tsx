@@ -36,6 +36,9 @@ interface ProcurementItemFormProps {
 
   canRemove: boolean;
 
+  // Opsional: jumlah dikunci (mis. pengganti asset di Maintenance selalu 1).
+  quantityLocked?: boolean;
+
   onCategoryChange: (index: number, categoryId: string) => void;
   onItemChange: (
     index: number,
@@ -63,6 +66,7 @@ function ProcurementItemForm({
   isLoadingItems,
   itemErrors,
   canRemove,
+  quantityLocked = false,
   onCategoryChange,
   onItemChange,
   onToggleManualItem,
@@ -284,9 +288,16 @@ function ProcurementItemForm({
                 )
               }
               placeholder="Enter quantity"
-              className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              disabled={quantityLocked}
+              className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-500"
             />
           </div>
+
+          {quantityLocked && (
+            <p className="mt-1 text-xs text-slate-400">
+              Quantity is fixed to 1.
+            </p>
+          )}
         </div>
 
         {/* ESTIMATED PRICE */}

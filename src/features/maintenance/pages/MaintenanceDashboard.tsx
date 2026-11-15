@@ -1,533 +1,112 @@
-
-import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-
-import {
-  AlertCircle,
-  ClipboardList,
-  Clock,
-  Plus,
-} from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import MaintenanceHeader from '../components/MaintenanceHeader';
+import MaintenanceDetailError from '../components/MaintenanceDetailError';
 import MaintenanceStatistics from '../components/MaintenanceStatistics';
+import MaintenanceTabs from '../components/MaintenanceTabs';
 import MaintenanceTable from '../components/MaintenanceTable';
 import PendingMaintenanceTable from '../components/PendingMaintenanceTable';
-import MaintenanceCreateModal from '../components/MaintenanceCreateModal';
-import MaintenanceDetailModal from '../components/MaintenanceDetailModal';
+import MaintenanceCreateModal from '../components/create/MaintenanceCreateModal';
+import MaintenanceDetailModal from '../components/detail/MaintenanceDetailModal';
 
 import { useMaintenanceTickets } from '../hooks/useMaintenanceTickets';
 import { usePendingMaintenanceTickets } from '../hooks/usePendingMaintenanceTickets';
-import { useMaintenanceOptions } from '../hooks/useMaintenanceOptions';
+import { useMaintenanceStatistics } from '../hooks/useMaintenanceStatistics';
 import { useMaintenanceActions } from '../hooks/useMaintenanceActions';
+import { useMaintenanceDetail } from '../hooks/useMaintenanceDetail';
+import { useMaintenanceDeepLink } from '../hooks/useMaintenanceDeepLink';
+import { useMaintenanceCreateForm } from '../hooks/useMaintenanceCreateForm';
+import { useLazyOptions } from '../hooks/useLazyOptions';
 
-import type {
-  AssignMaintenanceHandlerPayload,
-  CreateMaintenancePayload,
-  MaintenanceNotePayload,
-  MaintenancePartCheckPayload,
-  MaintenanceReplacementPayload,
-  MaintenanceTicket,
-  MaintenanceTicketListItem,
-  OrderMaintenancePartPayload,
-  PendingMaintenanceTicket,
-  SendMaintenanceReplacementPayload,
-  SubmitRepairResultPayload,
-} from '../types/maintenance.types';
+import { maintenanceApi } from '../services/maintenanceApi';
 
-type MaintenanceTab = 'requests' | 'pending';
+import type { MaintenanceAssetOption, MaintenanceTab } from '../types/maintenance.types';
 
 function MaintenanceDashboard() {
-  const [activeTab, setActiveTab] =
-    useState<MaintenanceTab>('requests');
+  const navigate = useNavigate();
 
-  const [selectedTicket, setSelectedTicket] =
-    useState<MaintenanceTicket | null>(null);
-
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
-  const [detailError, setDetailError] = useState('');
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [searchParams] = useSearchParams();
-  const handledTicketIdRef = useRef<string | null>(null);
+  const [activeTab, setActiveTab] = useState<MaintenanceTab>('requests');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // ==========================================
-  // MY MAINTENANCE REQUESTS
+  // DATA
   // ==========================================
 
-  const {
-    tickets,
-    isLoading: isLoadingTickets,
-    error: ticketError,
-    search: requestSearch,
-    setSearch: setRequestSearch,
-    page: requestPage,
-    totalCount: requestTotalCount,
-    totalPages: requestTotalPages,
-    fetchTickets,
-    fetchTicketById,
-    goToPage: goToRequestPage,
-  } = useMaintenanceTickets();
+  const myTickets = useMaintenanceTickets();
+  const pending = usePendingMaintenanceTickets();
+  const stats = useMaintenanceStatistics();
+
+  const handleRefreshAll = async () => {
+    await Promise.all([
+      myTickets.fetchTickets(),
+      pending.fetchPendingTickets(),
+      stats.fetchStatistics(),
+    ]);
+  };
 
   // ==========================================
-  // PENDING MAINTENANCE TASKS
+  // ACTIONS & DETAIL
   // ==========================================
 
-  const {
-    tickets: pendingTickets,
-    isLoading: isLoadingPending,
-    error: pendingError,
-    search: pendingSearch,
-    setSearch: setPendingSearch,
-    page: pendingPage,
-    totalCount: pendingTotalCount,
-    totalPages: pendingTotalPages,
-    fetchPendingTickets,
-    fetchPendingTicketById,
-    goToPage: goToPendingPage,
-  } = usePendingMaintenanceTickets();
+  const { isProcessing, actionError, setActionError, run } = useMaintenanceActions({
+    onSuccess: handleRefreshAll,
+  });
+
+  const detail = useMaintenanceDetail({
+    fetchPendingTicketById: pending.fetchPendingTicketById,
+    onBeforeOpen: () => setActionError(''),
+  });
+
+  // Buka tab / detail dari link Dashboard (?tab=...&ticketId=...).
+  const { resetHandledTicket } = useMaintenanceDeepLink({
+    setActiveTab,
+    openTicketFromUrl: detail.openTicketFromUrl,
+  });
+
+  const handleCloseDetail = () => {
+    if (isProcessing || detail.isLoadingDetail) return;
+
+    detail.clearDetail();
+    setActionError('');
+    resetHandledTicket();
+
+    // Bersihkan parameter dan arahkan ke /maintenance dengan tab yang sedang aktif
+    const tabQuery = activeTab === 'pending' ? '?tab=pending' : '';
+    navigate(`/maintenance${tabQuery}`, { replace: true });
+  };
 
   // ==========================================
-  // MAINTENANCE OPTIONS
+  // CREATE MODAL
   // ==========================================
 
-  const {
-    assets,
-    handlers,
-    isLoadingAssets,
-    isLoadingHandlers,
-    assetError,
-    handlerError,
-    fetchAssets,
-    fetchHandlers,
-  } = useMaintenanceOptions();
-
-  // ==========================================
-  // MAINTENANCE ACTIONS
-  // ==========================================
-
-  const {
-    createMaintenance,
-    approveMaintenance,
-    rejectMaintenance,
-    assignHandler,
-    sendItem,
-    receiveItem,
-    closeMaintenance,
-    submitRepairResult,
-    checkPart,
-    orderPart,
-    sendPart,
-    receivePart,
-    disposeMaintenance,
-    archiveMaintenance,
-    processReplacement,
-    sendReplacement,
-    isProcessing,
-    actionError,
-    setActionError,
-  } = useMaintenanceActions({
+  const form = useMaintenanceCreateForm({
     onSuccess: async () => {
-      await Promise.all([
-        fetchTickets(),
-        fetchPendingTickets(),
-        fetchAssets(),
-      ]);
+      await handleRefreshAll();
+      setIsModalOpen(false);
     },
   });
 
-  // ==========================================
-  // CREATE MAINTENANCE
-  // ==========================================
+  // Asset baru dimuat saat modal create dibuka.
+  const assets = useLazyOptions<MaintenanceAssetOption>(
+    maintenanceApi.getAssetsForMaintenance,
+    isModalOpen,
+    'Failed to load assets.',
+  );
 
-  const handleCreateMaintenance = async (
-    payload: CreateMaintenancePayload,
-  ) => {
-    await createMaintenance(payload);
+  const handleOpenModal = () => {
+    form.resetForm();
+    form.setSubmitError('');
+    setIsModalOpen(true);
   };
 
-  const handleOpenCreateModal = () => {
-    setIsCreateModalOpen(true);
-    void fetchAssets();
+  const handleCloseModal = () => {
+    if (form.isSubmitting) return;
+
+    setIsModalOpen(false);
+    form.resetForm();
+    form.setSubmitError('');
   };
-
-  // ==========================================
-  // LOAD MAINTENANCE DETAIL
-  // ==========================================
-
-  const loadMaintenanceDetail = async (
-    ticketId: string,
-    fetchDetail: (id: string) => Promise<MaintenanceTicket>,
-  ) => {
-    setIsLoadingDetail(true);
-    setDetailError('');
-    setSelectedTicket(null);
-    setActionError('');
-
-    try {
-      const detail = await fetchDetail(ticketId);
-
-      console.log('========================================');
-      console.log('MAINTENANCE DETAIL RESPONSE');
-      console.log('========================================');
-
-      console.log('TICKET ID:', ticketId);
-      console.log('TICKET NUMBER:', detail.ticketNumber);
-      console.log('CURRENT STEP:', detail.currentStep);
-
-      console.log('========================================');
-      console.log('MAINTENANCE PERMISSIONS');
-      console.log('========================================');
-
-      console.log('CAN APPROVE:', detail.canApprove);
-      console.log('CAN REVISE:', detail.canRevise);
-      console.log('CAN REJECT:', detail.canReject);
-      console.log('CAN ASSIGN HANDLER:', detail.canAssignHandler);
-      console.log('CAN SEND ITEM:', detail.canSendItem);
-      console.log('CAN RECEIVE ITEM:', detail.canReceiveItem);
-      console.log(
-        'CAN SUBMIT REPAIR RESULT:',
-        detail.canSubmitRepairResult,
-      );
-      console.log('CAN RECEIVE PART:', detail.canReceivePart);
-      console.log('CAN CHECK PART:', detail.canCheckPart);
-      console.log('CAN ORDER PART:', detail.canOrderPart);
-      console.log('CAN SEND PART:', detail.canSendPart);
-      console.log(
-        'CAN REVIEW REPAIR RESULT:',
-        detail.canReviewRepairResult,
-      );
-      console.log(
-        'CAN PROCESS REPLACEMENT:',
-        detail.canProcessReplacement,
-      );
-      console.log(
-        'CAN SEND REPLACEMENT:',
-        detail.canSendReplacement,
-      );
-
-      console.log('========================================');
-      console.log('WORKFLOW HISTORY');
-      console.log('========================================');
-
-      console.log('HISTORY:', detail.history);
-      console.log('HISTORY COUNT:', detail.history?.length);
-
-      console.log('========================================');
-      console.log('FULL MAINTENANCE RESPONSE');
-      console.log('========================================');
-
-      console.log(detail);
-
-      setSelectedTicket(detail);
-
-      // Load handler options only when assignment is permitted.
-      if (detail.canAssignHandler === true) {
-        try {
-          await fetchHandlers();
-        } catch (handlerFetchError) {
-          console.error(
-            'FAILED TO FETCH MAINTENANCE HANDLERS:',
-            handlerFetchError,
-          );
-        }
-      }
-
-      // Load the latest asset options when replacement decision is permitted.
-      if (detail.canProcessReplacement === true) {
-        try {
-          await fetchAssets();
-        } catch (assetFetchError) {
-          console.error(
-            'FAILED TO FETCH REPLACEMENT ASSETS:',
-            assetFetchError,
-          );
-        }
-      }
-    } catch (error: unknown) {
-      console.error('Failed to load maintenance detail:', error);
-
-      setDetailError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to load maintenance ticket details.',
-      );
-    } finally {
-      setIsLoadingDetail(false);
-    }
-  };
-
-  // URL Deep-linking from Dashboard
-  useEffect(() => {
-    const tabParam = searchParams.get('tab');
-    if (tabParam === 'pending') {
-      setActiveTab('pending');
-    } else if (tabParam === 'requests') {
-      setActiveTab('requests');
-    }
-
-    const ticketIdParam = searchParams.get('ticketId');
-    if (ticketIdParam) {
-      if (handledTicketIdRef.current === ticketIdParam) return;
-      handledTicketIdRef.current = ticketIdParam;
-
-      void (async () => {
-        try {
-          if (tabParam === 'pending') {
-            try {
-              await loadMaintenanceDetail(ticketIdParam, fetchPendingTicketById);
-            } catch {
-              await loadMaintenanceDetail(ticketIdParam, fetchTicketById);
-            }
-          } else {
-            await loadMaintenanceDetail(ticketIdParam, fetchTicketById);
-          }
-        } catch (err) {
-          console.error('Failed to open maintenance ticket from URL param:', err);
-        }
-      })();
-    }
-  }, [searchParams, fetchTicketById, fetchPendingTicketById]);
-
-  // ==========================================
-  // VIEW MY REQUEST DETAIL
-  // ==========================================
-
-  const handleViewTicket = async (
-    ticket: MaintenanceTicketListItem,
-  ) => {
-    await loadMaintenanceDetail(ticket.id, fetchTicketById);
-  };
-
-  // ==========================================
-  // VIEW PENDING DETAIL
-  // ==========================================
-
-  const handleViewPendingTicket = async (
-    ticket: PendingMaintenanceTicket,
-  ) => {
-    await loadMaintenanceDetail(
-      ticket.id,
-      fetchPendingTicketById,
-    );
-  };
-
-  // ==========================================
-  // CLOSE DETAIL
-  // ==========================================
-
-  const handleCloseDetail = () => {
-    if (isLoadingDetail || isProcessing) return;
-
-    setSelectedTicket(null);
-    setDetailError('');
-    setActionError('');
-  };
-
-  // ==========================================
-  // COMMON ACTION HANDLER
-  // ==========================================
-
-  const handleAction = async (
-    action: () => Promise<unknown>,
-    errorMessage: string,
-  ) => {
-    try {
-      setDetailError('');
-      setActionError('');
-
-      await action();
-
-      setSelectedTicket(null);
-    } catch (error: unknown) {
-      console.error(errorMessage, error);
-
-      setDetailError(
-        error instanceof Error
-          ? error.message
-          : errorMessage,
-      );
-    }
-  };
-
-  // ==========================================
-  // APPROVE MAINTENANCE
-  // ==========================================
-
-  const handleApproveMaintenance = (
-    payload: MaintenanceNotePayload,
-  ) =>
-    handleAction(
-      () => approveMaintenance(selectedTicket!.id, payload),
-      'Failed to approve maintenance ticket.',
-    );
-
-  // ==========================================
-  // REJECT MAINTENANCE
-  // ==========================================
-
-  const handleRejectMaintenance = (
-    payload: MaintenanceNotePayload,
-  ) =>
-    handleAction(
-      () => rejectMaintenance(selectedTicket!.id, payload),
-      'Failed to reject maintenance ticket.',
-    );
-
-  // ==========================================
-  // ASSIGN MAINTENANCE HANDLER
-  // ==========================================
-
-  const handleAssignHandler = (
-    payload: AssignMaintenanceHandlerPayload,
-  ) =>
-    handleAction(
-      () => assignHandler(selectedTicket!.id, payload),
-      'Failed to assign maintenance handler.',
-    );
-
-  // ==========================================
-  // REQUESTER SEND ITEM
-  // ==========================================
-
-  const handleSendItem = (
-    payload: MaintenanceNotePayload,
-  ) =>
-    handleAction(
-      () => sendItem(selectedTicket!.id, payload),
-      'Failed to send maintenance item.',
-    );
-
-  // ==========================================
-  // REQUESTER RECEIVE ITEM
-  // ==========================================
-
-  const handleReceiveItem = (
-    payload: MaintenanceNotePayload,
-  ) =>
-    handleAction(
-      () => receiveItem(selectedTicket!.id, payload),
-      'Failed to receive maintenance item.',
-    );
-
-  // ==========================================
-  // REQUESTER CLOSE TICKET
-  // ==========================================
-
-  const handleCloseTicket = (
-    payload: MaintenanceNotePayload,
-  ) =>
-    handleAction(
-      () => closeMaintenance(selectedTicket!.id, payload),
-      'Failed to close maintenance ticket.',
-    );
-
-  // ==========================================
-  // DIVISION MANAGER: ARCHIVE MAINTENANCE
-  // ==========================================
-
-  const handleArchiveMaintenance = (
-    payload: MaintenanceNotePayload,
-  ) =>
-    handleAction(
-      () => archiveMaintenance(selectedTicket!.id, payload),
-      'Failed to archive maintenance asset.',
-    );
-
-  // ==========================================
-  // DIVISION MANAGER: DISPOSE MAINTENANCE
-  // ==========================================
-
-  const handleDisposeMaintenance = (
-    payload: MaintenanceNotePayload,
-  ) =>
-    handleAction(
-      () => disposeMaintenance(selectedTicket!.id, payload),
-      'Failed to dispose maintenance asset.',
-    );
-
-  // ==========================================
-  // HANDLER SUBMIT REPAIR RESULT
-  // ==========================================
-
-  const handleSubmitRepairResult = (
-    payload: SubmitRepairResultPayload,
-  ) =>
-    handleAction(
-      () => submitRepairResult(selectedTicket!.id, payload),
-      'Failed to submit repair result.',
-    );
-
-  // ==========================================
-  // INVENTORY CHECK PART
-  // ==========================================
-
-  const handleCheckPart = (
-    payload: MaintenancePartCheckPayload,
-  ) =>
-    handleAction(
-      () => checkPart(selectedTicket!.id, payload),
-      'Failed to check spare part availability.',
-    );
-
-  // ==========================================
-  // INVENTORY ORDER PART
-  // ==========================================
-
-  const handleOrderPart = (
-    payload: OrderMaintenancePartPayload,
-  ) =>
-    handleAction(
-      () => orderPart(selectedTicket!.id, payload),
-      'Failed to create spare part procurement request.',
-    );
-
-  // ==========================================
-  // INVENTORY SEND PART
-  // ==========================================
-
-  const handleSendPart = (
-    payload: MaintenanceNotePayload,
-  ) =>
-    handleAction(
-      () => sendPart(selectedTicket!.id, payload),
-      'Failed to send spare parts to maintenance handler.',
-    );
-
-  // ==========================================
-  // HANDLER RECEIVE PART
-  // ==========================================
-
-  const handleReceivePart = (
-    payload: MaintenanceNotePayload,
-  ) =>
-    handleAction(
-      () => receivePart(selectedTicket!.id, payload),
-      'Failed to receive spare parts.',
-    );
-
-  // ==========================================
-  // INVENTORY: PROCESS REPLACEMENT
-  // ==========================================
-
-  const handleProcessReplacement = (
-    payload: MaintenanceReplacementPayload,
-  ) =>
-    handleAction(
-      () => processReplacement(selectedTicket!.id, payload),
-      'Failed to process replacement availability.',
-    );
-
-  // ==========================================
-  // INVENTORY: SEND REPLACEMENT
-  // ==========================================
-
-  const handleSendReplacement = (
-    payload: SendMaintenanceReplacementPayload,
-  ) =>
-    handleAction(
-      () => sendReplacement(selectedTicket!.id, payload),
-      'Failed to send replacement asset.',
-    );
 
   // ==========================================
   // RENDER
@@ -535,187 +114,77 @@ function MaintenanceDashboard() {
 
   return (
     <div className="space-y-8">
-      {/* PAGE HEADER */}
+      <MaintenanceHeader onNewRequest={handleOpenModal} />
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <MaintenanceHeader />
+      <MaintenanceDetailError message={detail.detailError} />
 
-        <button
-          type="button"
-          onClick={handleOpenCreateModal}
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-        >
-          <Plus size={18} />
-          New Request
-        </button>
-      </div>
+      <MaintenanceStatistics statistics={stats.statistics} isLoading={stats.isLoading} />
 
-      {/* DETAIL ERROR */}
-
-      {detailError && !selectedTicket && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-          <AlertCircle
-            size={20}
-            className="mt-0.5 shrink-0 text-red-500"
-          />
-
-          <div>
-            <p className="text-sm font-semibold text-red-700">
-              Failed to open maintenance ticket
-            </p>
-
-            <p className="mt-1 text-xs text-red-600">
-              {detailError}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* STATISTICS */}
-
-      <MaintenanceStatistics
-        totalRequests={requestTotalCount}
-        pendingTasks={pendingTotalCount}
-        isLoading={isLoadingTickets || isLoadingPending}
-      />
-
-      {/* TABS */}
-
-      <section className="space-y-5">
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200">
-          {/* MY REQUESTS */}
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('requests')}
-            className={`inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition ${
-              activeTab === 'requests'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <ClipboardList size={17} />
-
-            My Requests
-
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs ${
-                activeTab === 'requests'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {requestTotalCount}
-            </span>
-          </button>
-
-          {/* PENDING TASKS */}
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('pending')}
-            className={`inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition ${
-              activeTab === 'pending'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Clock size={17} />
-
-            Pending Tasks
-
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs ${
-                activeTab === 'pending'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {pendingTotalCount}
-            </span>
-          </button>
-        </div>
-
-        {/* MY REQUESTS */}
+      <div className="space-y-5">
+        <MaintenanceTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          requestsCount={myTickets.totalCount}
+          pendingCount={pending.totalCount}
+        />
 
         {activeTab === 'requests' && (
           <MaintenanceTable
-            tickets={tickets}
-            isLoading={isLoadingTickets}
-            error={ticketError}
-            search={requestSearch}
-            onSearchChange={setRequestSearch}
-            page={requestPage}
-            totalPages={requestTotalPages}
-            totalCount={requestTotalCount}
-            onPageChange={goToRequestPage}
-            onRefresh={fetchTickets}
-            onView={handleViewTicket}
-            isLoadingDetail={isLoadingDetail}
+            tickets={myTickets.tickets}
+            isLoading={myTickets.isLoading}
+            error={myTickets.error}
+            search={myTickets.search}
+            onSearchChange={myTickets.setSearch}
+            sortBy={myTickets.sortBy}
+            desc={myTickets.desc}
+            onSort={myTickets.toggleSort}
+            page={myTickets.page}
+            totalPages={myTickets.totalPages}
+            totalCount={myTickets.totalCount}
+            onPageChange={myTickets.goToPage}
+            onRefresh={() => void myTickets.fetchTickets()}
+            onView={(ticket) => void detail.openTicket(ticket)}
+            isLoadingDetail={detail.isLoadingDetail}
           />
         )}
-
-        {/* PENDING TASKS */}
 
         {activeTab === 'pending' && (
           <PendingMaintenanceTable
-            tickets={pendingTickets}
-            isLoading={isLoadingPending}
-            error={pendingError}
-            search={pendingSearch}
-            onSearchChange={setPendingSearch}
-            page={pendingPage}
-            totalPages={pendingTotalPages}
-            totalCount={pendingTotalCount}
-            onPageChange={goToPendingPage}
-            onRefresh={fetchPendingTickets}
-            onView={handleViewPendingTicket}
-            isLoadingDetail={isLoadingDetail}
+            tickets={pending.tickets}
+            isLoading={pending.isLoading}
+            error={pending.error}
+            search={pending.search}
+            onSearchChange={pending.setSearch}
+            sortBy={pending.sortBy}
+            desc={pending.desc}
+            onSort={pending.toggleSort}
+            page={pending.page}
+            totalPages={pending.totalPages}
+            totalCount={pending.totalCount}
+            onPageChange={pending.goToPage}
+            onRefresh={() => void pending.fetchPendingTickets()}
+            onView={(ticket) => void detail.openPendingTicket(ticket)}
+            isLoadingDetail={detail.isLoadingDetail}
           />
         )}
-      </section>
-
-      {/* CREATE MAINTENANCE MODAL */}
+      </div>
 
       <MaintenanceCreateModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        assets={assets}
-        isLoadingAssets={isLoadingAssets}
-        assetError={assetError}
-        onSubmit={handleCreateMaintenance}
-        onRefreshAssets={fetchAssets}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        form={form}
+        assets={assets.options}
+        isLoadingAssets={assets.isLoading}
+        assetError={assets.error}
+        onReloadAssets={() => void assets.reload()}
       />
 
-      {/* DETAIL MODAL */}
-
       <MaintenanceDetailModal
-        ticket={selectedTicket}
-        isLoading={isLoadingDetail}
+        ticket={detail.selectedTicket}
         isProcessing={isProcessing}
-        error={detailError}
         actionError={actionError}
-        handlers={handlers}
-        assets={assets}
-        isLoadingHandlers={isLoadingHandlers}
-        handlerError={handlerError}
         onClose={handleCloseDetail}
-        onApprove={handleApproveMaintenance}
-        onReject={handleRejectMaintenance}
-        onAssignHandler={handleAssignHandler}
-        onSendItem={handleSendItem}
-        onReceiveItem={handleReceiveItem}
-        onCloseTicket={handleCloseTicket}
-        onArchive={handleArchiveMaintenance}
-        onDispose={handleDisposeMaintenance}
-        onSubmitRepairResult={handleSubmitRepairResult}
-        onCheckPart={handleCheckPart}
-        onOrderPart={handleOrderPart}
-        onSendPart={handleSendPart}
-        onReceivePart={handleReceivePart}
-        onProcessReplacement={handleProcessReplacement}
-        onSendReplacement={handleSendReplacement}
-        onRefreshHandlers={fetchHandlers}
+        onRunAction={run}
       />
     </div>
   );
