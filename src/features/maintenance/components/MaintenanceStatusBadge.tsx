@@ -1,4 +1,3 @@
-
 interface MaintenanceStatusBadgeProps {
   step: string;
   label?: string;

@@ -1,5 +1,10 @@
+import { Plus } from 'lucide-react';
 
-function MaintenanceHeader() {
+interface MaintenanceHeaderProps {
+  onNewRequest: () => void;
+}
+
+function MaintenanceHeader({ onNewRequest }: MaintenanceHeaderProps) {
   return (
     <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
       <div>
@@ -15,6 +20,15 @@ function MaintenanceHeader() {
           Manage and monitor maintenance requests.
         </p>
       </div>
+
+      <button
+        type="button"
+        onClick={onNewRequest}
+        className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+      >
+        <Plus size={18} />
+        New Request
+      </button>
     </section>
   );
 }

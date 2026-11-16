@@ -1,59 +1,24 @@
-
 import { useCallback, useEffect, useState } from 'react';
 
-import api from '../../../services/api';
+import { maintenanceApi } from '../services/maintenanceApi';
+import { getApiErrorMessage } from '../utils/maintenance.utils';
 
-import type {
-  MaintenanceTicket,
-  MaintenanceTicketListItem,
-  PagedResult,
-} from '../types/maintenance.types';
+import type { MaintenanceTicketListItem } from '../types/maintenance.types';
+
+// Field sorting yang didukung backend (GET /api/tickets -> SortBy).
+export type MaintenanceSortField = 'ticketNumber' | 'subject' | 'date' | 'status';
 
 const PAGE_SIZE = 10;
 
-interface ApiErrorResponse {
-  response?: {
-    data?: {
-      message?: string;
-      detail?: string;
-      title?: string;
-    };
-  };
-  message?: string;
-}
-
-function getErrorMessage(
-  error: unknown,
-  fallback: string
-): string {
-  const apiError = error as ApiErrorResponse;
-
-  return (
-    apiError.response?.data?.detail ||
-    apiError.response?.data?.message ||
-    apiError.response?.data?.title ||
-    apiError.message ||
-    fallback
-  );
-}
-
-// Shared error handler
-export function getMaintenanceApiError(
-  error: unknown,
-  fallback: string
-): string {
-  return getErrorMessage(error, fallback);
-}
-
+// Tab My Requests.
 export function useMaintenanceTickets() {
-  const [tickets, setTickets] = useState<
-    MaintenanceTicketListItem[]
-  >([]);
-
+  const [tickets, setTickets] = useState<MaintenanceTicketListItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<MaintenanceSortField>('date');
+  const [desc, setDesc] = useState(true);
   const [page, setPage] = useState(1);
 
   const [totalCount, setTotalCount] = useState(0);
@@ -64,69 +29,28 @@ export function useMaintenanceTickets() {
       setIsLoading(true);
       setError('');
 
-      const response = await api.get<
-        PagedResult<MaintenanceTicketListItem>
-      >('/tickets', {
-        params: {
-          Type: 'Maintenance',
-          Search: search.trim() || undefined,
-          Page: page,
-          PageSize: PAGE_SIZE,
-          SortBy: 'date',
-          Desc: true,
-        },
+      const result = await maintenanceApi.getMyTickets({
+        search: search.trim() || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+        sortBy,
+        desc,
       });
-
-      const result = response.data;
 
       setTickets(result.items ?? []);
       setTotalCount(result.totalCount ?? 0);
       setTotalPages(result.totalPages ?? 0);
-    } catch (error: unknown) {
-      console.error(
-        'Failed to fetch maintenance tickets:',
-        error
-      );
+    } catch (err: unknown) {
+      console.error('Failed to fetch maintenance tickets:', err);
 
       setTickets([]);
       setTotalCount(0);
       setTotalPages(0);
-
-      setError(
-        getMaintenanceApiError(
-          error,
-          'Failed to load maintenance requests.'
-        )
-      );
+      setError(getApiErrorMessage(err, 'Failed to load maintenance requests.'));
     } finally {
       setIsLoading(false);
     }
-  }, [search, page]);
-
-  const fetchTicketById = useCallback(
-    async (id: string): Promise<MaintenanceTicket> => {
-      try {
-        const response = await api.get<MaintenanceTicket>(
-          `/tickets/${id}`
-        );
-
-        return response.data;
-      } catch (error: unknown) {
-        console.error(
-          'Failed to fetch maintenance detail:',
-          error
-        );
-
-        throw new Error(
-          getMaintenanceApiError(
-            error,
-            'Failed to load maintenance detail.'
-          )
-        );
-      }
-    },
-    []
-  );
+  }, [search, page, sortBy, desc]);
 
   useEffect(() => {
     void fetchTickets();
@@ -134,6 +58,17 @@ export function useMaintenanceTickets() {
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
+    setPage(1);
+  };
+
+  const toggleSort = (field: MaintenanceSortField) => {
+    if (field === sortBy) {
+      setDesc((previous) => !previous);
+    } else {
+      setSortBy(field);
+      setDesc(false);
+    }
+
     setPage(1);
   };
 
@@ -147,17 +82,15 @@ export function useMaintenanceTickets() {
     tickets,
     isLoading,
     error,
-
     search,
     setSearch: handleSearchChange,
-
+    sortBy,
+    desc,
+    toggleSort,
     page,
-    pageSize: PAGE_SIZE,
     totalCount,
     totalPages,
-
-    fetchTickets,
-    fetchTicketById,
     goToPage,
+    fetchTickets,
   };
 }
