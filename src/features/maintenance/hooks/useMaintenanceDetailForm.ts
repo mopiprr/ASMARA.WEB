@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
-import { createEmptyItem } from '../../procurement/utils/procurement.utils';
+import { createEmptyItem } from '../../../utils/itemForm.utils';
 import { createEmptyRepairPart } from '../utils/maintenanceDetail.utils';
 
-import type { ProcurementItem } from '../../procurement/types/procurement.types';
+import type { ProcurementItem } from '../../../types/ticket.types';
 import type {
   MaintenanceTicket,
   RepairPartFormItem,

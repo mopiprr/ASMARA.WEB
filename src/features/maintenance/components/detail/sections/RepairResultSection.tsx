@@ -5,7 +5,7 @@ import type {
   SparePartOption,
 } from '../../../types/maintenance.types';
 
-import { detailInputClass } from '../../../../procurement/components/detail/detailStyles';
+import { detailInputClass } from '../../../../../components/common/NoteField';
 
 import { MaintenanceRepairPartsForm } from '../parts/RepairPartsForm';
 

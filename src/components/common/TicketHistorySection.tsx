@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { ChevronDown, History } from 'lucide-react';
 
-import type { TicketHistoryItem } from '../../features/procurement/types/procurement.types';
+import type { TicketHistoryItem } from '../../types/ticket.types';
 
 interface TicketHistorySectionProps {
   history?: TicketHistoryItem[] | null;

@@ -2,7 +2,7 @@ import { RefreshCw } from 'lucide-react';
 
 import type { MaintenanceHandlerOption } from '../../../types/maintenance.types';
 
-import { detailInputClass } from '../../../../procurement/components/detail/detailStyles';
+import { detailInputClass } from '../../../../../components/common/NoteField';
 
 interface AssignHandlerSectionProps {
   handlers: MaintenanceHandlerOption[];

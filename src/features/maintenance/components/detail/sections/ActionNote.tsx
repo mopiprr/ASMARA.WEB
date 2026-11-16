@@ -1,4 +1,4 @@
-import NoteField from '../../../../procurement/components/detail/NoteField';
+import NoteField from '../../../../../components/common/NoteField';
 
 interface ActionNoteProps {
   label?: string;

@@ -7,7 +7,7 @@ import type {
   RequiredPart,
   SparePartOption,
 } from '../types/maintenance.types';
-import type { ProcurementItem } from '../../procurement/types/procurement.types';
+import type { ProcurementItem } from '../../../types/ticket.types';
 
 // ==========================================
 // AKSI YANG TERSEDIA (satu per step)

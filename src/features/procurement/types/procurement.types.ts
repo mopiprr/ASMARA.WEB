@@ -1,37 +1,16 @@
 import type { ConfirmDialogType } from '../../../components/common/ConfirmDialog';
+import type { TicketHistoryItem } from '../../../types/ticket.types';
 
-// ==========================================
-// OPSI INVENTORY (form create)
-// ==========================================
-
-export interface CategoryOption {
-  id: number;
-  categoryName: string;
-}
-
-export interface ItemOption {
-  id: number;
-  itemCategoryId: number;
-  itemName: string;
-}
-
-export type CategoryItemsState = Record<string, ItemOption[]>;
-export type LoadingState = Record<string, boolean>;
-export type ErrorState = Record<string, string>;
-
-// ==========================================
-// FORM CREATE PROCUREMENT
-// ==========================================
-
-// Satu baris item di form create (semua string karena berasal dari input).
-export interface ProcurementItem {
-  categoryId: string;
-  itemId: string;
-  itemName: string;
-  quantity: string;
-  estimatedPrice: string;
-  isManual: boolean;
-}
+export type {
+  CategoryOption,
+  CategoryItemsState,
+  ErrorState,
+  ItemOption,
+  LoadingState,
+  PagedResult,
+  ProcurementItem,
+  TicketHistoryItem,
+} from '../../../types/ticket.types';
 
 export interface ProcurementLocationState {
   parentTicketId?: string | null;
@@ -99,17 +78,6 @@ export interface PendingProcurementTicket {
   currentStepName: string;
 }
 
-// Generic pagination response dari backend.
-export interface PagedResult<T> {
-  items: T[];
-  page: number;
-  pageSize: number;
-  totalCount: number;
-  totalPages: number;
-  hasPrevious: boolean;
-  hasNext: boolean;
-}
-
 export interface MyTicketStatistics {
   totalRequests: number;
   activeRequests: number;
@@ -132,18 +100,6 @@ export interface ProcurementDetail {
   quantity: number;
   price: number;
   totalPrice: number;
-  createdAt: string;
-}
-
-// Satu baris history workflow.
-export interface TicketHistoryItem {
-  action: string | null;
-  actionLabel: string;
-  fromStep: string;
-  toStep: string;
-  employeeId: string;
-  employeeName: string | null;
-  note: string | null;
   createdAt: string;
 }
 

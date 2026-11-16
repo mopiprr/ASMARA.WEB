@@ -1,7 +1,7 @@
 import type { ConfirmDialogType } from '../../../components/common/ConfirmDialog';
-import type { TicketHistoryItem } from '../../procurement/types/procurement.types';
+import type { TicketHistoryItem } from '../../../types/ticket.types';
 
-export type { PagedResult, TicketHistoryItem } from '../../procurement/types/procurement.types';
+export type { PagedResult, TicketHistoryItem } from '../../../types/ticket.types';
 
 // Tab di halaman Maintenance.
 export type MaintenanceTab = 'requests' | 'pending';

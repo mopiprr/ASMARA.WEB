@@ -1,12 +1,12 @@
 import { Plus } from 'lucide-react';
 
-import type { ProcurementItem } from '../../../../procurement/types/procurement.types';
-import type { useInventoryOptions } from '../../../../procurement/hooks/useInventoryOptions';
+import type { ProcurementItem } from '../../../../../types/ticket.types';
+import type { useInventoryOptions } from '../../../../../hooks/useInventoryOptions';
 
-import ProcurementItemForm from '../../../../procurement/components/ProcurementItemForm';
-import { detailInputClass } from '../../../../procurement/components/detail/detailStyles';
+import ProcurementItemForm from '../../../../../components/common/ProcurementItemForm';
+import { detailInputClass } from '../../../../../components/common/NoteField';
 import { formatIDR } from '../../../utils/maintenance.utils';
-import { getFormItemsTotal } from '../../../../procurement/utils/procurementForm.utils';
+import { getFormItemsTotal } from '../../../../../utils/itemForm.utils';
 
 type InventoryOptions = ReturnType<typeof useInventoryOptions>;
 

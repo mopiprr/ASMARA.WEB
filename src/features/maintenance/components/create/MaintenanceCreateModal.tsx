@@ -4,7 +4,7 @@ import type { MaintenanceAssetOption } from '../../types/maintenance.types';
 import type { useMaintenanceCreateForm } from '../../hooks/useMaintenanceCreateForm';
 
 import { ConfirmDialog } from '../../../../components/common/ConfirmDialog';
-import CreateRequestAlerts from '../../../procurement/components/create/CreateRequestAlerts';
+import CreateRequestAlerts from '../../../../components/common/RequestAlerts';
 
 import CreateMaintenanceHeader from './CreateMaintenanceHeader';
 import CreateMaintenanceFormStep from './CreateMaintenanceFormStep';

@@ -7,13 +7,13 @@ import { formatShortDateEn } from '../utils/maintenance.utils';
 
 import MaintenanceStatusBadge from './MaintenanceStatusBadge';
 
-// Komponen tabel yang sama dengan Procurement.
-import SortableHeader from '../../procurement/components/table/SortableHeader';
-import TableToolbar from '../../procurement/components/table/TableToolbar';
-import TableErrorAlert from '../../procurement/components/table/TableErrorAlert';
-import TableSkeletonRows from '../../procurement/components/table/TableSkeletonRows';
-import TableEmptyState from '../../procurement/components/table/TableEmptyState';
-import TablePagination from '../../procurement/components/table/TablePagination';
+// Shared table components.
+import SortableHeader from '../../../components/common/table/SortableHeader';
+import TableToolbar from '../../../components/common/table/TableToolbar';
+import TableErrorAlert from '../../../components/common/table/TableErrorAlert';
+import TableSkeletonRows from '../../../components/common/table/TableSkeletonRows';
+import TableEmptyState from '../../../components/common/table/TableEmptyState';
+import TablePagination from '../../../components/common/table/TablePagination';
 
 interface MaintenanceTableProps {
   tickets: MaintenanceTicketListItem[];

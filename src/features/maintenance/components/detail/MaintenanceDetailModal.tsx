@@ -26,7 +26,7 @@ import type {
 import { maintenanceApi } from '../../services/maintenanceApi';
 import { useMaintenanceDetailForm } from '../../hooks/useMaintenanceDetailForm';
 import { useLazyOptions } from '../../hooks/useLazyOptions';
-import { useInventoryOptions } from '../../../procurement/hooks/useInventoryOptions';
+import { useInventoryOptions } from '../../../../hooks/useInventoryOptions';
 
 import {
   evaluatePartRequirementAvailability,
@@ -38,7 +38,7 @@ import {
 } from '../../utils/maintenanceDetail.utils';
 import { REPAIR_RESULT_LABELS } from '../../utils/maintenance.utils';
 import { getMaintenanceConfirm, type ConfirmContent } from '../../utils/maintenanceConfirm.utils';
-import { hasIncompleteItems } from '../../../procurement/utils/procurementForm.utils';
+import { hasIncompleteItems } from '../../../../utils/itemForm.utils';
 
 import TicketHistorySection from '../../../../components/common/TicketHistorySection';
 import { ConfirmDialog } from '../../../../components/common/ConfirmDialog';
