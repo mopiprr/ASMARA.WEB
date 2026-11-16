@@ -2,10 +2,21 @@ import { useState } from 'react';
 
 import { ChevronDown, History } from 'lucide-react';
 
-import type { TicketHistoryItem } from '../../features/procurement/types/procurement.types';
+import { formatDateTime } from '../../utils/formatters';
+
+export interface TicketHistoryEntry {
+  action: string | null;
+  actionLabel: string;
+  fromStep: string;
+  toStep: string;
+  employeeId: string;
+  employeeName: string | null;
+  note: string | null;
+  createdAt: string;
+}
 
 interface TicketHistorySectionProps {
-  history?: TicketHistoryItem[] | null;
+  history?: TicketHistoryEntry[] | null;
   defaultExpanded?: boolean;
 }
 
@@ -93,13 +104,6 @@ function getActorRole(fromStep: string) {
     default:
       return null;
   }
-}
-
-function formatDateTime(value: string) {
-  const date = new Date(value);
-  const pad = (n: number) => n.toString().padStart(2, '0');
-
-  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function TicketHistorySection({

@@ -1,108 +1,128 @@
-
 import type { MaintenanceTicket } from '../../types/maintenance.types';
 import { formatDate } from '../../utils/maintenance-detail.utils';
+import MaintenanceStatusBadge from '../MaintenanceStatusBadge';
 
 interface MaintenanceTicketInfoProps {
   ticket: MaintenanceTicket;
 }
 
-function MaintenanceTicketInfo({
-  ticket,
-}: MaintenanceTicketInfoProps) {
+const REPAIR_RESULT_LABELS: Record<number, string> = {
+  1: 'Repaired',
+  2: 'Unrepairable',
+  3: 'Need Spare Part',
+};
+
+function MaintenanceTicketInfo({ ticket }: MaintenanceTicketInfoProps) {
+  const detail = ticket.maintenanceDetail;
+
   return (
-    <>
-      {/* TICKET INFORMATION */}
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-          Ticket Number
-        </p>
-        <p className="mt-1 font-semibold text-blue-600">
-          {ticket.ticketNumber}
-        </p>
-      </div>
+    <div className="space-y-6">
+      {/* REQUEST INFORMATION */}
+      <div className="space-y-5 rounded-xl border border-slate-200 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-slate-800">
+            Request Information
+          </h3>
+          <MaintenanceStatusBadge step={ticket.currentStep} />
+        </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <div>
-          <p className="text-xs text-slate-400">Subject</p>
-          <p className="mt-1 text-sm font-medium text-slate-800">
-            {ticket.subject}
-          </p>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div>
+            <p className="text-xs text-slate-400">Subject</p>
+            <p className="mt-1 text-sm font-medium text-slate-800">
+              {ticket.subject}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-slate-400">Requester</p>
+            <p className="mt-1 text-sm font-medium text-slate-800">
+              {ticket.employeeName || '-'}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-slate-400">Assigned Handler</p>
+            <p className="mt-1 text-sm font-medium text-slate-800">
+              {ticket.assignedTo || '-'}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-slate-400">Created At</p>
+            <p className="mt-1 text-sm font-medium text-slate-800">
+              {formatDate(ticket.createdAt)}
+            </p>
+          </div>
         </div>
 
         <div>
-          <p className="text-xs text-slate-400">Requester</p>
-          <p className="mt-1 text-sm font-medium text-slate-800">
-            {ticket.employeeName || '-'}
+          <p className="text-xs text-slate-400">Description</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+            {ticket.description || '-'}
           </p>
         </div>
-
-        <div>
-          <p className="text-xs text-slate-400">Assigned Handler</p>
-          <p className="mt-1 text-sm font-medium text-slate-800">
-            {ticket.assignedTo || '-'}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-xs text-slate-400">Created Date</p>
-          <p className="mt-1 text-sm font-medium text-slate-800">
-            {formatDate(ticket.createdAt)}
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-xl bg-slate-50 p-4">
-        <p className="text-xs text-slate-400">Current Step</p>
-        <p className="mt-1 text-sm font-semibold text-slate-800">
-          {ticket.currentStep}
-        </p>
-      </div>
-
-      <div>
-        <p className="text-xs text-slate-400">Description</p>
-        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
-          {ticket.description || '-'}
-        </p>
       </div>
 
       {/* ASSET INFORMATION */}
-      <div className="rounded-xl border border-slate-200 p-4">
+      <div className="space-y-4 rounded-xl border border-slate-200 p-5">
         <h3 className="text-sm font-semibold text-slate-800">
           Asset Information
         </h3>
 
-        {ticket.maintenanceDetail ? (
-          <div className="mt-3 space-y-2 text-sm">
-            <p>
-              <span className="text-slate-400">Asset Tag: </span>
-              <span className="font-medium text-slate-700">
-                {ticket.maintenanceDetail.assetTag || '-'}
-              </span>
-            </p>
+        {detail ? (
+          <>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <div>
+                <p className="text-xs text-slate-400">Asset Tag</p>
+                <p className="mt-1 font-mono text-sm font-medium text-slate-800">
+                  {detail.assetTag || '-'}
+                </p>
+              </div>
 
-            <p>
-              <span className="text-slate-400">
-                Problem Description:{' '}
-              </span>
-              <span className="text-slate-700">
-                {ticket.maintenanceDetail.description || '-'}
-              </span>
-            </p>
+              <div>
+                <p className="text-xs text-slate-400">Repair Result</p>
+                <p className="mt-1 text-sm font-medium text-slate-800">
+                  {detail.repairResult !== null &&
+                  detail.repairResult !== undefined
+                    ? REPAIR_RESULT_LABELS[detail.repairResult] || '-'
+                    : '-'}
+                </p>
+              </div>
 
-            <p>
-              <span className="text-slate-400">Handler Note: </span>
-              <span className="text-slate-700">
-                {ticket.maintenanceDetail.handlerNote || '-'}
-              </span>
-            </p>
-          </div>
+              {detail.replacementAssetTag && (
+                <div>
+                  <p className="text-xs text-slate-400">Replacement Asset</p>
+                  <p className="mt-1 font-mono text-sm font-medium text-slate-800">
+                    {detail.replacementAssetTag}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <p className="text-xs text-slate-400">Problem Description</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+                {detail.description || '-'}
+              </p>
+            </div>
+
+            {detail.handlerNote && (
+              <div>
+                <p className="text-xs text-slate-400">Handler Note</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+                  {detail.handlerNote}
+                </p>
+              </div>
+            )}
+          </>
         ) : (
-          <p className="mt-3 text-sm text-slate-400">
+          <p className="text-sm text-slate-400">
             No maintenance detail available.
           </p>
         )}
       </div>
-    </>
+    </div>
   );
 }
 

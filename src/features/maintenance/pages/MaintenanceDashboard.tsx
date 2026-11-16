@@ -44,6 +44,7 @@ function MaintenanceDashboard() {
   const [selectedTicket, setSelectedTicket] =
     useState<MaintenanceTicket | null>(null);
 
+  const [isPendingView, setIsPendingView] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -130,7 +131,6 @@ function MaintenanceDashboard() {
       await Promise.all([
         fetchTickets(),
         fetchPendingTickets(),
-        fetchAssets(),
       ]);
     },
   });
@@ -231,18 +231,6 @@ function MaintenanceDashboard() {
           );
         }
       }
-
-      // Load the latest asset options when replacement decision is permitted.
-      if (detail.canProcessReplacement === true) {
-        try {
-          await fetchAssets();
-        } catch (assetFetchError) {
-          console.error(
-            'FAILED TO FETCH REPLACEMENT ASSETS:',
-            assetFetchError,
-          );
-        }
-      }
     } catch (error: unknown) {
       console.error('Failed to load maintenance detail:', error);
 
@@ -274,11 +262,14 @@ function MaintenanceDashboard() {
         try {
           if (tabParam === 'pending') {
             try {
+              setIsPendingView(true);
               await loadMaintenanceDetail(ticketIdParam, fetchPendingTicketById);
             } catch {
+              setIsPendingView(false);
               await loadMaintenanceDetail(ticketIdParam, fetchTicketById);
             }
           } else {
+            setIsPendingView(false);
             await loadMaintenanceDetail(ticketIdParam, fetchTicketById);
           }
         } catch (err) {
@@ -295,6 +286,7 @@ function MaintenanceDashboard() {
   const handleViewTicket = async (
     ticket: MaintenanceTicketListItem,
   ) => {
+    setIsPendingView(false);
     await loadMaintenanceDetail(ticket.id, fetchTicketById);
   };
 
@@ -305,6 +297,7 @@ function MaintenanceDashboard() {
   const handleViewPendingTicket = async (
     ticket: PendingMaintenanceTicket,
   ) => {
+    setIsPendingView(true);
     await loadMaintenanceDetail(
       ticket.id,
       fetchPendingTicketById,
@@ -319,6 +312,7 @@ function MaintenanceDashboard() {
     if (isLoadingDetail || isProcessing) return;
 
     setSelectedTicket(null);
+    setIsPendingView(false);
     setDetailError('');
     setActionError('');
   };
@@ -338,6 +332,7 @@ function MaintenanceDashboard() {
       await action();
 
       setSelectedTicket(null);
+      setIsPendingView(false);
     } catch (error: unknown) {
       console.error(errorMessage, error);
 
@@ -691,12 +686,12 @@ function MaintenanceDashboard() {
 
       <MaintenanceDetailModal
         ticket={selectedTicket}
+        showHistory={!isPendingView}
         isLoading={isLoadingDetail}
         isProcessing={isProcessing}
         error={detailError}
         actionError={actionError}
         handlers={handlers}
-        assets={assets}
         isLoadingHandlers={isLoadingHandlers}
         handlerError={handlerError}
         onClose={handleCloseDetail}

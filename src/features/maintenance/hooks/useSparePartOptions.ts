@@ -7,7 +7,7 @@ import type {
   SparePartItem,
 } from '../../inventory/types/inventory.types';
 
-export function useSparePartOptions(enabled = true) {
+export function useSparePartOptions(enabled = true, includeCategories = true) {
   const [spareParts, setSpareParts] = useState<SparePartItem[]>([]);
   const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -21,25 +21,42 @@ export function useSparePartOptions(enabled = true) {
       setError(null);
 
       // 1. GET /api/inventory/spare-parts (with onlyInStock=false so stock === 0 is INCLUDED)
-      // 2. GET /api/inventory/categories?onlyActive=true&trackingType=1 (Consumable categories for custom input)
-      const [sparePartsRes, categoriesRes] = await Promise.all([
-        api.get<SparePartItem[]>('/inventory/spare-parts', {
+      // 2. GET /api/inventory/categories?onlyActive=true&trackingType=1 (Consumable categories for custom input, only when needed)
+      const sparePartsPromise = api.get<SparePartItem[]>(
+        '/inventory/spare-parts',
+        {
           params: { onlyInStock: false },
-        }),
-        api.get<InventoryCategory[]>('/inventory/categories', {
-          params: { onlyActive: true, trackingType: 1 },
-        }),
-      ]);
+        },
+      );
 
-      setSpareParts(Array.isArray(sparePartsRes.data) ? sparePartsRes.data : []);
-      setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : []);
+      if (includeCategories) {
+        const [sparePartsRes, categoriesRes] = await Promise.all([
+          sparePartsPromise,
+          api.get<InventoryCategory[]>('/inventory/categories', {
+            params: { onlyActive: true, trackingType: 1 },
+          }),
+        ]);
+
+        setSpareParts(
+          Array.isArray(sparePartsRes.data) ? sparePartsRes.data : [],
+        );
+        setCategories(
+          Array.isArray(categoriesRes.data) ? categoriesRes.data : [],
+        );
+      } else {
+        const sparePartsRes = await sparePartsPromise;
+        setSpareParts(
+          Array.isArray(sparePartsRes.data) ? sparePartsRes.data : [],
+        );
+        setCategories([]);
+      }
     } catch (err: unknown) {
       console.error('Failed to load spare part options:', err);
       setError('Failed to load spare parts or inventory categories.');
     } finally {
       setIsLoading(false);
     }
-  }, [enabled]);
+  }, [enabled, includeCategories]);
 
   useEffect(() => {
     void fetchOptions();

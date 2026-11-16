@@ -1,4 +1,9 @@
 
+export { formatIDR, formatDateTime } from '../../../utils/formatters';
+
+import type { ProcurementItem } from '../../procurement/types/procurement.types';
+import type { MaintenanceProcurementItemPayload } from '../types/maintenance.types';
+
 export interface RequiredPart {
   itemName: string;
   note?: string;
@@ -18,14 +23,6 @@ export function formatDate(value: string | null) {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
-}
-
-export function formatIDR(value: number) {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-  }).format(value);
 }
 
 export function parseRequiredParts(
@@ -58,4 +55,18 @@ export function parseRequiredParts(
   } catch {
     return [];
   }
+}
+
+export function toSharedProcurementItem(
+  item: MaintenanceProcurementItemPayload,
+  isManual: boolean,
+): ProcurementItem {
+  return {
+    categoryId: item.itemCategoryId ? String(item.itemCategoryId) : '',
+    itemId: item.itemId ? String(item.itemId) : '',
+    itemName: item.itemName,
+    quantity: String(item.quantity),
+    estimatedPrice: String(item.price),
+    isManual,
+  };
 }

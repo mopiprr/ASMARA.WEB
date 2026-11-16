@@ -267,6 +267,7 @@ function ProcurementPage() {
 
       <ProcurementDetailModal
         ticket={selectedTicket}
+        showHistory={!detail.isPendingView}
         isProcessing={isProcessing}
         actionError={actionError}
         onClose={handleCloseDetail}

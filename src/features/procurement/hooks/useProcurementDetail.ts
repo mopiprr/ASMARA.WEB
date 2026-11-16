@@ -27,6 +27,8 @@ export function useProcurementDetail({
   const [selectedTicket, setSelectedTicket] =
     useState<ProcurementTicket | null>(null);
 
+  const [isPendingView, setIsPendingView] = useState(false);
+
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
   const [detailError, setDetailError] = useState('');
@@ -36,6 +38,7 @@ export function useProcurementDetail({
     try {
       setIsLoadingDetail(true);
       setDetailError('');
+      setIsPendingView(false);
       onBeforeOpen();
       setSelectedTicket(null);
 
@@ -54,6 +57,7 @@ export function useProcurementDetail({
     try {
       setIsLoadingDetail(true);
       setDetailError('');
+      setIsPendingView(true);
       onBeforeOpen();
       setSelectedTicket(null);
 
@@ -76,13 +80,16 @@ export function useProcurementDetail({
 
         if (isPendingTab) {
           try {
+            setIsPendingView(true);
             setSelectedTicket(await fetchPendingTicketById(ticketId));
           } catch {
             // Jika tiket ini bukan task pending untuk user ini (mis. tiket requester sendiri),
             // fallback ambil detail tiket reguler agar modal tetap terbuka.
+            setIsPendingView(false);
             setSelectedTicket(await procurementApi.getTicketById(ticketId));
           }
         } else {
+          setIsPendingView(false);
           setSelectedTicket(await procurementApi.getTicketById(ticketId));
         }
       } catch (err: unknown) {
@@ -103,11 +110,13 @@ export function useProcurementDetail({
 
   const clearDetail = () => {
     setSelectedTicket(null);
+    setIsPendingView(false);
     setDetailError('');
   };
 
   return {
     selectedTicket,
+    isPendingView,
     isLoadingDetail,
     detailError,
     openTicket,

@@ -3,6 +3,14 @@ import type {
   ProcurementTicket,
 } from '../types/procurement.types';
 
+import {
+  formatIDR,
+  formatDate,
+  formatShortDateEn,
+} from '../../../utils/formatters';
+
+export { formatIDR, formatDate, formatShortDateEn };
+
 // ==========================================
 // INITIAL FORM
 // ==========================================
@@ -15,54 +23,6 @@ export const createEmptyItem = (): ProcurementItem => ({
   estimatedPrice: '',
   isManual: false,
 });
-
-// ==========================================
-// FORMAT CURRENCY
-// ==========================================
-
-export const formatIDR = (value: string | number): string => {
-  const number = Number(value);
-
-  if (!Number.isFinite(number)) {
-    return 'Rp0';
-  }
-
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-  }).format(number);
-};
-
-// ==========================================
-// FORMAT DATE
-// ==========================================
-
-export const formatDate = (value: string): string => {
-  if (!value) {
-    return '-';
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return '-';
-  }
-
-  return date.toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-};
-
-// Format tanggal di tabel Pending Approval (contoh: 13 Nov 2026).
-export const formatShortDateEn = (value: string): string =>
-  new Date(value).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 
 // ==========================================
 // STATUS LABEL

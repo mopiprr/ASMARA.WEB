@@ -1,17 +1,13 @@
-import type { TicketHistoryItem } from '../../types/procurement.types';
-
 import NoteField from './NoteField';
 
 interface ResubmitSectionProps {
-  lastRevision?: TicketHistoryItem;
   note: string;
   isProcessing: boolean;
   onNoteChange: (value: string) => void;
 }
 
-// Catatan revisi terakhir dari approver + catatan requester saat resubmit.
+// Catatan requester saat mengajukan ulang revisi.
 function ResubmitSection({
-  lastRevision,
   note,
   isProcessing,
   onNoteChange,
@@ -26,18 +22,6 @@ function ResubmitSection({
         Please review your updated request details carefully before
         resubmitting for approval.
       </p>
-
-      {lastRevision?.note && (
-        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-xs font-semibold text-amber-700">
-            Revision requested by {lastRevision.employeeName || '-'}
-          </p>
-
-          <p className="mt-1 whitespace-pre-wrap text-sm text-amber-800">
-            {lastRevision.note}
-          </p>
-        </div>
-      )}
 
       <NoteField
         id="procurement-resubmit-note"

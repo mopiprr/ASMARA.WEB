@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import api from '../../../services/api';
 
@@ -166,14 +166,6 @@ setHandlers(response.data);
     }
   }, []);
 
-  // ==========================================
-  // INITIAL FETCH
-  // ==========================================
-
- useEffect(() => {
-  void fetchAssets();
-  void fetchHandlers();
-}, [fetchAssets, fetchHandlers]);
   return {
     assets,
     handlers,

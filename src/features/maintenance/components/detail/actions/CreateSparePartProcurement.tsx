@@ -2,18 +2,19 @@
 import {
   LoaderCircle,
   Plus,
-  Trash2,
 } from 'lucide-react';
+
+import ProcurementItemForm from '../../../../../components/common/ProcurementItemForm';
 
 import type {
   MaintenanceProcurementItemPayload,
 } from '../../../types/maintenance.types';
 
-import type {
-  RequiredPart,
+import {
+  type RequiredPart,
+  formatIDR,
+  toSharedProcurementItem,
 } from '../../../utils/maintenance-detail.utils';
-
-import { formatIDR } from '../../../utils/maintenance-detail.utils';
 
 import type {
   useInventoryOptions,
@@ -168,220 +169,47 @@ function CreateSparePartProcurement({
         />
       </div>
 
-      {orderPartItems.map((item, index) => {
-        const categoryId = String(item.itemCategoryId || '');
-        const availableItems = inventoryItemsByCategory[categoryId] ?? [];
-        const isLoadingItems = loadingItems[categoryId] ?? false;
-        const itemError = itemErrors[categoryId] ?? '';
-        const isManual = orderPartManualItems[index] ?? false;
-
-        return (
-          <div
-            key={index}
-            className="space-y-3 rounded-lg border border-slate-200 bg-white p-3"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-slate-600">
-                Procurement Item #{index + 1}
-              </p>
-
-              {orderPartItems.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => onRemoveItem(index)}
-                  disabled={isProcessing}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-red-600"
-                >
-                  <Trash2 size={13} />
-                  Remove
-                </button>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor={`orderPartCategory-${index}`}
-                className="mb-1 block text-xs font-medium text-slate-600"
-              >
-                Category
-              </label>
-
-              <select
-                id={`orderPartCategory-${index}`}
-                value={categoryId}
-                onChange={(event) =>
-                  onCategoryChange(index, event.target.value)
-                }
-                disabled={isProcessing || isLoadingCategories}
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-500"
-              >
-                <option value="">
-                  {isLoadingCategories
-                    ? 'Loading categories...'
-                    : 'Select category'}
-                </option>
-
-                {categories.map((category) => (
-                  <option
-                    key={category.id}
-                    value={String(category.id)}
-                  >
-                    {category.categoryName}
-                  </option>
-                ))}
-              </select>
-
-              {categoryError && (
-                <p className="mt-1 text-xs text-red-600">
-                  {categoryError}
-                </p>
-              )}
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => onToggleManualItem(index)}
-                disabled={isProcessing || !item.itemCategoryId}
-                className="text-xs font-semibold text-orange-600 disabled:opacity-50"
-              >
-                {isManual
-                  ? 'Switch to Inventory Item'
-                  : 'Enter Item Manually'}
-              </button>
-            </div>
-
-            <div>
-              <label
-                htmlFor={`orderPartItem-${index}`}
-                className="mb-1 block text-xs font-medium text-slate-600"
-              >
-                Item
-              </label>
-
-              {isManual ? (
-                <input
-                  id={`orderPartItem-${index}`}
-                  type="text"
-                  value={item.itemName}
-                  onChange={(event) =>
-                    onManualNameChange(index, event.target.value)
-                  }
-                  placeholder="Enter item name manually"
-                  disabled={isProcessing || !item.itemCategoryId}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-500"
-                />
-              ) : (
-                <select
-                  id={`orderPartItem-${index}`}
-                  value={item.itemId ? String(item.itemId) : ''}
-                  onChange={(event) =>
-                    onItemChange(index, event.target.value)
-                  }
-                  disabled={
-                    isProcessing ||
-                    !item.itemCategoryId ||
-                    isLoadingItems
-                  }
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-500"
-                >
-                  <option value="">
-                    {!item.itemCategoryId
-                      ? 'Select category first'
-                      : isLoadingItems
-                        ? 'Loading items...'
-                        : availableItems.length === 0
-                          ? 'No items available'
-                          : 'Select inventory item'}
-                  </option>
-
-                  {availableItems.map((inventoryItem) => (
-                    <option
-                      key={inventoryItem.id}
-                      value={String(inventoryItem.id)}
-                    >
-                      {inventoryItem.itemName}
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              {itemError && (
-                <p className="mt-1 text-xs text-red-600">
-                  {itemError}
-                </p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label
-                  htmlFor={`orderPartQuantity-${index}`}
-                  className="mb-1 block text-xs font-medium text-slate-600"
-                >
-                  Quantity
-                </label>
-
-                <input
-                  id={`orderPartQuantity-${index}`}
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={item.quantity}
-                  onChange={(event) =>
-                    onFieldChange(
-                      index,
-                      'quantity',
-                      event.target.value === ''
-                        ? 0
-                        : Math.max(0, Number(event.target.value)),
-                    )
-                  }
-                  disabled={isProcessing}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-500"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor={`orderPartPrice-${index}`}
-                  className="mb-1 block text-xs font-medium text-slate-600"
-                >
-                  Estimated Price
-                </label>
-
-                <input
-                  id={`orderPartPrice-${index}`}
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={item.price}
-                  onChange={(event) =>
-                    onFieldChange(
-                      index,
-                      'price',
-                      event.target.value === ''
-                        ? 0
-                        : Math.max(0, Number(event.target.value)),
-                    )
-                  }
-                  disabled={isProcessing}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-              <span className="text-xs text-slate-500">
-                Estimated Subtotal
-              </span>
-              <span className="text-sm font-semibold text-slate-800">
-                {formatIDR(item.quantity * item.price)}
-              </span>
-            </div>
-          </div>
-        );
-      })}
+      {orderPartItems.map((item, index) => (
+        <ProcurementItemForm
+          key={index}
+          index={index}
+          item={toSharedProcurementItem(
+            item,
+            orderPartManualItems[index] ?? false,
+          )}
+          categories={categories}
+          categoryItems={inventoryItemsByCategory}
+          isLoadingCategories={isLoadingCategories}
+          categoryError={categoryError}
+          isLoadingItems={loadingItems}
+          itemErrors={itemErrors}
+          canRemove={orderPartItems.length > 1}
+          disabled={isProcessing}
+          itemLabel="Procurement Item"
+          subtitle="Spare part procurement item"
+          onCategoryChange={onCategoryChange}
+          onItemChange={(itemIndex, itemId) => onItemChange(itemIndex, itemId)}
+          onToggleManualItem={onToggleManualItem}
+          onFieldChange={(itemIndex, field, value) => {
+            if (field === 'itemName') {
+              onManualNameChange(itemIndex, value);
+            } else if (field === 'quantity') {
+              onFieldChange(
+                itemIndex,
+                'quantity',
+                value === '' ? 0 : Math.max(0, Number(value)),
+              );
+            } else if (field === 'estimatedPrice') {
+              onFieldChange(
+                itemIndex,
+                'price',
+                value === '' ? 0 : Math.max(0, Number(value)),
+              );
+            }
+          }}
+          onRemove={onRemoveItem}
+        />
+      ))}
 
       <button
         type="button"

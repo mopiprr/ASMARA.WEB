@@ -4,14 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   LoaderCircle,
   Send,
-  X,
+  Wrench,
 } from 'lucide-react';
 
 import api from '../../../services/api';
 
 import type {
   AssignMaintenanceHandlerPayload,
-  MaintenanceAssetOption,
   MaintenanceHandlerOption,
   MaintenanceNotePayload,
   MaintenancePartCheckPayload,
@@ -28,9 +27,31 @@ import type {
 import { useInventoryOptions } from '../../procurement/hooks/useInventoryOptions';
 
 import { parseRequiredParts } from '../utils/maintenance-detail.utils';
+import {
+  getMaintenanceApproveConfirm,
+  getMaintenanceArchiveConfirm,
+  getMaintenanceAssignConfirm,
+  getMaintenanceCheckPartConfirm,
+  getMaintenanceCloseTicketConfirm,
+  getMaintenanceDisposeConfirm,
+  getMaintenanceOrderPartConfirm,
+  getMaintenanceProcessReplacementConfirm,
+  getMaintenanceReceiveItemConfirm,
+  getMaintenanceReceivePartConfirm,
+  getMaintenanceRejectConfirm,
+  getMaintenanceRepairResultConfirm,
+  getMaintenanceSendItemConfirm,
+  getMaintenanceSendPartConfirm,
+  getMaintenanceSendReplacementConfirm,
+  type MaintenanceConfirmContent,
+} from '../utils/maintenanceConfirm.utils';
+
+import ConfirmDialog from '../../../components/common/ConfirmDialog';
+import NoteField from '../../../components/common/NoteField';
+import TicketDetailModalHeader from '../../../components/common/TicketDetailModalHeader';
+import TicketHistorySection from '../../../components/common/TicketHistorySection';
 
 import MaintenanceTicketInfo from './detail/MaintenanceTicketInfo';
-import MaintenanceWorkflowHistory from './detail/MaintenanceWorkflowHistory';
 import MaintenanceActionSection from './detail/MaintenanceActionSection';
 
 import AssignMaintenanceHandler from './detail/actions/AssignMaintenanceHandler';
@@ -55,13 +76,13 @@ import { evaluatePartRequirementAvailability } from './InventoryPartComparisonTa
 
 interface MaintenanceDetailModalProps {
   ticket: MaintenanceTicket | null;
+  showHistory?: boolean;
   isLoading: boolean;
   isProcessing: boolean;
   error: string;
   actionError: string;
 
   handlers: MaintenanceHandlerOption[];
-  assets: MaintenanceAssetOption[];
   isLoadingHandlers: boolean;
   handlerError: string;
 
@@ -112,6 +133,7 @@ interface MaintenanceDetailPartRequirement {
 
 function MaintenanceDetailModal({
   ticket,
+  showHistory = true,
   isLoading,
   isProcessing,
   error,
@@ -139,6 +161,25 @@ function MaintenanceDetailModal({
 }: MaintenanceDetailModalProps) {
   const [note, setNote] = useState('');
   const [selectedHandlerId, setSelectedHandlerId] = useState('');
+  const [confirmConfig, setConfirmConfig] = useState<
+    (MaintenanceConfirmContent & { onConfirm: () => Promise<void> }) | null
+  >(null);
+
+  const openConfirm = (
+    content: MaintenanceConfirmContent,
+    action: () => Promise<void>,
+  ) => {
+    setConfirmConfig({
+      ...content,
+      onConfirm: async () => {
+        try {
+          await action();
+        } finally {
+          setConfirmConfig(null);
+        }
+      },
+    });
+  };
 
   const {
     categories,
@@ -151,10 +192,29 @@ function MaintenanceDetailModal({
     fetchInventoryItems,
   } = useInventoryOptions();
 
+  const currentStep = ticket?.currentStep?.toUpperCase();
+
   const showSubmitRepairResultAction = Boolean(
     ticket?.canSubmitRepairResult,
   );
   const showCheckPartAction = Boolean(ticket?.canCheckPart);
+  const showOrderPartAction = Boolean(ticket?.canOrderPart);
+
+  const isInventoryReplacementStep =
+    currentStep === 'INVENTORY_DISPOSE' ||
+    currentStep === 'INVENTORY_ARCHIVE';
+
+  const showReplacementDecisionAction = Boolean(
+    ticket &&
+      isInventoryReplacementStep &&
+      ticket.canProcessReplacement,
+  );
+
+  const showSendReplacementAction = Boolean(
+    ticket &&
+      currentStep === 'INVENTORY_SEND_REPLACEMENT' &&
+      ticket.canSendReplacement,
+  );
 
   const {
     spareParts,
@@ -164,6 +224,7 @@ function MaintenanceDetailModal({
     refetch: refetchSparePartOptions,
   } = useSparePartOptions(
     showSubmitRepairResultAction || showCheckPartAction,
+    showSubmitRepairResultAction,
   );
 
   // REPAIR RESULT
@@ -278,8 +339,10 @@ function MaintenanceDetailModal({
   }, [canConfirmAvailable, partAvailability]);
 
   useEffect(() => {
-    void loadCategories();
-  }, [loadCategories]);
+    if (showOrderPartAction || showReplacementDecisionAction) {
+      void loadCategories();
+    }
+  }, [loadCategories, showOrderPartAction, showReplacementDecisionAction]);
 
   // RESET FORM WHEN TICKET CHANGES
   useEffect(() => {
@@ -335,6 +398,7 @@ function MaintenanceDetailModal({
     ]);
 
     setReplacementManualItems([false]);
+    setConfirmConfig(null);
   }, [ticket?.id]);
 
   // FETCH AVAILABLE REPLACEMENT ASSETS
@@ -342,8 +406,13 @@ function MaintenanceDetailModal({
     let isMounted = true;
 
     const fetchReplacementAssets = async () => {
-      if (!ticket?.id) {
+      if (
+        !ticket?.id ||
+        (!showReplacementDecisionAction && !showSendReplacementAction)
+      ) {
         setReplacementAssets([]);
+        setReplacementAssetError('');
+        setIsLoadingReplacementAssets(false);
         return;
       }
 
@@ -396,7 +465,7 @@ function MaintenanceDetailModal({
     return () => {
       isMounted = false;
     };
-  }, [ticket?.id]);
+  }, [ticket?.id, showReplacementDecisionAction, showSendReplacementAction]);
 
   // REPAIR RESULT
   const handleAddRepairPart = () => {
@@ -498,44 +567,54 @@ function MaintenanceDetailModal({
       (repairParts.length > 0 &&
         validRepairParts.length === repairParts.length));
 
-  const handleSubmitRepairResult = async () => {
-    if (!repairResult || !canSubmitRepair) return;
+  const handleSubmitRepairResult = () => {
+    if (!ticket || !repairResult || !canSubmitRepair) return;
 
-    if (repairResult === 3) {
-      const payloadParts = validRepairParts.map((part) => ({
-        itemId: part.isCustom ? null : part.itemId,
-        itemCategoryId: Number(part.itemCategoryId),
-        itemName: part.itemName.trim(),
-        quantity: Number(part.quantity) || 1,
-      }));
+    openConfirm(
+      getMaintenanceRepairResultConfirm(ticket.ticketNumber, repairResult),
+      async () => {
+        if (repairResult === 3) {
+          const payloadParts = validRepairParts.map((part) => ({
+            itemId: part.isCustom ? null : part.itemId,
+            itemCategoryId: Number(part.itemCategoryId),
+            itemName: part.itemName.trim(),
+            quantity: Number(part.quantity) || 1,
+          }));
 
-      await onSubmitRepairResult({
-        result: repairResult,
-        handlerNote: note.trim() || undefined,
-        partRequirement: JSON.stringify(payloadParts),
-        parts: payloadParts,
-      });
+          await onSubmitRepairResult({
+            result: repairResult,
+            handlerNote: note.trim() || undefined,
+            partRequirement: JSON.stringify(payloadParts),
+            parts: payloadParts,
+          });
 
-      return;
-    }
+          return;
+        }
 
-    await onSubmitRepairResult({
-      result: repairResult,
-      handlerNote: note.trim() || undefined,
-      partRequirement: null,
-      parts: [],
-    });
+        await onSubmitRepairResult({
+          result: repairResult,
+          handlerNote: note.trim() || undefined,
+          partRequirement: null,
+          parts: [],
+        });
+      },
+    );
   };
 
   // INVENTORY CHECK PART
-  const handleCheckPart = async () => {
-    if (partAvailability === null) return;
+  const handleCheckPart = () => {
+    if (!ticket || partAvailability === null) return;
     if (partAvailability === true && !canConfirmAvailable) return;
 
-    await onCheckPart({
-      available: partAvailability,
-      note: note.trim() || undefined,
-    });
+    openConfirm(
+      getMaintenanceCheckPartConfirm(ticket.ticketNumber, partAvailability),
+      async () => {
+        await onCheckPart({
+          available: partAvailability,
+          note: note.trim() || undefined,
+        });
+      },
+    );
   };
 
   // HANDLER: PROCUREMENT ITEM FORM
@@ -686,34 +765,50 @@ function MaintenanceDetailModal({
     0,
   );
 
-  const handleOrderPart = async () => {
+  const handleOrderPart = () => {
     if (!canSubmitOrderPart || !ticket) return;
 
-    await onOrderPart({
-      subject: orderPartSubject.trim(),
-      description: orderPartDescription.trim() || null,
-      items: validOrderPartItems.map((item) => ({
-        itemCategoryId: Number(item.itemCategoryId),
-        itemName: item.itemName.trim(),
-        quantity: Number(item.quantity),
-        price: Number(item.price),
-        itemId: item.itemId ? Number(item.itemId) : null,
-      })),
-      note: note.trim() || undefined,
-    });
+    openConfirm(
+      getMaintenanceOrderPartConfirm(ticket.ticketNumber, totalOrderPartPrice),
+      async () => {
+        await onOrderPart({
+          subject: orderPartSubject.trim(),
+          description: orderPartDescription.trim() || null,
+          items: validOrderPartItems.map((item) => ({
+            itemCategoryId: Number(item.itemCategoryId),
+            itemName: item.itemName.trim(),
+            quantity: Number(item.quantity),
+            price: Number(item.price),
+            itemId: item.itemId ? Number(item.itemId) : null,
+          })),
+          note: note.trim() || undefined,
+        });
+      },
+    );
   };
 
   // INVENTORY SEND PART / HANDLER RECEIVE PART
-  const handleSendPart = async () => {
-    await onSendPart({
-      note: note.trim() || undefined,
+  const handleSendPart = () => {
+    if (!ticket) return;
+
+    openConfirm(getMaintenanceSendPartConfirm(ticket.ticketNumber), async () => {
+      await onSendPart({
+        note: note.trim() || undefined,
+      });
     });
   };
 
-  const handleReceivePart = async () => {
-    await onReceivePart({
-      note: note.trim() || undefined,
-    });
+  const handleReceivePart = () => {
+    if (!ticket) return;
+
+    openConfirm(
+      getMaintenanceReceivePartConfirm(ticket.ticketNumber),
+      async () => {
+        await onReceivePart({
+          note: note.trim() || undefined,
+        });
+      },
+    );
   };
 
   // REPLACEMENT FORM
@@ -870,86 +965,145 @@ function MaintenanceDetailModal({
         validReplacementItems.length === replacementItems.length &&
         replacementItems.length > 0);
 
-  const handleProcessReplacement = async () => {
-    if (!canSubmitReplacement) return;
-
-    if (replacementAvailability === true) {
-      await onProcessReplacement({
-        available: true,
-        replacementAssetId: Number(selectedReplacementAssetId),
-        note: note.trim() || undefined,
-      });
-
+  const handleProcessReplacement = () => {
+    if (!ticket || !canSubmitReplacement || replacementAvailability === null) {
       return;
     }
 
-    await onProcessReplacement({
-      available: false,
-      subject: replacementSubject.trim(),
-      description: replacementDescription.trim() || undefined,
-      items: validReplacementItems.map((item) => ({
-        itemCategoryId: Number(item.itemCategoryId),
-        itemName: item.itemName.trim(),
-        quantity: 1,
-        price: Number(item.price),
-        itemId: item.itemId ? Number(item.itemId) : null,
-      })),
-      note: note.trim() || undefined,
-    });
+    openConfirm(
+      getMaintenanceProcessReplacementConfirm(
+        ticket.ticketNumber,
+        replacementAvailability,
+        totalReplacementEstimatedPrice,
+      ),
+      async () => {
+        if (replacementAvailability === true) {
+          await onProcessReplacement({
+            available: true,
+            replacementAssetId: Number(selectedReplacementAssetId),
+            note: note.trim() || undefined,
+          });
+
+          return;
+        }
+
+        await onProcessReplacement({
+          available: false,
+          subject: replacementSubject.trim(),
+          description: replacementDescription.trim() || undefined,
+          items: validReplacementItems.map((item) => ({
+            itemCategoryId: Number(item.itemCategoryId),
+            itemName: item.itemName.trim(),
+            quantity: 1,
+            price: Number(item.price),
+            itemId: item.itemId ? Number(item.itemId) : null,
+          })),
+          note: note.trim() || undefined,
+        });
+      },
+    );
   };
 
   // SEND REPLACEMENT
-  const handleSendReplacement = async () => {
-    if (selectedSendReplacementAssetId === '') return;
+  const handleSendReplacement = () => {
+    if (!ticket || selectedSendReplacementAssetId === '') return;
 
-    await onSendReplacement({
-      replacementAssetId: Number(selectedSendReplacementAssetId),
-      note: note.trim() || undefined,
-    });
+    openConfirm(
+      getMaintenanceSendReplacementConfirm(ticket.ticketNumber),
+      async () => {
+        await onSendReplacement({
+          replacementAssetId: Number(selectedSendReplacementAssetId),
+          note: note.trim() || undefined,
+        });
+      },
+    );
   };
 
   // GENERAL ACTIONS
-  const handleApprove = async () => {
-    await onApprove({ note: note.trim() || undefined });
-  };
+  const handleApprove = () => {
+    if (!ticket) return;
 
-  const handleReject = async () => {
-    if (!note.trim()) return;
-    await onReject({ note: note.trim() });
-  };
-
-  const handleAssignHandler = async () => {
-    if (!selectedHandlerId) return;
-
-    await onAssignHandler({
-      technicianId: selectedHandlerId,
-      instructionNote: note.trim() || undefined,
+    openConfirm(getMaintenanceApproveConfirm(ticket.ticketNumber), async () => {
+      await onApprove({ note: note.trim() || undefined });
     });
   };
 
-  const handleSendItem = async () => {
-    await onSendItem({ note: note.trim() || undefined });
+  const handleReject = () => {
+    if (!ticket || !note.trim()) return;
+
+    openConfirm(getMaintenanceRejectConfirm(ticket.ticketNumber), async () => {
+      await onReject({ note: note.trim() });
+    });
   };
 
-  const handleReceiveItem = async () => {
-    await onReceiveItem({ note: note.trim() || undefined });
+  const handleAssignHandler = () => {
+    if (!ticket || !selectedHandlerId) return;
+
+    const selectedHandler = handlers.find(
+      (handler) => handler.employeeId === selectedHandlerId,
+    );
+
+    openConfirm(
+      getMaintenanceAssignConfirm(
+        ticket.ticketNumber,
+        selectedHandler?.fullName,
+      ),
+      async () => {
+        await onAssignHandler({
+          technicianId: selectedHandlerId,
+          instructionNote: note.trim() || undefined,
+        });
+      },
+    );
   };
 
-  const handleCloseTicket = async () => {
-    await onCloseTicket({ note: note.trim() || undefined });
+  const handleSendItem = () => {
+    if (!ticket) return;
+
+    openConfirm(getMaintenanceSendItemConfirm(ticket.ticketNumber), async () => {
+      await onSendItem({ note: note.trim() || undefined });
+    });
   };
 
-  const handleArchive = async () => {
-    await onArchive({ note: note.trim() || undefined });
+  const handleReceiveItem = () => {
+    if (!ticket) return;
+
+    openConfirm(
+      getMaintenanceReceiveItemConfirm(ticket.ticketNumber),
+      async () => {
+        await onReceiveItem({ note: note.trim() || undefined });
+      },
+    );
   };
 
-  const handleDispose = async () => {
-    await onDispose({ note: note.trim() || undefined });
+  const handleCloseTicket = () => {
+    if (!ticket) return;
+
+    openConfirm(
+      getMaintenanceCloseTicketConfirm(ticket.ticketNumber),
+      async () => {
+        await onCloseTicket({ note: note.trim() || undefined });
+      },
+    );
+  };
+
+  const handleArchive = () => {
+    if (!ticket) return;
+
+    openConfirm(getMaintenanceArchiveConfirm(ticket.ticketNumber), async () => {
+      await onArchive({ note: note.trim() || undefined });
+    });
+  };
+
+  const handleDispose = () => {
+    if (!ticket) return;
+
+    openConfirm(getMaintenanceDisposeConfirm(ticket.ticketNumber), async () => {
+      await onDispose({ note: note.trim() || undefined });
+    });
   };
 
   // PERMISSIONS
-  const currentStep = ticket?.currentStep?.toUpperCase();
-
   const isDivisionManagerReview =
     currentStep === 'DIVISION_MANAGER_REVIEW';
 
@@ -982,28 +1136,7 @@ function MaintenanceDetailModal({
 
   const showReceivePartAction = Boolean(ticket?.canReceivePart);
 
-  // NOTE:
-  // canOrderPart dari backend harus diberikan kepada assigned Maintenance Handler,
-  // bukan Inventory.
-  const showOrderPartAction = Boolean(ticket?.canOrderPart);
-
   const showSendPartAction = Boolean(ticket?.canSendPart);
-
-  const isInventoryReplacementStep =
-    currentStep === 'INVENTORY_DISPOSE' ||
-    currentStep === 'INVENTORY_ARCHIVE';
-
-  const showReplacementDecisionAction = Boolean(
-    ticket &&
-      isInventoryReplacementStep &&
-      ticket.canProcessReplacement,
-  );
-
-  const showSendReplacementAction = Boolean(
-    ticket &&
-      currentStep === 'INVENTORY_SEND_REPLACEMENT' &&
-      ticket.canSendReplacement,
-  );
 
   const hasActions =
     showDecisionActions ||
@@ -1023,44 +1156,47 @@ function MaintenanceDetailModal({
   if (!ticket && !isLoading) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
-        {/* HEADER */}
-        <div className="flex items-center justify-between border-b border-slate-100 p-5">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">
-              Maintenance Details
-            </h2>
-            <p className="mt-1 text-xs text-slate-500">
-              Ticket information and workflow actions
-            </p>
-          </div>
+    <>
+      <div
+        onClick={() => {
+          if (!isLoading && !isProcessing) onClose();
+        }}
+        className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+      >
+        <div
+          onClick={(event) => event.stopPropagation()}
+          className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        >
+          {/* HEADER */}
+          <TicketDetailModalHeader
+            icon={<Wrench size={20} />}
+            iconContainerClassName="bg-violet-50 text-violet-600"
+            title="Maintenance Details"
+            ticketNumber={ticket?.ticketNumber}
+            subtitle={
+              !ticket ? 'Ticket information and workflow actions' : undefined
+            }
+            onClose={onClose}
+            closeDisabled={isLoading || isProcessing}
+          />
 
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isLoading || isProcessing}
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
-            aria-label="Close detail"
-          >
-            <X size={20} />
-          </button>
-        </div>
+          <div className="flex-1 overflow-y-auto">
+            {isLoading ? (
+              <div className="p-12 text-center">
+                <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                <p className="mt-3 text-sm text-slate-500">
+                  Loading maintenance detail...
+                </p>
+              </div>
+            ) : ticket ? (
+              <div className="space-y-6 p-6">
+                {/* TICKET INFORMATION */}
+                <MaintenanceTicketInfo ticket={ticket} />
 
-        {isLoading ? (
-          <div className="p-12 text-center">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-            <p className="mt-3 text-sm text-slate-500">
-              Loading maintenance detail...
-            </p>
-          </div>
-        ) : ticket ? (
-          <div className="space-y-6 p-6">
-            {/* TICKET INFORMATION */}
-            <MaintenanceTicketInfo ticket={ticket} />
-
-            {/* WORKFLOW HISTORY */}
-            <MaintenanceWorkflowHistory ticket={ticket} />
+                {/* WORKFLOW HISTORY */}
+                {showHistory && (
+                  <TicketHistorySection history={ticket.history} />
+                )}
 
             {/* ERROR & MAINTENANCE ACTIONS */}
             <MaintenanceActionSection
@@ -1093,33 +1229,21 @@ function MaintenanceDetailModal({
                   )}
 
                   {/* SHARED ACTION NOTE */}
-                  <div>
-                    <label
-                      htmlFor="maintenanceActionNote"
-                      className="mb-2 block text-sm font-medium text-slate-700"
-                    >
-                      Action Note
-                      {ticket.canReject && (
-                        <span className="ml-1 text-red-500">*</span>
-                      )}
-                    </label>
-
-                    <textarea
-                      id="maintenanceActionNote"
-                      value={note}
-                      onChange={(event) => setNote(event.target.value)}
-                      rows={3}
-                      placeholder="Write a note or additional information..."
-                      disabled={isProcessing}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 disabled:bg-slate-50"
-                    />
-
-                    {ticket.canReject && (
-                      <p className="mt-1 text-xs text-slate-400">
-                        A rejection reason is required.
-                      </p>
-                    )}
-                  </div>
+                  <NoteField
+                    id="maintenanceActionNote"
+                    label="Action Note"
+                    value={note}
+                    onChange={setNote}
+                    disabled={isProcessing}
+                    required={ticket.canReject}
+                    rows={3}
+                    placeholder="Write a note or additional information..."
+                    helperText={
+                      ticket.canReject
+                        ? 'A rejection reason is required.'
+                        : undefined
+                    }
+                  />
 
                   {/* APPROVE / REJECT */}
                   {showDecisionActions && (
@@ -1315,23 +1439,42 @@ function MaintenanceDetailModal({
                     />
                   )}
                 </div>
-              ) : (
-                <div className="flex justify-end border-t border-slate-100 pt-4">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    disabled={isProcessing}
-                    className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 disabled:opacity-50"
-                  >
-                    Close
-                  </button>
-                </div>
-              )}
+              ) : null}
             </MaintenanceActionSection>
+              </div>
+            ) : null}
           </div>
-        ) : null}
+
+          <div className="flex shrink-0 items-center justify-end border-t border-slate-100 bg-white px-6 py-4">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isLoading || isProcessing}
+              className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
+
+      {confirmConfig && (
+        <ConfirmDialog
+          isOpen
+          title={confirmConfig.title}
+          message={confirmConfig.message}
+          description={confirmConfig.description}
+          type={confirmConfig.type}
+          confirmText={confirmConfig.confirmText}
+          cancelText={confirmConfig.cancelText}
+          isLoading={isProcessing}
+          onConfirm={() => void confirmConfig.onConfirm()}
+          onCancel={() => {
+            if (!isProcessing) setConfirmConfig(null);
+          }}
+        />
+      )}
+    </>
   );
 }
 
