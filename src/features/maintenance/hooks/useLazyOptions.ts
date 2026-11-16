@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getApiErrorMessage } from '../utils/maintenance.utils';
 
-// Memuat data pilihan (dropdown) HANYA saat enabled = true.
-// Dipakai supaya API yang belum dibutuhkan (atau yang hanya boleh untuk role tertentu) tidak dipanggil.
+// Memuat data pilihan (dropdown) HANYA saat enabled = true, aman terhadap race condition saat tiket berganti.
 export function useLazyOptions<T>(
   loader: (() => Promise<T[]>) | null,
   enabled: boolean,
@@ -14,35 +13,52 @@ export function useLazyOptions<T>(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const loaderRef = useRef(loader);
+  loaderRef.current = loader;
+
+  const requestIdRef = useRef(0);
+
   const load = useCallback(async () => {
-    if (!loader) return;
+    const currentLoader = loaderRef.current;
+    if (!currentLoader) return;
+
+    const requestId = ++requestIdRef.current;
 
     try {
       setIsLoading(true);
       setError('');
 
-      const data = await loader();
+      const data = await currentLoader();
+      if (requestIdRef.current !== requestId) return;
+
       setOptions(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
-      console.error(fallbackError, err);
+      if (requestIdRef.current !== requestId) return;
 
+      console.error(fallbackError, err);
       setOptions([]);
       setError(getApiErrorMessage(err, fallbackError));
     } finally {
-      setIsLoading(false);
+      if (requestIdRef.current === requestId) {
+        setIsLoading(false);
+      }
     }
-    // key: muat ulang saat tiket berganti
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, fallbackError]);
 
   useEffect(() => {
     if (!enabled) {
+      requestIdRef.current += 1;
       setOptions([]);
       setError('');
+      setIsLoading(false);
       return;
     }
 
     void load();
+
+    return () => {
+      requestIdRef.current += 1;
+    };
   }, [enabled, load]);
 
   return { options, isLoading, error, reload: load };

@@ -112,6 +112,7 @@ function ItemsSection({
               isLoadingItems={isLoadingItems}
               itemErrors={itemErrors}
               canRemove={editableItems.length > 1}
+              disabled={isProcessing}
               onCategoryChange={onCategoryChange}
               onItemChange={onItemChange}
               onToggleManualItem={onToggleManualItem}

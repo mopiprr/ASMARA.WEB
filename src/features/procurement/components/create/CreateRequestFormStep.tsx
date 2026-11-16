@@ -172,6 +172,7 @@ function CreateRequestFormStep({
               isLoadingItems={isLoadingItems}
               itemErrors={itemErrors}
               canRemove={items.length > 1}
+              disabled={isSubmitting}
               onCategoryChange={onCategoryChange}
               onItemChange={onItemChange}
               onToggleManualItem={onToggleManualItem}

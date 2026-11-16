@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { procurementApi } from '../services/procurementApi';
 import { getApiErrorMessage } from '../utils/procurement.utils';
 
@@ -21,6 +22,7 @@ export function usePendingProcurementTickets() {
   const [error, setError] = useState('');
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 350);
   const [sortBy, setSortBy] = useState<PendingSortField>('date');
   const [desc, setDesc] = useState(true);
 
@@ -35,7 +37,7 @@ export function usePendingProcurementTickets() {
       setError('');
 
       const result = await procurementApi.getPendingTickets({
-        search: search.trim() || undefined,
+        search: debouncedSearch.trim() || undefined,
         page,
         pageSize: PAGE_SIZE,
         sortBy,
@@ -55,7 +57,7 @@ export function usePendingProcurementTickets() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, page, sortBy, desc]);
+  }, [debouncedSearch, page, sortBy, desc]);
 
   const fetchPendingTicketById = useCallback(async (
     id: string

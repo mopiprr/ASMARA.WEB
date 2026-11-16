@@ -61,6 +61,7 @@ import ReplacementDecision from './sections/ReplacementDecision';
 interface MaintenanceDetailModalProps {
   // Permission tombol (canApprove, canAssignHandler, ...) dibaca langsung dari ticket.
   ticket: MaintenanceTicket | null;
+  isPendingView?: boolean;
   isProcessing: boolean;
   actionError: string;
 
@@ -124,6 +125,7 @@ const SECTION_TEXT: Record<MaintenanceActionMode, { title: string; description: 
 
 function MaintenanceDetailModal({
   ticket,
+  isPendingView = true,
   isProcessing,
   actionError,
   onClose,
@@ -134,7 +136,7 @@ function MaintenanceDetailModal({
 
   const [confirmConfig, setConfirmConfig] = useState<ConfirmModalConfig | null>(null);
 
-  const mode = ticket ? getActionMode(ticket) : null;
+  const mode = ticket ? getActionMode(ticket, isPendingView) : null;
   const ticketId = ticket?.id ?? '';
 
   // ==========================================
@@ -407,9 +409,17 @@ function MaintenanceDetailModal({
             label: 'Submit Check',
             icon: PackageCheck,
             variant: 'primary',
-            disabled: form.partAvailability === null,
-            title:
-              form.partAvailability === null ? 'Please choose Available or Not Available.' : undefined,
+            disabled:
+              spareParts.isLoading ||
+              Boolean(spareParts.error) ||
+              form.partAvailability === null,
+            title: spareParts.isLoading
+              ? 'Loading spare parts stock...'
+              : spareParts.error
+                ? 'Cannot submit while spare parts failed to load.'
+                : form.partAvailability === null
+                  ? 'Please choose Available or Not Available.'
+                  : undefined,
             onClick: () => {
               const available = form.partAvailability;
               if (available === null) return;
@@ -751,8 +761,8 @@ function MaintenanceDetailModal({
             </ActionSection>
           )}
 
-          {/* History hanya saat tidak ada aksi (sama seperti Procurement). */}
-          {!mode && <TicketHistorySection history={ticket.history} />}
+          {/* History hanya saat dibuka dari My Requests (view-only), disembunyikan di Pending Tasks. */}
+          {!isPendingView && <TicketHistorySection history={ticket.history} />}
 
           {/* ERROR */}
           {actionError && (

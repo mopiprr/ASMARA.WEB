@@ -31,6 +31,7 @@ interface ProcurementItemFormProps {
 
   canRemove: boolean;
   quantityLocked?: boolean;
+  disabled?: boolean;
 
   onCategoryChange: (index: number, categoryId: string) => void;
   onItemChange: (index: number, itemId: string, itemName: string) => void;
@@ -52,6 +53,7 @@ function ProcurementItemForm({
   itemErrors,
   canRemove,
   quantityLocked = false,
+  disabled = false,
   onCategoryChange,
   onItemChange,
   onToggleManualItem,
@@ -90,7 +92,8 @@ function ProcurementItemForm({
           <button
             type="button"
             onClick={() => onRemove(index)}
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
+            disabled={disabled}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Trash2 size={15} />
             Remove
@@ -108,7 +111,8 @@ function ProcurementItemForm({
           <select
             value={item.categoryId}
             onChange={(event) => onCategoryChange(index, event.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            disabled={disabled}
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50"
           >
             <option value="">Select category</option>
 
@@ -125,7 +129,8 @@ function ProcurementItemForm({
           <button
             type="button"
             onClick={() => onToggleManualItem(index)}
-            className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+            disabled={disabled}
+            className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
               item.isManual
                 ? 'border-amber-200 bg-amber-50 text-amber-700'
                 : 'border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -152,7 +157,8 @@ function ProcurementItemForm({
                 }
                 placeholder="Enter item name manually"
                 maxLength={ITEM_NAME_MAX_LENGTH}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                disabled={disabled}
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
               />
 
               <p className="mt-1 text-right text-xs text-slate-400">
@@ -178,7 +184,7 @@ function ProcurementItemForm({
                     onItemChange(index, '', '');
                   }
                 }}
-                disabled={!item.categoryId || isLoading}
+                disabled={disabled || !item.categoryId || isLoading}
                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50"
               >
                 <option value="">
@@ -241,7 +247,7 @@ function ProcurementItemForm({
                 onFieldChange(index, 'quantity', event.target.value)
               }
               placeholder="Enter quantity"
-              disabled={quantityLocked}
+              disabled={disabled || quantityLocked}
               className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-500"
             />
           </div>
@@ -274,7 +280,8 @@ function ProcurementItemForm({
                 onFieldChange(index, 'estimatedPrice', event.target.value)
               }
               placeholder="Enter estimated price"
-              className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              disabled={disabled}
+              className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
             />
           </div>
         </div>

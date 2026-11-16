@@ -46,6 +46,7 @@ import DetailFooter from './detail/DetailFooter';
 interface ProcurementDetailModalProps {
   // Permission tombol (canApprove, canRevise, ...) dibaca langsung dari ticket.
   ticket: ProcurementTicket | null;
+  showHistory?: boolean;
   isProcessing: boolean;
   actionError: string;
 
@@ -60,6 +61,7 @@ interface ProcurementDetailModalProps {
 
 function ProcurementDetailModal({
   ticket,
+  showHistory = true,
   isProcessing,
   actionError,
   onClose,
@@ -283,6 +285,18 @@ function ProcurementDetailModal({
             onRemoveItem={form.removeItem}
           />
 
+          {currentStep === 'EMPLOYEE_REVISION' && lastRevision?.note && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-xs font-semibold text-amber-700">
+                Revision requested by {lastRevision.employeeName || '-'}
+              </p>
+
+              <p className="mt-1 whitespace-pre-wrap text-sm text-amber-800">
+                {lastRevision.note}
+              </p>
+            </div>
+          )}
+
           {isResubmitting && isEditableItemsIncomplete && (
             <p className="-mt-2 text-xs text-amber-600">
               {INCOMPLETE_ITEMS_HINT}
@@ -291,7 +305,6 @@ function ProcurementDetailModal({
 
           {isResubmitting && (
             <ResubmitSection
-              lastRevision={lastRevision}
               note={note}
               isProcessing={isProcessing}
               onNoteChange={form.setNote}
@@ -327,7 +340,9 @@ function ProcurementDetailModal({
             />
           )}
 
-          {canShowHistory && <TicketHistorySection history={ticket.history} />}
+          {showHistory && canShowHistory && (
+            <TicketHistorySection history={ticket.history} />
+          )}
 
           {/* ERROR */}
           {actionError && !canShowReceiveGoods && (

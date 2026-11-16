@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { maintenanceApi } from '../services/maintenanceApi';
 import { getApiErrorMessage } from '../utils/maintenance.utils';
 
@@ -21,6 +22,7 @@ export function usePendingMaintenanceTickets() {
   const [error, setError] = useState('');
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 350);
   const [sortBy, setSortBy] = useState<PendingMaintenanceSortField>('date');
   const [desc, setDesc] = useState(true);
   const [page, setPage] = useState(1);
@@ -34,7 +36,7 @@ export function usePendingMaintenanceTickets() {
       setError('');
 
       const result = await maintenanceApi.getPendingTickets({
-        search: search.trim() || undefined,
+        search: debouncedSearch.trim() || undefined,
         page,
         pageSize: PAGE_SIZE,
         sortBy,
@@ -54,7 +56,7 @@ export function usePendingMaintenanceTickets() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, page, sortBy, desc]);
+  }, [debouncedSearch, page, sortBy, desc]);
 
   // Detail tiket yang menunggu aksi user ini (dengan permission tombol).
   const fetchPendingTicketById = useCallback(async (id: string): Promise<MaintenanceTicket> => {
