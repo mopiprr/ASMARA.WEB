@@ -1,5 +1,6 @@
 import { ClipboardList, Eye } from 'lucide-react';
 
+import SortableHeader from '../../../components/common/table/SortableHeader';
 import TableEmptyState from '../../../components/common/table/TableEmptyState';
 import TableErrorAlert from '../../../components/common/table/TableErrorAlert';
 import TablePagination from '../../../components/common/table/TablePagination';
@@ -7,6 +8,7 @@ import TableSkeletonRows from '../../../components/common/table/TableSkeletonRow
 import TableToolbar from '../../../components/common/table/TableToolbar';
 import { formatShortDateEn } from '../../../utils/formatters';
 
+import type { MaintenanceSortField } from '../hooks/useMaintenanceTickets';
 import type { MaintenanceTicketListItem } from '../types/maintenance.types';
 
 import MaintenanceStatusBadge from './MaintenanceStatusBadge';
@@ -18,6 +20,10 @@ interface MaintenanceTableProps {
 
   search: string;
   onSearchChange: (value: string) => void;
+
+  sortBy: MaintenanceSortField;
+  desc: boolean;
+  onSort: (field: MaintenanceSortField) => void;
 
   page: number;
   totalPages: number;
@@ -42,6 +48,9 @@ function MaintenanceTable({
   error,
   search,
   onSearchChange,
+  sortBy,
+  desc,
+  onSort,
   page,
   totalPages,
   totalCount,
@@ -50,6 +59,8 @@ function MaintenanceTable({
   onView,
   isLoadingDetail = false,
 }: MaintenanceTableProps) {
+  const sortProps = { sortBy, desc, onSort };
+
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <TableToolbar
@@ -65,18 +76,38 @@ function MaintenanceTable({
       <TableErrorAlert error={error} onRetry={onRefresh} />
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[800px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
+        <table className="w-full min-w-[800px] text-left text-xs">
+          <thead className="border-b border-slate-100 bg-slate-50 font-semibold uppercase tracking-wider text-slate-500">
             <tr>
-              <th className="px-6 py-4 font-semibold">Ticket Number</th>
-              <th className="px-6 py-4 font-semibold">Subject</th>
-              <th className="px-6 py-4 font-semibold">Created Date</th>
-              <th className="px-6 py-4 font-semibold">Current Step</th>
-              <th className="px-6 py-4 text-center font-semibold">Action</th>
+              <SortableHeader
+                field="ticketNumber"
+                label="Ticket Number"
+                title="Click to sort by Ticket Number"
+                {...sortProps}
+              />
+              <SortableHeader
+                field="subject"
+                label="Subject"
+                title="Click to sort by Subject"
+                {...sortProps}
+              />
+              <SortableHeader
+                field="date"
+                label="Created Date"
+                title="Click to sort by Created Date"
+                {...sortProps}
+              />
+              <SortableHeader
+                field="status"
+                label="Current Step"
+                title="Click to sort by Status"
+                {...sortProps}
+              />
+              <th className="px-6 py-3.5 text-center font-semibold">Action</th>
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 text-sm">
             {isLoading ? (
               <TableSkeletonRows cells={SKELETON_CELLS} />
             ) : tickets.length === 0 ? (

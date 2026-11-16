@@ -3,13 +3,13 @@ import {
   RefreshCw,
   AlertCircle,
   Boxes,
-  ChevronLeft,
-  ChevronRight,
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
   UserPlus,
 } from 'lucide-react';
+
+import TablePagination from '../../../components/common/table/TablePagination';
 
 import type { AssetListItem, AssetSortField } from '../types/asset.types';
 
@@ -288,37 +288,13 @@ function AssetTable({
       </div>
 
       {/* FOOTER + PAGING */}
-      <div className="flex flex-col justify-between gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center">
-        <p className="text-xs text-slate-400">
-          Showing {assets.length} of {totalCount} assets
-        </p>
-
-        <div className="flex items-center justify-end gap-3">
-          <span className="text-xs text-gray-500">
-            Page {page} of {Math.max(totalPages, 1)}
-          </span>
-
-          <button
-            type="button"
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1 || isLoading}
-            className="rounded-lg border border-gray-300 p-2 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="Previous page"
-          >
-            <ChevronLeft size={17} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onPageChange(page + 1)}
-            disabled={page >= totalPages || isLoading}
-            className="rounded-lg border border-gray-300 p-2 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="Next page"
-          >
-            <ChevronRight size={17} />
-          </button>
-        </div>
-      </div>
+      <TablePagination
+        summary={`Showing ${assets.length} of ${totalCount} assets`}
+        page={page}
+        totalPages={totalPages}
+        isLoading={isLoading}
+        onPageChange={onPageChange}
+      />
     </section>
   );
 }

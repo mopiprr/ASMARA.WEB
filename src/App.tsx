@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import {
   BrowserRouter,
   Navigate,
@@ -5,51 +6,62 @@ import {
   Routes,
 } from 'react-router-dom';
 
-import LoginPage from './features/auth/pages/LoginPage';
-import MainLayout from './components/layout/MainLayout';
-import DashboardPage from './features/dashboard/pages/DashboardPage';
-import MyProfilePage from './features/profile/pages/MyProfilePage';
-import SettingsPage from './features/settings/pages/SettingsPage';
-import ProcurementPage from './features/procurement/pages/ProcurementPage';
-import AssetManagementPage from './features/assets/pages/AssetManagementPage';
-import MaintenanceDashboard from './features/maintenance/pages/MaintenanceDashboard';
-import InventoryPage from './features/inventory/pages/InventoryPage';
-import EmployeeManagementPage from './features/employees/pages/EmployeeManagementPage';
-import ProtectedRoute from './components/auth/ProtectedRoute';
 import GuestRoute from './components/auth/GuestRoute';
-import FinancePage from './features/finance/pages/FinancePage';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import { ToastProvider } from './components/common/ToastProvider';
+import MainLayout from './components/layout/MainLayout';
+
+const LoginPage = lazy(() => import('./features/auth/pages/LoginPage'));
+const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage'));
+const MyProfilePage = lazy(() => import('./features/profile/pages/MyProfilePage'));
+const SettingsPage = lazy(() => import('./features/settings/pages/SettingsPage'));
+const ProcurementPage = lazy(() => import('./features/procurement/pages/ProcurementPage'));
+const AssetManagementPage = lazy(() => import('./features/assets/pages/AssetManagementPage'));
+const FinancePage = lazy(() => import('./features/finance/pages/FinancePage'));
+const MaintenanceDashboard = lazy(() => import('./features/maintenance/pages/MaintenanceDashboard'));
+const InventoryPage = lazy(() => import('./features/inventory/pages/InventoryPage'));
+const EmployeeManagementPage = lazy(() => import('./features/employees/pages/EmployeeManagementPage'));
+
+function PageLoader() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center p-8">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+    </div>
+  );
+}
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Login Page (kalau sudah login -> ke dashboard) */}
-        <Route element={<GuestRoute />}>
-          <Route path="/" element={<LoginPage />} />
-        </Route>
+    <ToastProvider>
+      <BrowserRouter>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            {/* Login Page (kalau sudah login -> ke dashboard) */}
+            <Route element={<GuestRoute />}>
+              <Route path="/" element={<LoginPage />} />
+            </Route>
 
-        {/* Main Application (wajib login) */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<MainLayout />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/profile" element={<MyProfilePage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/procurement" element={<ProcurementPage />} />
-            <Route path="/assets" element={<AssetManagementPage />} />
-            <Route path="/finance" element={<FinancePage />} />
-            <Route path="/maintenance" element={<MaintenanceDashboard />} />
-            <Route path="/inventory" element={<InventoryPage />} />
-            <Route path="/employees" element={<EmployeeManagementPage />} />
-          </Route>
-        </Route>
+            {/* Main Application (wajib login) */}
+            <Route element={<ProtectedRoute />}>
+              <Route element={<MainLayout />}>
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/profile" element={<MyProfilePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/procurement" element={<ProcurementPage />} />
+                <Route path="/assets" element={<AssetManagementPage />} />
+                <Route path="/finance" element={<FinancePage />} />
+                <Route path="/maintenance" element={<MaintenanceDashboard />} />
+                <Route path="/inventory" element={<InventoryPage />} />
+                <Route path="/employees" element={<EmployeeManagementPage />} />
+              </Route>
+            </Route>
 
-        {/* Redirect unknown routes */}
-        <Route
-          path="*"
-          element={<Navigate to="/" replace />}
-        />
-      </Routes>
-    </BrowserRouter>
+            {/* Redirect unknown routes */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </ToastProvider>
   );
 }
 

@@ -1,36 +1,11 @@
-
 import { useCallback, useState } from 'react';
 
-import api from '../../../services/api';
-
+import { extractApiErrorMessage } from '../../../utils/apiError';
+import { maintenanceApi } from '../services/maintenanceApi';
 import type {
   MaintenanceAssetOption,
   MaintenanceHandlerOption,
 } from '../types/maintenance.types';
-
-interface ApiErrorResponse {
-  response?: {
-    status?: number;
-    data?: {
-      message?: string;
-      detail?: string;
-      title?: string;
-    };
-  };
-  message?: string;
-}
-
-function getErrorMessage(error: unknown): string {
-  const apiError = error as ApiErrorResponse;
-
-  return (
-    apiError.response?.data?.detail ||
-    apiError.response?.data?.message ||
-    apiError.response?.data?.title ||
-    apiError.message ||
-    'Failed to load maintenance options.'
-  );
-}
 
 function isValidGuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -48,119 +23,63 @@ export function useMaintenanceOptions() {
   const [assetError, setAssetError] = useState('');
   const [handlerError, setHandlerError] = useState('');
 
-  // ==========================================
-  // FETCH ASSETS AVAILABLE FOR MAINTENANCE
-  // ==========================================
-
   const fetchAssets = useCallback(async () => {
     try {
       setIsLoadingAssets(true);
       setAssetError('');
 
-      const response = await api.get<MaintenanceAssetOption[]>(
-        '/assets/available-for-maintenance',
-      );
+      const data = await maintenanceApi.getAvailableAssets();
 
-      console.log('========== MAINTENANCE ASSETS ==========');
-      console.log('HTTP STATUS:', response.status);
-      console.log('ASSET RESPONSE:', response.data);
-
-      if (!Array.isArray(response.data)) {
-        console.error('Invalid maintenance assets response:', response.data);
-
+      if (!Array.isArray(data)) {
         setAssets([]);
         setAssetError('Invalid asset data received from server.');
         return;
       }
 
-      console.table(
-        response.data.map((asset) => ({
-          assetId: asset.assetId,
-          assetTag: asset.assetTag,
-          itemName: asset.itemName,
-          categoryName: asset.categoryName,
-          isShared: asset.isShared,
-          ownership: asset.isShared ? 'Company Asset' : 'Personal',
-        })),
-      );
-
-      setAssets(response.data);
+      setAssets(data);
     } catch (error: unknown) {
       console.error('Failed to fetch maintenance assets:', error);
-
       setAssets([]);
-      setAssetError(getErrorMessage(error));
+      setAssetError(
+        extractApiErrorMessage(error, 'Failed to load maintenance options.'),
+      );
     } finally {
       setIsLoadingAssets(false);
     }
   }, []);
-
-  // ==========================================
-  // FETCH AVAILABLE MAINTENANCE HANDLERS
-  // ==========================================
 
   const fetchHandlers = useCallback(async () => {
     try {
       setIsLoadingHandlers(true);
       setHandlerError('');
 
-      console.log('========== FETCH MAINTENANCE HANDLERS ==========');
-      console.log('REQUEST URL: /employees/handlers');
+      const data = await maintenanceApi.getAvailableHandlers();
 
-      const response = await api.get<MaintenanceHandlerOption[]>(
-        '/employees/handlers',
-      );
-
-      console.log('HTTP STATUS:', response.status);
-      console.log('HANDLER RESPONSE:', response.data);
-      console.log('IS ARRAY:', Array.isArray(response.data));
-
-      if (!Array.isArray(response.data)) {
-        console.error(
-          'Invalid maintenance handlers response:',
-          response.data,
-        );
-
+      if (!Array.isArray(data)) {
         setHandlers([]);
         setHandlerError('Invalid handler data received from server.');
         return;
       }
 
-      
-console.table(
-  response.data.map((handler) => ({
-    employeeId: handler.employeeId,
-    isValidGuid: isValidGuid(handler.employeeId),
-    employeeNumber: handler.employeeNumber,
-    fullName: handler.fullName,
-  })),
-);
+      const invalidHandlers = data.filter(
+        (handler) => !isValidGuid(handler.employeeId),
+      );
 
-const invalidHandlers = response.data.filter(
-  (handler) => !isValidGuid(handler.employeeId),
-);
+      if (invalidHandlers.length > 0) {
+        setHandlers([]);
+        setHandlerError(
+          'Invalid handler ID received from server. Please check the handler API response.',
+        );
+        return;
+      }
 
-if (invalidHandlers.length > 0) {
-  console.error('Invalid handler IDs received from API:', invalidHandlers);
-
-  setHandlers([]);
-  setHandlerError(
-    'Invalid handler ID received from server. Please check the handler API response.',
-  );
-  return;
-}
-
-setHandlers(response.data);
-
-
-      console.log('HANDLERS COUNT:', response.data.length);
-
-      setHandlers(response.data);
+      setHandlers(data);
     } catch (error: unknown) {
       console.error('Failed to fetch maintenance handlers:', error);
-
       setHandlers([]);
-      setHandlerError(getErrorMessage(error));
+      setHandlerError(
+        extractApiErrorMessage(error, 'Failed to load maintenance options.'),
+      );
     } finally {
       setIsLoadingHandlers(false);
     }
@@ -169,13 +88,10 @@ setHandlers(response.data);
   return {
     assets,
     handlers,
-
     isLoadingAssets,
     isLoadingHandlers,
-
     assetError,
     handlerError,
-
     fetchAssets,
     fetchHandlers,
   };

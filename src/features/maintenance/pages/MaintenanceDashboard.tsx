@@ -1,6 +1,6 @@
 
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
   AlertCircle,
@@ -8,6 +8,8 @@ import {
   Clock,
   Plus,
 } from 'lucide-react';
+
+import { useToast } from '../../../components/common/ToastProvider';
 
 import MaintenanceHeader from '../components/MaintenanceHeader';
 import MaintenanceStatistics from '../components/MaintenanceStatistics';
@@ -38,6 +40,9 @@ import type {
 type MaintenanceTab = 'requests' | 'pending';
 
 function MaintenanceDashboard() {
+  const navigate = useNavigate();
+  const { showSuccess } = useToast();
+
   const [activeTab, setActiveTab] =
     useState<MaintenanceTab>('requests');
 
@@ -61,6 +66,9 @@ function MaintenanceDashboard() {
     error: ticketError,
     search: requestSearch,
     setSearch: setRequestSearch,
+    sortBy: requestSortBy,
+    desc: requestDesc,
+    toggleSort: toggleRequestSort,
     page: requestPage,
     totalCount: requestTotalCount,
     totalPages: requestTotalPages,
@@ -79,6 +87,9 @@ function MaintenanceDashboard() {
     error: pendingError,
     search: pendingSearch,
     setSearch: setPendingSearch,
+    sortBy: pendingSortBy,
+    desc: pendingDesc,
+    toggleSort: togglePendingSort,
     page: pendingPage,
     totalCount: pendingTotalCount,
     totalPages: pendingTotalPages,
@@ -143,6 +154,7 @@ function MaintenanceDashboard() {
     payload: CreateMaintenancePayload,
   ) => {
     await createMaintenance(payload);
+    showSuccess('Maintenance request submitted successfully.');
   };
 
   const handleOpenCreateModal = () => {
@@ -165,59 +177,6 @@ function MaintenanceDashboard() {
 
     try {
       const detail = await fetchDetail(ticketId);
-
-      console.log('========================================');
-      console.log('MAINTENANCE DETAIL RESPONSE');
-      console.log('========================================');
-
-      console.log('TICKET ID:', ticketId);
-      console.log('TICKET NUMBER:', detail.ticketNumber);
-      console.log('CURRENT STEP:', detail.currentStep);
-
-      console.log('========================================');
-      console.log('MAINTENANCE PERMISSIONS');
-      console.log('========================================');
-
-      console.log('CAN APPROVE:', detail.canApprove);
-      console.log('CAN REVISE:', detail.canRevise);
-      console.log('CAN REJECT:', detail.canReject);
-      console.log('CAN ASSIGN HANDLER:', detail.canAssignHandler);
-      console.log('CAN SEND ITEM:', detail.canSendItem);
-      console.log('CAN RECEIVE ITEM:', detail.canReceiveItem);
-      console.log(
-        'CAN SUBMIT REPAIR RESULT:',
-        detail.canSubmitRepairResult,
-      );
-      console.log('CAN RECEIVE PART:', detail.canReceivePart);
-      console.log('CAN CHECK PART:', detail.canCheckPart);
-      console.log('CAN ORDER PART:', detail.canOrderPart);
-      console.log('CAN SEND PART:', detail.canSendPart);
-      console.log(
-        'CAN REVIEW REPAIR RESULT:',
-        detail.canReviewRepairResult,
-      );
-      console.log(
-        'CAN PROCESS REPLACEMENT:',
-        detail.canProcessReplacement,
-      );
-      console.log(
-        'CAN SEND REPLACEMENT:',
-        detail.canSendReplacement,
-      );
-
-      console.log('========================================');
-      console.log('WORKFLOW HISTORY');
-      console.log('========================================');
-
-      console.log('HISTORY:', detail.history);
-      console.log('HISTORY COUNT:', detail.history?.length);
-
-      console.log('========================================');
-      console.log('FULL MAINTENANCE RESPONSE');
-      console.log('========================================');
-
-      console.log(detail);
-
       setSelectedTicket(detail);
 
       // Load handler options only when assignment is permitted.
@@ -315,6 +274,10 @@ function MaintenanceDashboard() {
     setIsPendingView(false);
     setDetailError('');
     setActionError('');
+    handledTicketIdRef.current = null;
+
+    const tabQuery = activeTab === 'pending' ? '?tab=pending' : '';
+    navigate(`/maintenance${tabQuery}`, { replace: true });
   };
 
   // ==========================================
@@ -324,6 +287,7 @@ function MaintenanceDashboard() {
   const handleAction = async (
     action: () => Promise<unknown>,
     errorMessage: string,
+    successMessage: string,
   ) => {
     try {
       setDetailError('');
@@ -333,6 +297,11 @@ function MaintenanceDashboard() {
 
       setSelectedTicket(null);
       setIsPendingView(false);
+      handledTicketIdRef.current = null;
+      const tabQuery = activeTab === 'pending' ? '?tab=pending' : '';
+      navigate(`/maintenance${tabQuery}`, { replace: true });
+
+      showSuccess(successMessage);
     } catch (error: unknown) {
       console.error(errorMessage, error);
 
@@ -354,6 +323,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => approveMaintenance(selectedTicket!.id, payload),
       'Failed to approve maintenance ticket.',
+      'Maintenance ticket approved.',
     );
 
   // ==========================================
@@ -366,6 +336,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => rejectMaintenance(selectedTicket!.id, payload),
       'Failed to reject maintenance ticket.',
+      'Maintenance ticket rejected.',
     );
 
   // ==========================================
@@ -378,6 +349,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => assignHandler(selectedTicket!.id, payload),
       'Failed to assign maintenance handler.',
+      'Maintenance handler assigned.',
     );
 
   // ==========================================
@@ -390,6 +362,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => sendItem(selectedTicket!.id, payload),
       'Failed to send maintenance item.',
+      'Item marked as sent.',
     );
 
   // ==========================================
@@ -402,6 +375,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => receiveItem(selectedTicket!.id, payload),
       'Failed to receive maintenance item.',
+      'Item confirmed received.',
     );
 
   // ==========================================
@@ -414,6 +388,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => closeMaintenance(selectedTicket!.id, payload),
       'Failed to close maintenance ticket.',
+      'Maintenance ticket closed.',
     );
 
   // ==========================================
@@ -426,6 +401,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => archiveMaintenance(selectedTicket!.id, payload),
       'Failed to archive maintenance asset.',
+      'Asset disposition set to Archive.',
     );
 
   // ==========================================
@@ -438,6 +414,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => disposeMaintenance(selectedTicket!.id, payload),
       'Failed to dispose maintenance asset.',
+      'Asset disposition set to Dispose.',
     );
 
   // ==========================================
@@ -450,6 +427,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => submitRepairResult(selectedTicket!.id, payload),
       'Failed to submit repair result.',
+      'Repair result submitted.',
     );
 
   // ==========================================
@@ -462,6 +440,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => checkPart(selectedTicket!.id, payload),
       'Failed to check spare part availability.',
+      'Spare part check recorded.',
     );
 
   // ==========================================
@@ -474,6 +453,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => orderPart(selectedTicket!.id, payload),
       'Failed to create spare part procurement request.',
+      'Spare part procurement request created.',
     );
 
   // ==========================================
@@ -486,6 +466,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => sendPart(selectedTicket!.id, payload),
       'Failed to send spare parts to maintenance handler.',
+      'Spare parts marked as sent.',
     );
 
   // ==========================================
@@ -498,6 +479,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => receivePart(selectedTicket!.id, payload),
       'Failed to receive spare parts.',
+      'Spare parts confirmed received.',
     );
 
   // ==========================================
@@ -510,6 +492,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => processReplacement(selectedTicket!.id, payload),
       'Failed to process replacement availability.',
+      'Replacement decision submitted.',
     );
 
   // ==========================================
@@ -522,6 +505,7 @@ function MaintenanceDashboard() {
     handleAction(
       () => sendReplacement(selectedTicket!.id, payload),
       'Failed to send replacement asset.',
+      'Replacement asset marked as sent.',
     );
 
   // ==========================================
@@ -640,6 +624,9 @@ function MaintenanceDashboard() {
             error={ticketError}
             search={requestSearch}
             onSearchChange={setRequestSearch}
+            sortBy={requestSortBy}
+            desc={requestDesc}
+            onSort={toggleRequestSort}
             page={requestPage}
             totalPages={requestTotalPages}
             totalCount={requestTotalCount}
@@ -659,6 +646,9 @@ function MaintenanceDashboard() {
             error={pendingError}
             search={pendingSearch}
             onSearchChange={setPendingSearch}
+            sortBy={pendingSortBy}
+            desc={pendingDesc}
+            onSort={togglePendingSort}
             page={pendingPage}
             totalPages={pendingTotalPages}
             totalCount={pendingTotalCount}

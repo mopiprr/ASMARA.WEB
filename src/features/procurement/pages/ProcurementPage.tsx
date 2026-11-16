@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { useToast } from '../../../components/common/ToastProvider';
 import ProcurementHeader from '../components/ProcurementHeader';
 import ProcurementDetailError from '../components/ProcurementDetailError';
 import ProcurementStatistics from '../components/ProcurementStatistics';
@@ -28,6 +29,7 @@ import type {
 function ProcurementPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { showSuccess } = useToast();
 
   const locationState =
     location.state as ProcurementLocationState | null;
@@ -101,7 +103,17 @@ function ProcurementPage() {
   ): Promise<boolean> => {
     if (!selectedTicket) return false;
 
-    return executeAction(selectedTicket.id, action, note);
+    const ok = await executeAction(selectedTicket.id, action, note);
+    if (ok) {
+      const labels: Record<ProcurementAction, string> = {
+        approve: 'Procurement request approved.',
+        revise: 'Revision requested.',
+        reject: 'Procurement request rejected.',
+        cancel: 'Procurement request cancelled.',
+      };
+      showSuccess(labels[action]);
+    }
+    return ok;
   };
 
   const handleReceiveGoods = async (
@@ -110,7 +122,11 @@ function ProcurementPage() {
   ): Promise<boolean> => {
     if (!selectedTicket) return false;
 
-    return receiveGoods(selectedTicket.id, note, proofFile);
+    const ok = await receiveGoods(selectedTicket.id, note, proofFile);
+    if (ok) {
+      showSuccess('Purchase completion recorded.');
+    }
+    return ok;
   };
 
   const handleResubmit = async (
@@ -118,7 +134,11 @@ function ProcurementPage() {
   ): Promise<boolean> => {
     if (!selectedTicket) return false;
 
-    return resubmitProcurement(selectedTicket.id, payload);
+    const ok = await resubmitProcurement(selectedTicket.id, payload);
+    if (ok) {
+      showSuccess('Procurement request resubmitted.');
+    }
+    return ok;
   };
 
   // ==========================================
@@ -133,6 +153,7 @@ function ProcurementPage() {
     onSuccess: async () => {
       await handleRefreshAll();
       setIsModalOpen(false);
+      showSuccess('Procurement request submitted successfully.');
     },
   });
 

@@ -1,29 +1,34 @@
-
 import { useCallback, useEffect, useState } from 'react';
 
-import api from '../../../services/api';
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
+import { extractApiErrorMessage } from '../../../utils/apiError';
+import { maintenanceApi } from '../services/maintenanceApi';
 
 import type {
   MaintenanceTicket,
   PendingMaintenanceTicket,
-  PagedResult,
 } from '../types/maintenance.types';
 
-import { getMaintenanceApiError } from './useMaintenanceTickets';
+export type PendingMaintenanceSortField =
+  | 'ticketNumber'
+  | 'subject'
+  | 'requester'
+  | 'date';
 
 const PAGE_SIZE = 10;
 
 export function usePendingMaintenanceTickets() {
-  const [tickets, setTickets] = useState<
-    PendingMaintenanceTicket[]
-  >([]);
-
+  const [tickets, setTickets] = useState<PendingMaintenanceTicket[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const debouncedSearch = useDebouncedValue(search, 350);
 
+  const [sortBy, setSortBy] = useState<PendingMaintenanceSortField>('date');
+  const [desc, setDesc] = useState(true);
+
+  const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
@@ -32,68 +37,48 @@ export function usePendingMaintenanceTickets() {
       setIsLoading(true);
       setError('');
 
-      const response = await api.get<
-        PagedResult<PendingMaintenanceTicket>
-      >('/tickets/pending', {
-        params: {
-          Type: 'Maintenance',
-          Search: search.trim() || undefined,
-          Page: page,
-          PageSize: PAGE_SIZE,
-          SortBy: 'date',
-          Desc: true,
-        },
+      const result = await maintenanceApi.getPendingTickets({
+        search: debouncedSearch.trim() || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+        sortBy,
+        desc,
       });
-
-      const result = response.data;
 
       setTickets(result.items ?? []);
       setTotalCount(result.totalCount ?? 0);
       setTotalPages(result.totalPages ?? 0);
-    } catch (error: unknown) {
-      console.error(
-        'Failed to fetch pending maintenance tickets:',
-        error
-      );
-
+    } catch (err: unknown) {
+      console.error('Failed to fetch pending maintenance tickets:', err);
       setTickets([]);
       setTotalCount(0);
       setTotalPages(0);
-
       setError(
-        getMaintenanceApiError(
-          error,
-          'Failed to load pending maintenance tickets.'
-        )
+        extractApiErrorMessage(
+          err,
+          'Failed to load pending maintenance tickets.',
+        ),
       );
     } finally {
       setIsLoading(false);
     }
-  }, [search, page]);
+  }, [debouncedSearch, page, sortBy, desc]);
 
   const fetchPendingTicketById = useCallback(
     async (id: string): Promise<MaintenanceTicket> => {
       try {
-        const response = await api.get<MaintenanceTicket>(
-          `/tickets/pending/${id}`
-        );
-
-        return response.data;
-      } catch (error: unknown) {
-        console.error(
-          'Failed to fetch pending maintenance detail:',
-          error
-        );
-
+        return await maintenanceApi.getPendingTicketById(id);
+      } catch (err: unknown) {
+        console.error('Failed to fetch pending maintenance detail:', err);
         throw new Error(
-          getMaintenanceApiError(
-            error,
-            'Failed to load pending maintenance detail.'
-          )
+          extractApiErrorMessage(
+            err,
+            'Failed to load pending maintenance detail.',
+          ),
         );
       }
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -105,9 +90,21 @@ export function usePendingMaintenanceTickets() {
     setPage(1);
   };
 
+  const toggleSort = useCallback(
+    (field: PendingMaintenanceSortField) => {
+      if (field === sortBy) {
+        setDesc((previous) => !previous);
+      } else {
+        setSortBy(field);
+        setDesc(false);
+      }
+      setPage(1);
+    },
+    [sortBy],
+  );
+
   const goToPage = (nextPage: number) => {
     if (nextPage < 1 || nextPage > totalPages) return;
-
     setPage(nextPage);
   };
 
@@ -115,15 +112,15 @@ export function usePendingMaintenanceTickets() {
     tickets,
     isLoading,
     error,
-
     search,
     setSearch: handleSearchChange,
-
+    sortBy,
+    desc,
+    toggleSort,
     page,
     pageSize: PAGE_SIZE,
     totalCount,
     totalPages,
-
     fetchPendingTickets,
     fetchPendingTicketById,
     goToPage,
