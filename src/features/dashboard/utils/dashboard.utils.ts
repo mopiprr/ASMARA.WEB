@@ -19,9 +19,9 @@ export const APPROVER_ROLES = [
 export function getDashboardAccess() {
   return {
     isApprover: hasAnyRole(APPROVER_ROLES),
-    canViewAssets: hasAnyRole(ASSET_ACCESS_ROLES), // hanya Inventory & Admin
-    canViewFinance: hasAnyRole(FINANCE_ACCESS_ROLES), // hanya Finance & Admin
-    hasSubordinates: hasAnyRole(['ROL-02', 'ROL-03', 'ROL-09']), // Manager & Admin yang memiliki bawahan
+    canViewAssets: hasAnyRole(ASSET_ACCESS_ROLES), // hanya Inventory
+    canViewFinance: hasAnyRole(FINANCE_ACCESS_ROLES), // hanya Finance
+    hasSubordinates: hasAnyRole(['ROL-02', 'ROL-03']), // Manager yang memiliki bawahan
   };
 }
 

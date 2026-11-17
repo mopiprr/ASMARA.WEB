@@ -1,5 +1,5 @@
 export const ROLE_EMPLOYEE = 'ROL-01';
-export const ROLE_ADMIN = 'ROL-09';
+export { ROLE_ADMIN } from '../../../utils/auth';
 
 export const EMPLOYEE_STATUSES: Record<number, { label: string; style: string }> = {
   1: { label: 'Active', style: 'bg-emerald-100 text-emerald-700' },
