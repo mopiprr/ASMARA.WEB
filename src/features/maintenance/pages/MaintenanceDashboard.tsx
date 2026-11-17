@@ -181,6 +181,7 @@ function MaintenanceDashboard() {
 
       <MaintenanceDetailModal
         ticket={detail.selectedTicket}
+        isPendingView={detail.isPendingView}
         isProcessing={isProcessing}
         actionError={actionError}
         onClose={handleCloseDetail}

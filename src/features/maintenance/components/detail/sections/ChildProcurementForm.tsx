@@ -137,6 +137,7 @@ function ChildProcurementForm({
           itemErrors={inventory.itemErrors}
           canRemove={list.items.length > 1}
           quantityLocked={quantityLocked}
+          disabled={isProcessing}
           onCategoryChange={handleCategoryChange}
           onItemChange={list.changeItem}
           onToggleManualItem={list.toggleManual}

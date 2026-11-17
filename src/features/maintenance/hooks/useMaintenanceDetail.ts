@@ -23,6 +23,7 @@ export function useMaintenanceDetail({
   onBeforeOpen,
 }: UseMaintenanceDetailOptions) {
   const [selectedTicket, setSelectedTicket] = useState<MaintenanceTicket | null>(null);
+  const [isPendingView, setIsPendingView] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState('');
 
@@ -31,6 +32,7 @@ export function useMaintenanceDetail({
     try {
       setIsLoadingDetail(true);
       setDetailError('');
+      setIsPendingView(false);
       onBeforeOpen();
       setSelectedTicket(null);
 
@@ -49,6 +51,7 @@ export function useMaintenanceDetail({
     try {
       setIsLoadingDetail(true);
       setDetailError('');
+      setIsPendingView(true);
       onBeforeOpen();
       setSelectedTicket(null);
 
@@ -71,12 +74,15 @@ export function useMaintenanceDetail({
 
         if (isPendingTab) {
           try {
+            setIsPendingView(true);
             setSelectedTicket(await fetchPendingTicketById(ticketId));
           } catch {
             // Bukan task pending user ini -> buka sebagai detail biasa.
+            setIsPendingView(false);
             setSelectedTicket(await maintenanceApi.getTicketById(ticketId));
           }
         } else {
+          setIsPendingView(false);
           setSelectedTicket(await maintenanceApi.getTicketById(ticketId));
         }
       } catch (err: unknown) {
@@ -92,11 +98,13 @@ export function useMaintenanceDetail({
 
   const clearDetail = () => {
     setSelectedTicket(null);
+    setIsPendingView(false);
     setDetailError('');
   };
 
   return {
     selectedTicket,
+    isPendingView,
     isLoadingDetail,
     detailError,
     openTicket,

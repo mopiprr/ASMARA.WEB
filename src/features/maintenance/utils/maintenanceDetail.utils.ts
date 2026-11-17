@@ -14,7 +14,13 @@ import type { ProcurementItem } from '../../../types/ticket.types';
 // ==========================================
 
 // Urutan sama dengan pengecekan lama; flag dihitung backend (MaintenanceActionFlags).
-export function getActionMode(ticket: MaintenanceTicket): MaintenanceActionMode | null {
+// Jika bukan view Pending Tasks (My Requests view-only), seluruh aksi termasuk REQUESTER_CLOSE dinonaktifkan.
+export function getActionMode(
+  ticket: MaintenanceTicket,
+  isPendingView = true,
+): MaintenanceActionMode | null {
+  if (!isPendingView) return null;
+
   const step = ticket.currentStep?.toUpperCase();
 
   if (step !== 'DIVISION_MANAGER_REVIEW' && (ticket.canApprove || ticket.canReject)) return 'approval';

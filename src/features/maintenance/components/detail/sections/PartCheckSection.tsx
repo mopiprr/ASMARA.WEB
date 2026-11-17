@@ -56,7 +56,7 @@ function PartCheckSection({
         <button
           type="button"
           onClick={() => onChange(true)}
-          disabled={isProcessing || !canConfirmAvailable}
+          disabled={isProcessing || isLoading || Boolean(error) || !canConfirmAvailable}
           className={`${choiceClass(partAvailability === true, 'border-emerald-500 bg-emerald-50 text-emerald-700')} disabled:cursor-not-allowed disabled:opacity-50`}
         >
           <CheckCircle size={17} className="mx-auto mb-1" />
@@ -66,8 +66,8 @@ function PartCheckSection({
         <button
           type="button"
           onClick={() => onChange(false)}
-          disabled={isProcessing}
-          className={choiceClass(partAvailability === false, 'border-red-500 bg-red-50 text-red-700')}
+          disabled={isProcessing || isLoading || Boolean(error)}
+          className={`${choiceClass(partAvailability === false, 'border-red-500 bg-red-50 text-red-700')} disabled:cursor-not-allowed disabled:opacity-50`}
         >
           <XCircle size={17} className="mx-auto mb-1" />
           Not Available

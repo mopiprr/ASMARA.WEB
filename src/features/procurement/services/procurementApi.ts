@@ -20,6 +20,7 @@ export const procurementApi = {
   // ==========================================
 
   async getMyTickets(params: {
+    search?: string;
     page: number;
     pageSize: number;
     sortBy: string;

@@ -10,7 +10,7 @@ function DetailHeader({ ticketNumber, isBusy, onClose }: DetailHeaderProps) {
   return (
     <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
           <Wrench size={22} />
         </div>
 

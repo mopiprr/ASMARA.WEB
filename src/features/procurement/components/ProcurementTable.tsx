@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { ClipboardList, Eye } from 'lucide-react';
 
 import type { ProcurementTicketListItem } from '../types/procurement.types';
@@ -14,14 +13,12 @@ import TableSkeletonRows from './table/TableSkeletonRows';
 import TableEmptyState from './table/TableEmptyState';
 import TablePagination from './table/TablePagination';
 
-// ==========================================
-// PROPS
-// ==========================================
-
 interface ProcurementTableProps {
   tickets: ProcurementTicketListItem[];
   isLoading: boolean;
   error: string;
+  search: string;
+  onSearchChange: (value: string) => void;
   onRefresh: () => void;
   onView: (ticket: ProcurementTicketListItem) => void;
   sortBy: TicketSortField;
@@ -33,27 +30,12 @@ interface ProcurementTableProps {
   onPageChange: (page: number) => void;
 }
 
-// Pencarian di tab My Requests dilakukan di halaman yang sedang tampil.
-function matchesKeyword(ticket: ProcurementTicketListItem, keyword: string) {
-  if (!keyword) return true;
-
-  return (
-    ticket.ticketNumber.toLowerCase().includes(keyword) ||
-    ticket.subject.toLowerCase().includes(keyword) ||
-    (ticket.requesterName ?? '').toLowerCase().includes(keyword) ||
-    ticket.currentStep.toLowerCase().includes(keyword) ||
-    ticket.currentStepName.toLowerCase().includes(keyword)
-  );
-}
-
-// ==========================================
-// COMPONENT
-// ==========================================
-
 function ProcurementTable({
   tickets,
   isLoading,
   error,
+  search,
+  onSearchChange,
   onRefresh,
   onView,
   sortBy,
@@ -64,14 +46,6 @@ function ProcurementTable({
   totalCount,
   onPageChange,
 }: ProcurementTableProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const keyword = searchQuery.toLowerCase().trim();
-
-  const filteredTickets = tickets.filter((ticket) =>
-    matchesKeyword(ticket, keyword)
-  );
-
   const sortProps = { sortBy, desc, onSort };
 
   return (
@@ -79,8 +53,8 @@ function ProcurementTable({
       <TableToolbar
         title="Procurement Requests"
         description="View, monitor, and track procurement requests."
-        search={searchQuery}
-        onSearchChange={setSearchQuery}
+        search={search}
+        onSearchChange={onSearchChange}
         isLoading={isLoading}
         onRefresh={onRefresh}
       />
@@ -92,10 +66,30 @@ function ProcurementTable({
         <table className="w-full min-w-[900px] text-left text-xs">
           <thead className="border-b border-slate-100 bg-slate-50 font-semibold uppercase tracking-wider text-slate-500">
             <tr>
-              <SortableHeader field="ticketNumber" label="Ticket #" title="Click to sort by Ticket Number" {...sortProps} />
-              <SortableHeader field="subject" label="Request Details" title="Click to sort by Subject" {...sortProps} />
-              <SortableHeader field="date" label="Date" title="Click to sort by Date" {...sortProps} />
-              <SortableHeader field="status" label="Status" title="Click to sort by Status" {...sortProps} />
+              <SortableHeader
+                field="ticketNumber"
+                label="Ticket #"
+                title="Click to sort by Ticket Number"
+                {...sortProps}
+              />
+              <SortableHeader
+                field="subject"
+                label="Request Details"
+                title="Click to sort by Subject"
+                {...sortProps}
+              />
+              <SortableHeader
+                field="date"
+                label="Date"
+                title="Click to sort by Date"
+                {...sortProps}
+              />
+              <SortableHeader
+                field="status"
+                label="Status"
+                title="Click to sort by Status"
+                {...sortProps}
+              />
               <th className="px-6 py-3.5 text-right font-semibold">Action</th>
             </tr>
           </thead>
@@ -105,18 +99,18 @@ function ProcurementTable({
               <TableSkeletonRows
                 cells={['h-4 w-28', 'h-4 w-48', 'h-4 w-24', 'h-5 w-24']}
               />
-            ) : filteredTickets.length === 0 ? (
+            ) : tickets.length === 0 ? (
               <TableEmptyState
                 colSpan={5}
                 icon={ClipboardList}
-                isSearching={Boolean(searchQuery)}
+                isSearching={Boolean(search.trim())}
                 searchTitle="No matching requests found"
                 emptyTitle="No procurement requests yet"
                 emptyDescription="Procurement requests will appear here after submission."
-                onClearSearch={() => setSearchQuery('')}
+                onClearSearch={() => onSearchChange('')}
               />
             ) : (
-              filteredTickets.map((ticket) => (
+              tickets.map((ticket) => (
                 <tr
                   key={ticket.id}
                   onClick={() => onView(ticket)}
@@ -172,7 +166,7 @@ function ProcurementTable({
       </div>
 
       <TablePagination
-        summary={`Showing ${filteredTickets.length} of ${totalCount} requests`}
+        summary={`Showing ${tickets.length} of ${totalCount} requests`}
         page={page}
         totalPages={totalPages}
         isLoading={isLoading}

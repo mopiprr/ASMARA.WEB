@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { maintenanceApi } from '../services/maintenanceApi';
 import { getApiErrorMessage } from '../utils/maintenance.utils';
 
@@ -17,6 +18,7 @@ export function useMaintenanceTickets() {
   const [error, setError] = useState('');
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 350);
   const [sortBy, setSortBy] = useState<MaintenanceSortField>('date');
   const [desc, setDesc] = useState(true);
   const [page, setPage] = useState(1);
@@ -30,7 +32,7 @@ export function useMaintenanceTickets() {
       setError('');
 
       const result = await maintenanceApi.getMyTickets({
-        search: search.trim() || undefined,
+        search: debouncedSearch.trim() || undefined,
         page,
         pageSize: PAGE_SIZE,
         sortBy,
@@ -50,7 +52,7 @@ export function useMaintenanceTickets() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, page, sortBy, desc]);
+  }, [debouncedSearch, page, sortBy, desc]);
 
   useEffect(() => {
     void fetchTickets();

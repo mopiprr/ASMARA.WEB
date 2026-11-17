@@ -203,6 +203,8 @@ function ProcurementPage() {
             tickets={myTickets.tickets}
             isLoading={myTickets.isLoadingTickets}
             error={myTickets.ticketError}
+            search={myTickets.search}
+            onSearchChange={myTickets.setSearch}
             onRefresh={myTickets.fetchTickets}
             onView={detail.openTicket}
             sortBy={myTickets.sortBy}
@@ -267,6 +269,7 @@ function ProcurementPage() {
 
       <ProcurementDetailModal
         ticket={selectedTicket}
+        showHistory={!detail.isPendingView}
         isProcessing={isProcessing}
         actionError={actionError}
         onClose={handleCloseDetail}

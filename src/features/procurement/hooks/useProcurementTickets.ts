@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { procurementApi } from '../services/procurementApi';
 import { getApiErrorMessage } from '../utils/procurement.utils';
 
@@ -11,6 +12,9 @@ export type TicketSortField = 'ticketNumber' | 'subject' | 'date' | 'status';
 const PAGE_SIZE = 10;
 
 export function useProcurementTickets() {
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 350);
+
   const [sortBy, setSortBy] = useState<TicketSortField>('date');
   const [desc, setDesc] = useState(true);
 
@@ -28,6 +32,7 @@ export function useProcurementTickets() {
       setTicketError('');
 
       const result = await procurementApi.getMyTickets({
+        search: debouncedSearch.trim() || undefined,
         page,
         pageSize: PAGE_SIZE,
         sortBy,
@@ -41,23 +46,31 @@ export function useProcurementTickets() {
       console.error('Failed to fetch procurement tickets:', error);
 
       setTicketError(
-        getApiErrorMessage(error, 'Failed to load procurement requests.')
+        getApiErrorMessage(error, 'Failed to load procurement requests.'),
       );
     } finally {
       setIsLoadingTickets(false);
     }
-  }, [sortBy, desc, page]);
+  }, [debouncedSearch, sortBy, desc, page]);
 
-  const toggleSort = useCallback((field: TicketSortField) => {
-    if (field === sortBy) {
-      setDesc((previous) => !previous);
-    } else {
-      setSortBy(field);
-      setDesc(false);
-    }
-
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
     setPage(1);
-  }, [sortBy]);
+  };
+
+  const toggleSort = useCallback(
+    (field: TicketSortField) => {
+      if (field === sortBy) {
+        setDesc((previous) => !previous);
+      } else {
+        setSortBy(field);
+        setDesc(false);
+      }
+
+      setPage(1);
+    },
+    [sortBy],
+  );
 
   useEffect(() => {
     void fetchTickets();
@@ -69,6 +82,8 @@ export function useProcurementTickets() {
     isLoadingTickets,
     ticketError,
     fetchTickets,
+    search,
+    setSearch: handleSearchChange,
     sortBy,
     desc,
     toggleSort,
