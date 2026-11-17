@@ -8,6 +8,7 @@ import {
 
 import GuestRoute from './components/auth/GuestRoute';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import AdminRestrictedRoute from './components/auth/AdminRestrictedRoute';
 import MainLayout from './components/layout/MainLayout';
 
 const LoginPage = lazy(() => import('./features/auth/pages/LoginPage'));
@@ -42,15 +43,20 @@ function App() {
           {/* Main Application (wajib login) */}
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
+              {/* Boleh dibuka semua role, termasuk Admin */}
               <Route path="/profile" element={<MyProfilePage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/procurement" element={<ProcurementPage />} />
-              <Route path="/assets" element={<AssetManagementPage />} />
-              <Route path="/finance" element={<FinancePage />} />
-              <Route path="/maintenance" element={<MaintenanceDashboard />} />
-              <Route path="/inventory" element={<InventoryPage />} />
               <Route path="/employees" element={<EmployeeManagementPage />} />
+
+              {/* Admin tidak boleh membuka halaman di bawah ini -> diarahkan ke /employees */}
+              <Route element={<AdminRestrictedRoute />}>
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/procurement" element={<ProcurementPage />} />
+                <Route path="/assets" element={<AssetManagementPage />} />
+                <Route path="/finance" element={<FinancePage />} />
+                <Route path="/maintenance" element={<MaintenanceDashboard />} />
+                <Route path="/inventory" element={<InventoryPage />} />
+              </Route>
             </Route>
           </Route>
 

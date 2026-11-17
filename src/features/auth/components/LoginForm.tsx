@@ -9,11 +9,12 @@ import {
 } from 'lucide-react';
 
 import { login } from '../../../services/authSession';
+import { getHomePath } from '../../../utils/auth';
 
 // Hanya terima path internal (cegah redirect ke situs lain).
 function getSafeRedirect(path: string | null | undefined) {
   if (!path || !path.startsWith('/') || path.startsWith('//') || path === '/') {
-    return '/dashboard';
+    return null;
   }
 
   return path;
@@ -52,7 +53,7 @@ function LoginForm() {
       // Remember me -> cookie 60 menit, tidak -> hilang saat browser ditutup.
       await login(username.trim(), password, rememberMe);
 
-      navigate(redirectTo, { replace: true });
+      navigate(redirectTo ?? getHomePath(), { replace: true });
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (!error.response) {

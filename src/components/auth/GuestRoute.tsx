@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 
 import AuthLoader from './AuthLoader';
+import { getHomePath } from '../../utils/auth';
 
 import {
   canTryRefresh,
@@ -42,7 +43,7 @@ function GuestRoute() {
   }
 
   if (status === 'authenticated') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={getHomePath()} replace />;
   }
 
   return <Outlet />;

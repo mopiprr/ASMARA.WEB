@@ -14,10 +14,9 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-import { hasAnyRole } from '../../utils/auth';
+import { hasAnyRole, isAdmin, ROLE_ADMIN } from '../../utils/auth';
 import { ASSET_ACCESS_ROLES } from '../../features/assets/utils/asset.utils';
 import { INVENTORY_ACCESS_ROLES } from '../../features/inventory/utils/inventory.utils';
-import { ROLE_ADMIN } from '../../features/employees/utils/employee.utils';
 import { FINANCE_ACCESS_ROLES } from '../../features/finance/utils/finance.utils';
 
 type SidebarProps = {
@@ -33,6 +32,7 @@ type NavItem = {
   icon: LucideIcon;
   // Kosong = semua user boleh lihat. Diisi = hanya role tersebut.
   roles?: string[];
+  adminVisible?: boolean;
 };
 
 const navigation: NavItem[] = [
@@ -77,15 +77,19 @@ const management: NavItem[] = [
     path: '/employees',
     icon: Users,
     roles: [ROLE_ADMIN],
+    adminVisible: true,
   },
   {
     label: 'Settings',
     path: '/settings',
     icon: Settings,
+    adminVisible: true,
   },
 ];
 
 function canSee(item: NavItem) {
+  if (isAdmin()) return item.adminVisible === true;
+
   return !item.roles || hasAnyRole(item.roles);
 }
 
