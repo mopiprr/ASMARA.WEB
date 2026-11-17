@@ -140,7 +140,7 @@ function ProcurementTable({
 
                   {/* STATUS */}
                   <td className="whitespace-nowrap px-6 py-4">
-                    <ProcurementStatusBadge status={ticket.currentStep} />
+                    <ProcurementStatusBadge step={ticket.currentStep} label={ticket.currentStepName} />
                   </td>
 
                   {/* ACTION */}
