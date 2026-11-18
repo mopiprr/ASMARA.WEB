@@ -13,7 +13,7 @@ interface MaintenanceStatisticsProps {
   isLoading: boolean;
 }
 
-type StatusKey = 'active' | 'closed' | 'rejected' | null;
+type StatusKey = 'active' | 'completed' | 'rejected' | null;
 
 function MaintenanceStatistics({
   statistics: data,
@@ -35,17 +35,37 @@ function MaintenanceStatistics({
 
   const total = data?.totalRequests ?? 0;
   const active = data?.activeRequests ?? 0;
-  const closed = data?.closedRequests ?? 0;
   const rejected = data?.rejectedRequests ?? 0;
 
-  const denominator = Math.max(total, active + closed + rejected, 1);
-  const hasAnyData = total > 0 || active + closed + rejected > 0;
+  // Pisahkan tiket Completed murni dari Rejected (jika API masih menggabungkannya di closedRequests)
+  const rawStats = data as (MaintenanceStatisticsData & {
+    completedTickets?: number;
+    completedRequests?: number;
+  }) | null;
+
+  const completed =
+    rawStats?.completedTickets !== undefined
+      ? rawStats.completedTickets
+      : rawStats?.completedRequests !== undefined
+        ? rawStats.completedRequests
+        : data?.closedRequests !== undefined
+          ? Math.max(0, data.closedRequests - rejected)
+          : 0;
+
+  const displayCompleted =
+    isLoading && !data
+      ? '...'
+      : data
+        ? completed
+        : '-';
+
+  const denominator = Math.max(total, active + completed + rejected, 1);
+  const hasAnyData = total > 0 || active + completed + rejected > 0;
 
   const items = [
     {
       key: 'active' as const,
       title: 'Active Requests',
-      sublabel: 'Sedang diproses',
       value: show(data?.activeRequests),
       raw: active,
       pct: hasAnyData ? (active / denominator) * 100 : 0,
@@ -55,12 +75,11 @@ function MaintenanceStatistics({
       icon: RefreshCw,
     },
     {
-      key: 'closed' as const,
-      title: 'Closed Requests',
-      sublabel: 'Selesai ditangani',
-      value: show(data?.closedRequests),
-      raw: closed,
-      pct: hasAnyData ? (closed / denominator) * 100 : 0,
+      key: 'completed' as const,
+      title: 'Completed Tickets',
+      value: displayCompleted,
+      raw: completed,
+      pct: hasAnyData ? (completed / denominator) * 100 : 0,
       color: '#10b981', // Emerald 500
       barBg: 'bg-emerald-500',
       badgeBg: 'border-emerald-200/80 bg-emerald-50 text-emerald-600',
@@ -69,7 +88,6 @@ function MaintenanceStatistics({
     {
       key: 'rejected' as const,
       title: 'Rejected Requests',
-      sublabel: 'Tidak disetujui',
       value: show(data?.rejectedRequests),
       raw: rejected,
       pct: hasAnyData ? (rejected / denominator) * 100 : 0,
@@ -263,8 +281,6 @@ function MaintenanceStatistics({
                 <p className="mt-0.5 text-xs font-semibold text-slate-700">
                   {item.title}
                 </p>
-                <p className="text-[11px] text-slate-400">{item.sublabel}</p>
-
                 {/* Individual Progress Bar */}
                 <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200/70">
                   <div

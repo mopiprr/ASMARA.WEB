@@ -48,11 +48,13 @@ const ROUTE_LABELS: Record<string, string> = {
   detail: 'Detail',
 };
 
+// Batik Truntum Bintang 8 Sudut (Tile 38x38px = tepat 2 baris utuh di tinggi Topbar 76px)
+const TRUNTUM_SYMMETRIC_PATTERN = `url("data:image/svg+xml,%3Csvg width='38' height='38' viewBox='0 0 38 38' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none'%3E%3C!-- Bingkai Belah Ketupat Penghubung --%3E%3Cpath d='M19 0L38 19L19 38L0 19Z' stroke='%230d9488' stroke-width='1.1' stroke-opacity='0.22'/%3E%3C!-- Kelopak Bintang Simetris di Tengah --%3E%3Cpath d='M19 5C21.5 11 21.5 15 19 19C16.5 15 16.5 11 19 5Z' fill='%231d4ed8' fill-opacity='0.14'/%3E%3Cpath d='M19 33C21.5 27 21.5 23 19 19C16.5 23 16.5 27 19 33Z' fill='%231d4ed8' fill-opacity='0.14'/%3E%3Cpath d='M5 19C11 16.5 15 16.5 19 19C15 21.5 11 21.5 5 19Z' fill='%230d9488' fill-opacity='0.16'/%3E%3Cpath d='M33 19C27 16.5 23 16.5 19 19C23 21.5 27 21.5 33 19Z' fill='%230d9488' fill-opacity='0.16'/%3E%3C!-- Kelopak Diagonal --%3E%3Cpath d='M9 9L19 19M29 9L19 19M9 29L19 19M29 29L19 19' stroke='%230284c7' stroke-width='1' stroke-opacity='0.2'/%3E%3C!-- Titik Pusat & Sudut --%3E%3Ccircle cx='19' cy='19' r='2.2' fill='%231d4ed8' fill-opacity='0.32'/%3E%3Ccircle cx='0' cy='0' r='2' fill='%230d9488' fill-opacity='0.28'/%3E%3Ccircle cx='38' cy='0' r='2' fill='%230d9488' fill-opacity='0.28'/%3E%3Ccircle cx='0' cy='38' r='2' fill='%230d9488' fill-opacity='0.28'/%3E%3Ccircle cx='38' cy='38' r='2' fill='%230d9488' fill-opacity='0.28'/%3E%3C/g%3E%3C/svg%3E")`;
+
 function formatSegmentLabel(segment: string): string {
   if (ROUTE_LABELS[segment.toLowerCase()]) {
     return ROUTE_LABELS[segment.toLowerCase()];
   }
-  // Jika segmen berupa ID panjang/UUID, persingkat jadi "Detail"
   if (segment.length > 16 || /^[0-9a-f-]{8,}$/i.test(segment)) {
     return 'Detail';
   }
@@ -67,7 +69,6 @@ function getUserSubtitle(profile: UserProfile | null): string {
   const roles = profile.roles || [];
   const department = (profile.department || profile.departmentName || '').trim();
 
-  // Check if user has manager role (ROL-02, ROL-03, or contains 'Manager')
   const isManager = roles.some((role) => {
     const r = role.toUpperCase();
     return r === 'ROL-02' || r === 'ROL-03' || r.includes('MANAGER');
@@ -77,7 +78,6 @@ function getUserSubtitle(profile: UserProfile | null): string {
     return department ? `Manager - ${department}` : 'Manager';
   }
 
-  // Ordinary employee or non-manager: show department
   if (department) {
     return department;
   }
@@ -93,7 +93,6 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  // Bangun item breadcrumb dari URL aktif
   const pathSegments = pathname.split('/').filter(Boolean);
   const breadcrumbs = pathSegments.map((segment, index) => ({
     label: formatSegmentLabel(segment),
@@ -101,7 +100,6 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
     isLast: index === pathSegments.length - 1,
   }));
 
-  // Format tanggal ringkas (contoh: Rabu, 18 Nov 2026)
   const formattedDate = new Intl.DateTimeFormat('id-ID', {
     weekday: 'long',
     day: 'numeric',
@@ -128,7 +126,6 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
 
     void loadProfile();
 
-    // Refresh profile when authentication changes.
     window.addEventListener('auth-changed', loadProfile);
 
     return () => {
@@ -151,31 +148,53 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
   async function handleSignOut() {
     setProfile(null);
     setProfileOpen(false);
-    // Cabut refresh token di server, hapus cookie & sesi di browser.
     await logout();
-    // Redirect to login.
     navigate('/', { replace: true });
   }
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-[76px] items-center justify-between border-b border-slate-200 bg-white px-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)] sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-30 flex h-[76px] items-center justify-between border-b border-slate-200/90 bg-gradient-to-r from-blue-50/75 via-white/95 to-teal-50/75 px-4 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.05)] backdrop-blur-md sm:px-6 lg:px-8">
+        {/* Top Accent Strip */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-blue-700 via-sky-500 to-teal-500"
+        />
+
+        {/* Symmetric Batik Truntum Pattern Layer (Hanya di Topbar utama) */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+        >
+          <div
+            className="h-full w-full"
+            style={{
+              backgroundImage: TRUNTUM_SYMMETRIC_PATTERN,
+              backgroundSize: '38px 38px',
+              backgroundPosition: 'center top',
+            }}
+          />
+        </div>
+
         {/* Left Section: Mobile Trigger & Breadcrumb Navigation */}
-        <div className="flex min-w-0 items-center gap-3.5">
+        <div className="relative z-10 flex min-w-0 items-center gap-3.5">
           <button
             type="button"
             onClick={onOpenSidebar}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 active:scale-95 lg:hidden"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white/95 text-slate-600 shadow-2xs transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 active:scale-95 lg:hidden"
             aria-label="Buka menu"
           >
             <Menu size={20} />
           </button>
 
           {/* Breadcrumb Trail */}
-          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
+          <nav
+            aria-label="Breadcrumb"
+            className="flex min-w-0 items-center gap-1.5 text-sm"
+          >
             <Link
               to="/dashboard"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200/80 bg-white/95 text-slate-500 shadow-2xs transition-all hover:border-blue-200 hover:bg-white hover:text-blue-700"
               title="Ke Dashboard"
             >
               <Home size={16} />
@@ -183,15 +202,15 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
 
             {breadcrumbs.map((crumb) => (
               <div key={crumb.path} className="flex min-w-0 items-center gap-1.5">
-                <ChevronRight size={14} className="shrink-0 text-slate-300" />
+                <ChevronRight size={14} className="shrink-0 text-slate-400" />
                 {crumb.isLast ? (
-                  <span className="truncate rounded-lg bg-slate-100/80 px-2.5 py-1 text-xs font-semibold text-slate-800 sm:text-sm">
+                  <span className="truncate rounded-lg border border-blue-200/80 bg-white/95 px-3 py-1 text-xs font-semibold text-slate-800 shadow-2xs sm:text-sm">
                     {crumb.label}
                   </span>
                 ) : (
                   <Link
                     to={crumb.path}
-                    className="truncate rounded-lg px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 sm:text-sm"
+                    className="truncate rounded-lg bg-white/85 px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-white hover:text-slate-900 sm:text-sm"
                   >
                     {crumb.label}
                   </Link>
@@ -202,9 +221,9 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
         </div>
 
         {/* Right Section: Date Badge, Notification & User Pill */}
-        <div className="flex items-center gap-2.5 sm:gap-3.5">
+        <div className="relative z-10 flex items-center gap-2.5 sm:gap-3.5">
           {/* Date Pill (Desktop) */}
-          <div className="hidden items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/80 px-3 py-2 text-xs font-medium text-slate-600 md:flex">
+          <div className="hidden items-center gap-2 rounded-xl border border-teal-200/80 bg-white/95 px-3.5 py-2 text-xs font-medium text-slate-700 shadow-2xs md:flex">
             <CalendarDays size={15} className="text-teal-600" />
             <span>{formattedDate}</span>
           </div>
@@ -212,7 +231,7 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
           {/* Notification Button */}
           <button
             type="button"
-            className="group relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors duration-150 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 active:scale-95"
+            className="group relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white/95 text-slate-600 shadow-2xs transition-all duration-150 hover:border-blue-300 hover:bg-white hover:text-blue-700 active:scale-95"
             aria-label="Notifikasi"
           >
             <Bell
@@ -226,7 +245,7 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
             </span>
           </button>
 
-          <div className="hidden h-7 w-px bg-slate-200 sm:block" />
+          <div className="hidden h-7 w-px bg-slate-300/70 sm:block" />
 
           {/* Profile Dropdown Trigger */}
           <div className="relative">
@@ -234,14 +253,13 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
               type="button"
               onClick={() => setProfileOpen((prev) => !prev)}
               aria-expanded={profileOpen}
-              className={`group flex items-center gap-2.5 rounded-xl border py-1.5 pl-1.5 pr-2.5 transition-colors duration-150 ${
+              className={`group flex items-center gap-2.5 rounded-xl border py-1.5 pl-1.5 pr-3 shadow-2xs transition-all duration-150 ${
                 profileOpen
-                  ? 'border-sky-200 bg-sky-50'
-                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                  ? 'border-teal-300 bg-teal-50/90'
+                  : 'border-slate-200 bg-white/95 hover:border-teal-300 hover:bg-white'
               }`}
             >
-              {/* Avatar dengan gradasi selaras logo ASMARA & status aktif */}
-              <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-700 to-teal-600 text-xs font-bold tracking-wider text-white">
+              <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-700 to-teal-600 text-xs font-bold tracking-wider text-white shadow-xs">
                 {initials}
                 <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
               </div>
@@ -262,13 +280,13 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
                 size={15}
                 className={`hidden text-slate-400 transition-transform duration-200 sm:block ${
                   profileOpen
-                    ? 'rotate-180 text-slate-700'
+                    ? 'rotate-180 text-teal-700'
                     : 'group-hover:text-slate-600'
                 }`}
               />
             </button>
 
-            {/* Profile Dropdown Menu */}
+            {/* Profile Dropdown Menu (Bersih tanpa motif batik) */}
             {profileOpen && (
               <>
                 <div
@@ -278,7 +296,6 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
                 />
 
                 <div className="absolute right-0 top-[54px] z-50 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_14px_32px_-8px_rgba(15,23,42,0.16)] ring-1 ring-slate-950/5">
-                  {/* User Info Header */}
                   <div className="mb-1 rounded-xl bg-slate-50 px-3.5 py-3">
                     <p className="truncate text-sm font-semibold text-slate-900">
                       {displayName}
