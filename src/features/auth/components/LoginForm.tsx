@@ -1,4 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -7,7 +13,6 @@ import {
   EyeOff,
   LoaderCircle,
   LockKeyhole,
-  LogIn,
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
@@ -20,9 +25,9 @@ type LoginStatus = 'idle' | 'verifying' | 'error';
 
 type LoginFormProps = {
   onLoginSuccess?: (username: string) => void;
+  onActiveStateChange?: (isActive: boolean) => void;
 };
 
-// Hanya terima path internal (cegah redirect ke situs lain).
 function getSafeRedirect(path: string | null | undefined) {
   if (!path || !path.startsWith('/') || path.startsWith('//') || path === '/') {
     return null;
@@ -33,12 +38,11 @@ function getSafeRedirect(path: string | null | undefined) {
 
 const EASE = 'cubic-bezier(.22, 1, .36, 1)';
 
-function LoginForm({ onLoginSuccess }: LoginFormProps) {
+function LoginForm({ onLoginSuccess, onActiveStateChange }: LoginFormProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
-  // Halaman asal: dari ProtectedRoute (state) atau dari interceptor (?from=).
   const fromState = (
     location.state as { from?: { pathname: string; search?: string } } | null
   )?.from;
@@ -64,8 +68,8 @@ function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const busy = status === 'verifying';
   const failed = status === 'error' || Boolean(errorMessage);
 
-  // Tetap terbuka otomatis jika sedang diisi, loading, error, atau sukses
-  const forceExpanded = Boolean(
+  // Beritahu LoginPage agar panel tetap terbuka saat ada input, loading, error, atau sukses
+  const isFormActive = Boolean(
     username ||
       password ||
       errorMessage ||
@@ -75,6 +79,10 @@ function LoginForm({ onLoginSuccess }: LoginFormProps) {
   );
 
   useEffect(() => {
+    onActiveStateChange?.(isFormActive);
+  }, [isFormActive, onActiveStateChange]);
+
+  useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => setReduced(media.matches);
     update();
@@ -82,7 +90,7 @@ function LoginForm({ onLoginSuccess }: LoginFormProps) {
     return () => media.removeEventListener('change', update);
   }, []);
 
-  // Animasi perpindahan step & stamp sukses
+  // Animasi transisi ke layar sukses & stamp
   useLayoutEffect(() => {
     if (reduced || !rootRef.current) return;
     const animations: Animation[] = [];
@@ -117,7 +125,7 @@ function LoginForm({ onLoginSuccess }: LoginFormProps) {
     return () => animations.forEach((a) => a.cancel());
   }, [step, reduced]);
 
-  // Animasi getar (shake) saat login gagal
+  // Animasi getar (shake) saat gagal login
   useLayoutEffect(() => {
     if (reduced || !failed || step !== 'credentials') return;
     const fields = rootRef.current?.querySelector('[data-form-fields]');
@@ -152,7 +160,7 @@ function LoginForm({ onLoginSuccess }: LoginFormProps) {
       const targetPath = redirectTo ?? getHomePath();
       window.setTimeout(() => {
         navigate(targetPath, { replace: true });
-      }, 1350);
+      }, 1500);
     } catch (error) {
       setStatus('error');
       if (axios.isAxiosError(error)) {
@@ -181,270 +189,223 @@ function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const currentStepIndex = step === 'success' ? 2 : busy ? 1 : 0;
 
   return (
-    <>
+    <div ref={rootRef} className="w-full">
       <style>{`
-        @keyframes spin-border-dual {
+        @keyframes dashboard-progress {
           0% {
-            transform: translate(-50%, -50%) rotate(0deg);
+            width: 0%;
           }
           100% {
-            transform: translate(-50%, -50%) rotate(360deg);
+            width: 100%;
           }
         }
-        .animate-border-dual {
-          animation: spin-border-dual 4.5s linear infinite;
+        .animate-dashboard-progress {
+          animation: dashboard-progress 1.45s cubic-bezier(.22, 1, .36, 1) forwards;
         }
       `}</style>
 
-      {/* Outer Wrapper dengan Efek Dual-Color Rotating Border */}
-      <div
-        ref={rootRef}
-        className={`group/login relative mx-auto w-full overflow-hidden rounded-[28px] p-[2px] shadow-[0_18px_40px_-15px_rgba(15,23,42,0.14)] transition-all duration-500 ease-out ${
-          forceExpanded
-            ? 'max-w-[430px]'
-            : 'max-w-[300px] hover:max-w-[430px] focus-within:max-w-[430px]'
-        }`}
-      >
-        {/* Border Animasi 2 Warna */}
-        <div
-          aria-hidden="true"
-          className="animate-border-dual pointer-events-none absolute left-1/2 top-1/2 h-[220%] w-[220%] opacity-85 transition-opacity duration-500 group-hover/login:opacity-100"
-          style={{
-            background:
-              'conic-gradient(from 0deg, transparent 0deg, #1d4ed8 65deg, #0d9488 130deg, transparent 180deg, transparent 200deg, #0ea5e9 265deg, #10b981 330deg, transparent 360deg)',
-          }}
-        />
-
-        {/* Inner Card */}
-        <div className="relative overflow-hidden rounded-[26px] bg-white text-slate-900">
-          {/* Top Bar Kartu */}
-          <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-6 py-3.5">
-            <span className="flex min-w-0 items-center gap-2.5 text-sm font-semibold">
-              <span
-                aria-hidden="true"
-                className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-700 to-teal-600 text-white shadow-xs"
-              >
-                <LogIn className="size-3.5" />
-              </span>
-              <span className="truncate text-slate-800">ASMARA Access</span>
-            </span>
-
-            <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] font-medium text-slate-500">
-              {step === 'success'
-                ? 'Verified'
-                : forceExpanded
-                  ? 'SSO / Account'
-                  : 'Hover to Sign In'}
-            </span>
-          </div>
-
-          {/* Expanding Body */}
-          <div
-            className={`grid transition-[grid-template-rows,opacity] duration-500 ease-out ${
-              forceExpanded
-                ? 'grid-rows-[1fr] opacity-100'
-                : 'grid-rows-[0fr] opacity-0 group-hover/login:grid-rows-[1fr] group-hover/login:opacity-100 group-focus-within/login:grid-rows-[1fr] group-focus-within/login:opacity-100'
-            }`}
+      <div data-step-body key={step}>
+        {step === 'credentials' ? (
+          <form
+            data-form-fields
+            aria-busy={busy}
+            onSubmit={handleSubmit}
+            className="space-y-4"
           >
-            <div className="overflow-hidden">
-              <div data-step-body key={step} className="px-6 py-5 sm:px-7">
-                {step === 'credentials' ? (
-                  <form
-                    data-form-fields
-                    aria-busy={busy}
-                    onSubmit={handleSubmit}
-                    className="space-y-4"
-                  >
-                    {/* USERNAME */}
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
-                        Username
-                      </label>
-                      <div className="relative">
-                        <UserRound className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="text"
-                          value={username}
-                          onChange={(e) => {
-                            setUsername(e.target.value);
-                            if (errorMessage) setErrorMessage('');
-                            if (status === 'error') setStatus('idle');
-                          }}
-                          placeholder="Masukkan username"
-                          required
-                          disabled={busy}
-                          autoComplete="username"
-                          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/80 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
-                        />
-                      </div>
-                    </div>
+            {/* USERNAME */}
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
+                Username
+              </label>
+              <div className="relative">
+                <UserRound className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    if (errorMessage) setErrorMessage('');
+                    if (status === 'error') setStatus('idle');
+                  }}
+                  placeholder="input username"
+                  required
+                  disabled={busy}
+                  autoComplete="username"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/80 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+                />
+              </div>
+            </div>
 
-                    {/* PASSWORD */}
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
-                        Password
-                      </label>
-                      <div className="relative">
-                        <LockKeyhole className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          value={password}
-                          onChange={(e) => {
-                            setPassword(e.target.value);
-                            if (errorMessage) setErrorMessage('');
-                            if (status === 'error') setStatus('idle');
-                          }}
-                          placeholder="Masukkan password"
-                          required
-                          disabled={busy}
-                          autoComplete="current-password"
-                          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/80 pl-10 pr-11 text-sm text-slate-800 outline-none transition focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          disabled={busy}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
-                          aria-label={
-                            showPassword
-                              ? 'Sembunyikan password'
-                              : 'Tampilkan password'
-                          }
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
+            {/* PASSWORD */}
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
+                Password
+              </label>
+              <div className="relative">
+                <LockKeyhole className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errorMessage) setErrorMessage('');
+                    if (status === 'error') setStatus('idle');
+                  }}
+                  placeholder="input password"
+                  required
+                  disabled={busy}
+                  autoComplete="current-password"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/80 pl-10 pr-11 text-sm text-slate-800 outline-none transition focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={busy}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
+                  aria-label={
+                    showPassword ? 'Sembunyikan password' : 'Tampilkan password'
+                  }
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
 
-                    {/* SESSION EXPIRED */}
-                    {isSessionExpired && !errorMessage && (
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-xs text-amber-700">
-                        Sesi Anda telah berakhir. Silakan login kembali.
-                      </div>
-                    )}
+            {/* SESSION EXPIRED */}
+            {isSessionExpired && !errorMessage && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-xs text-amber-700">
+                Sesi Anda telah berakhir. Silakan login kembali.
+              </div>
+            )}
 
-                    {/* ERROR MESSAGE */}
-                    {errorMessage && (
-                      <div
-                        role="alert"
-                        className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-medium text-rose-600"
-                      >
-                        {errorMessage}
-                      </div>
-                    )}
+            {/* ERROR MESSAGE */}
+            {errorMessage && (
+              <div
+                role="alert"
+                className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-medium text-rose-600"
+              >
+                {errorMessage}
+              </div>
+            )}
 
-                    {/* REMEMBER ME */}
-                    <div className="flex items-center justify-between pt-0.5">
-                      <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600">
-                        <input
-                          type="checkbox"
-                          checked={rememberMe}
-                          onChange={(e) => setRememberMe(e.target.checked)}
-                          disabled={busy}
-                          className="h-4 w-4 rounded accent-blue-700"
-                        />
-                        Remember me
-                      </label>
-                    </div>
+            {/* REMEMBER ME */}
+            <div className="flex items-center justify-between pt-0.5">
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={busy}
+                  className="h-4 w-4 rounded accent-blue-700"
+                />
+                Remember me
+              </label>
+            </div>
 
-                    {/* SUBMIT BUTTON */}
-                    <button
-                      type="submit"
-                      disabled={busy}
-                      className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-700 to-teal-600 text-sm font-semibold text-white shadow-lg shadow-blue-700/20 transition-all hover:from-blue-800 hover:to-teal-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-75"
-                    >
-                      {busy ? (
-                        <>
-                          <LoaderCircle
-                            aria-hidden="true"
-                            className="size-4 animate-spin"
-                          />
-                          <span>Memverifikasi akun...</span>
-                        </>
-                      ) : (
-                        <span>Login</span>
-                      )}
-                    </button>
-                  </form>
-                ) : (
-                  /* SUCCESS STAMP VIEW (Seperti referensi) */
-                  <div className="flex min-h-[250px] flex-col items-center justify-center py-4 text-center">
-                    <div
-                      data-success-stamp
-                      aria-hidden="true"
-                      className="mb-5 flex size-[74px] items-center justify-center rounded-full border border-teal-200 bg-gradient-to-br from-blue-600 to-teal-500 text-white shadow-lg shadow-teal-500/25 ring-8 ring-teal-500/10"
-                    >
-                      <Check className="size-9" strokeWidth={2.2} />
-                    </div>
+            {/* SUBMIT BUTTON DENGAN ANIMASI LOADING */}
+            <button
+              type="submit"
+              disabled={busy}
+              className="relative flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-blue-700 to-teal-600 text-sm font-semibold text-white shadow-lg shadow-blue-700/20 transition-all hover:from-blue-800 hover:to-teal-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-85"
+            >
+              {busy ? (
+                <>
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="size-4 animate-spin"
+                  />
+                  <span>Memverifikasi kredensial...</span>
+                </>
+              ) : (
+                <span>Login</span>
+              )}
+            </button>
+          </form>
+        ) : (
+          /* SUCCESS & LOADING TRANSITION KE DASHBOARD */
+          <div className="flex flex-col items-center justify-center py-4 text-center">
+            <div
+              data-success-stamp
+              aria-hidden="true"
+              className="mb-4 flex size-[72px] items-center justify-center rounded-full border border-teal-200 bg-gradient-to-br from-blue-600 to-teal-500 text-white shadow-lg shadow-teal-500/25 ring-8 ring-teal-500/10"
+            >
+              <Check className="size-9" strokeWidth={2.3} />
+            </div>
 
-                    <h3 className="text-2xl font-bold tracking-tight text-slate-900">
-                      You&apos;re in
-                    </h3>
-                    <p className="mt-1.5 text-xs text-slate-500">
-                      Selamat datang kembali,{' '}
-                      <span className="font-semibold text-slate-700">
-                        {username}
-                      </span>
-                    </p>
+            <h3 className="text-xl font-bold tracking-tight text-slate-900">
+              You&apos;re in!
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Selamat datang kembali,{' '}
+              <span className="font-semibold text-slate-800">{username}</span>
+            </p>
 
-                    <span className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium text-slate-600">
-                      <ShieldCheck
-                        className="size-3.5 text-teal-600"
-                        aria-hidden="true"
-                      />
-                      Mengalihkan ke Dashboard...
-                    </span>
-                  </div>
-                )}
+            {/* Progress Bar Loading Masuk Dashboard */}
+            <div className="mt-5 w-full max-w-[260px]">
+              <div className="mb-2 flex items-center justify-center gap-1.5 text-[11px] font-medium text-slate-600">
+                <LoaderCircle className="size-3.5 animate-spin text-blue-600" />
+                <span>Menyiapkan ruang kerja Dashboard...</span>
               </div>
 
-              {/* Stepper Progress Footer (Seperti referensi) */}
-              <ol
-                aria-label="Sign-in progress"
-                className="flex items-center justify-center gap-4 border-t border-slate-100 bg-slate-50/60 px-6 py-2.5"
-              >
-                {(['Credentials', 'Verify', "You're in"] as const).map(
-                  (label, index) => {
-                    const active = currentStepIndex === index;
-                    const done = index < currentStepIndex;
-                    return (
-                      <li
-                        key={label}
-                        aria-current={active ? 'step' : undefined}
-                        className={`flex items-center gap-1.5 text-[10px] font-medium ${
-                          active || done ? 'text-slate-800' : 'text-slate-400'
-                        }`}
-                      >
-                        <span
-                          className={`flex size-4 items-center justify-center rounded-full text-[9px] font-semibold transition-colors ${
-                            active
-                              ? 'bg-teal-600 text-white'
-                              : done
-                                ? 'bg-blue-700 text-white'
-                                : 'bg-slate-200 text-slate-500'
-                          }`}
-                        >
-                          {done ? (
-                            <Check className="size-2.5" aria-hidden="true" />
-                          ) : (
-                            index + 1
-                          )}
-                        </span>
-                        {label}
-                      </li>
-                    );
-                  }
-                )}
-              </ol>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                <div className="animate-dashboard-progress h-full rounded-full bg-gradient-to-r from-blue-600 to-teal-500" />
+              </div>
             </div>
+
+            <span className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-slate-50 px-3 py-1 text-[10px] font-medium text-slate-500">
+              <ShieldCheck
+                className="size-3.5 text-teal-600"
+                aria-hidden="true"
+              />
+              Sesi terenkripsi aktif
+            </span>
           </div>
-        </div>
+        )}
       </div>
-    </>
+
+      {/* Stepper Progress Indicator */}
+      <ol
+        aria-label="Sign-in progress"
+        className="mt-6 flex items-center justify-center gap-4 border-t border-slate-100 pt-4"
+      >
+        {(['Credentials', 'Verify', "You're in"] as const).map(
+          (label, index) => {
+            const active = currentStepIndex === index;
+            const done = index < currentStepIndex;
+            return (
+              <li
+                key={label}
+                aria-current={active ? 'step' : undefined}
+                className={`flex items-center gap-1.5 text-[11px] font-medium ${
+                  active || done ? 'text-slate-800' : 'text-slate-400'
+                }`}
+              >
+                <span
+                  className={`flex size-4 items-center justify-center rounded-full text-[9px] font-semibold transition-colors ${
+                    active
+                      ? 'bg-teal-600 text-white'
+                      : done
+                        ? 'bg-blue-700 text-white'
+                        : 'bg-slate-200 text-slate-500'
+                  }`}
+                >
+                  {done ? (
+                    <Check className="size-2.5" aria-hidden="true" />
+                  ) : (
+                    index + 1
+                  )}
+                </span>
+                {label}
+              </li>
+            );
+          }
+        )}
+      </ol>
+    </div>
   );
 }
 

@@ -49,9 +49,9 @@ function MaintenanceStatistics({
       value: show(data?.activeRequests),
       raw: active,
       pct: hasAnyData ? (active / denominator) * 100 : 0,
-      color: '#f59e0b', // Amber 500
-      barBg: 'bg-amber-500',
-      badgeBg: 'border-amber-200/80 bg-amber-50 text-amber-600',
+      color: '#8b5cf6', // Violet 500
+      barBg: 'bg-violet-500',
+      badgeBg: 'border-violet-200/80 bg-violet-50 text-violet-600',
       icon: RefreshCw,
     },
     {
