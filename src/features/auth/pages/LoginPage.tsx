@@ -2,8 +2,7 @@ import LoginForm from '../components/LoginForm';
 
 function LoginPage() {
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-4 md:p-8 bg-gray-950">
-
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gray-950 p-4 md:p-8">
       {/* BACKGROUND */}
       <div
         className="absolute inset-0 scale-105"
@@ -20,7 +19,6 @@ function LoginPage() {
 
       {/* LOGIN PANEL */}
       <section className="relative z-10 w-full max-w-[520px] rounded-[32px] border border-white/40 bg-white/95 p-8 shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:p-10">
-
         {/* LOGO */}
         <div className="mb-6 flex justify-center">
           <img
@@ -44,7 +42,7 @@ function LoginPage() {
         </div>
 
         {/* FORM */}
-        <div className="[&_input]:rounded-xl [&_input]:border-gray-200 [&_input]:bg-gray-50/50 [&_input]:py-3.5 [&_input]:text-base [&_input]:transition-all [&_input:focus]:border-blue-600 [&_input:focus]:bg-white [&_input:focus]:ring-2 [&_input:focus]:ring-blue-100 [&_button]:rounded-xl [&_button]:py-3.5 [&_button]:text-base [&_button]:transition-all">
+        <div>
           <LoginForm />
         </div>
 
@@ -58,7 +56,6 @@ function LoginPage() {
             © {new Date().getFullYear()} Mitra Integrasi Informatika
           </p>
         </div>
-
       </section>
     </main>
   );
