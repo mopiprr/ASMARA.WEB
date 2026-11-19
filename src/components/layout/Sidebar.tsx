@@ -170,15 +170,15 @@ function Sidebar({
           aria-label="Tutup menu"
           onClick={onCloseMobile}
           onKeyDown={(e) => e.key === 'Escape' && onCloseMobile()}
-          className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-xs transition-opacity lg:hidden"
+          className="fixed inset-0 z-30 bg-slate-900/30 backdrop-blur-xs transition-opacity lg:hidden"
         />
       )}
 
-      {/* Sidebar Putih Bersih & Elegan */}
+      {/* Sidebar Putih Bersih & Elegan (z-30 agar ikut buram saat dialog konfirmasi muncul) */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-slate-200/80 bg-white text-slate-800 shadow-[4px_0_24px_-12px_rgba(15,23,42,0.08)] transition-[width,transform] duration-300 ease-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-slate-200/80 bg-white text-slate-800 shadow-[4px_0_24px_-12px_rgba(15,23,42,0.08)] transition-[width,transform] duration-300 ease-out lg:translate-x-0 ${
           collapsed ? 'w-[80px]' : 'w-[258px]'
-        } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        } ${mobileOpen ? 'z-40 translate-x-0' : '-translate-x-full'}`}
       >
         {/* Brand Header */}
         <div
@@ -197,15 +197,15 @@ function Sidebar({
           </div>
 
           {!collapsed && (
-  <div className="-mt-6 text-center">
-    <p className="text-lg font-bold leading-tight tracking-wider text-slate-900">
-      ASMARA
-    </p>
-    <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-700">
-      Asset Management Sarana
-    </p>
-  </div>
-)}
+            <div className="-mt-6 text-center">
+              <p className="text-lg font-bold leading-tight tracking-wider text-slate-900">
+                ASMARA
+              </p>
+              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-700">
+                Asset Management Sarana
+              </p>
+            </div>
+          )}
 
           {/* Tombol tutup khusus Mobile */}
           <button

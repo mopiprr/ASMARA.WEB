@@ -1,7 +1,3 @@
-import { CalendarDays } from 'lucide-react';
-
-import { formatToday } from '../utils/dashboard.utils';
-
 interface DashboardHeaderProps {
   fullName: string;
 }
@@ -21,11 +17,6 @@ function DashboardHeader({ fullName }: DashboardHeaderProps) {
         <p className="mt-2 text-sm text-slate-500">
           Welcome back, {fullName}! Here's your ticket activity overview.
         </p>
-      </div>
-
-      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600 shadow-sm">
-        <CalendarDays size={17} className="text-slate-400" />
-        {formatToday()}
       </div>
     </div>
   );
