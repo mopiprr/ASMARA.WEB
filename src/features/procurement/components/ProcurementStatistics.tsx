@@ -128,7 +128,7 @@ function ProcurementStatistics({
                 Procurement Tickets
               </h3>
               <p className="text-[11px] text-slate-400">
-                Distribusi status pengajuan Anda
+                Your submission status distribution
               </p>
             </div>
           </div>
