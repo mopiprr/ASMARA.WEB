@@ -348,7 +348,7 @@ function LoginForm({ onLoginSuccess, onActiveStateChange }: LoginFormProps) {
             <div className="mt-5 w-full max-w-[260px]">
               <div className="mb-2 flex items-center justify-center gap-1.5 text-[11px] font-medium text-slate-600">
                 <LoaderCircle className="size-3.5 animate-spin text-blue-600" />
-                <span>Menyiapkan ruang kerja Dashboard...</span>
+                <span>Loading Dashboard...</span>
               </div>
 
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
