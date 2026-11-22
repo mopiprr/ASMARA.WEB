@@ -14,6 +14,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { getAccessToken, logout } from '../../services/authSession';
+import { createPortal } from 'react-dom';
 
 type TopbarProps = {
   onOpenSidebar: () => void;
@@ -355,17 +356,23 @@ function Topbar({ onOpenSidebar }: TopbarProps) {
       </header>
 
       {/* SIGN OUT CONFIRMATION DIALOG */}
-      <ConfirmDialog
-        isOpen={showSignOutConfirm}
-        title="Sign Out"
-        message="Are you sure you want to sign out?"
-        description="You will be logged out of your session and redirected to the login screen."
-        type="danger"
-        confirmText="Yes, Sign Out"
-        cancelText="Cancel"
-        onConfirm={handleSignOut}
-        onCancel={() => setShowSignOutConfirm(false)}
-      />
+      
+{/* SIGN OUT CONFIRMATION DIALOG */}
+{createPortal(
+  <ConfirmDialog
+    isOpen={showSignOutConfirm}
+    title="Sign Out"
+    message="Are you sure you want to sign out?"
+    description="You will be logged out of your session and redirected to the login screen."
+    type="danger"
+    confirmText="Yes, Sign Out"
+    cancelText="Cancel"
+    onConfirm={handleSignOut}
+    onCancel={() => setShowSignOutConfirm(false)}
+  />,
+  document.body
+)}
+
     </>
   );
 }
